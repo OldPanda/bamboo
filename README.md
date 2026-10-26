@@ -142,7 +142,7 @@ open build/Bamboo.app --args --workspace "/path/to/data-folder"
 
 ## Explore Data
 
-Explore Data combines the query editor and data preview in one view. Open a file to see both, run read-only SQL above the results, or switch to Schema to inspect column types.
+Explore Data combines the query editor and data preview in one view. File switching keeps the previous coherent preview visible while loading, then updates the title, editor and table together. Controls remain visually steady and brief operations do not flash a loading overlay. Open a file to see both, run read-only SQL above the results, or switch to Schema to inspect column types.
 
 ## Table text selection
 

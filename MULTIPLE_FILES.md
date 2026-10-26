@@ -18,18 +18,18 @@ The full `npm run coverage` workflow passed against the final sources, rebuildin
 
 | Measurement | Result |
 |---|---:|
-| All Go, ordinary tests only | 81.43% (557/684) |
-| All Go, tests + instrumented desktop | **95.91% (656/684)** |
+| All Go, ordinary tests only | 80.84% (557/689) |
+| All Go, tests + instrumented desktop | **95.94% (661/689)** |
 | Core logic, ordinary tests | 97.46% (537/551) |
 | All production Go including startup, tests + desktop | 96.05% (559/582) |
-| Frontend statements | 100% (482/482) |
-| Frontend branches | 97.22% (175/180) |
+| Frontend statements | 100% (501/501) |
+| Frontend branches | 97.25% (177/182) |
 | Frontend functions / lines | 100% / 100% |
 
-- 18 frontend behavioral scenarios passed. They cover independent drafts/results, pagination/view switching, duplicate opens, no duplicate sidebar entries, tree close controls after refresh, hiding the empty outside list, path boundaries, nested/root workspaces, cascading workspace closure with unrelated files retained and failed writes preserved, inactive/active/last-file closure and recovery when a neighboring file disappears.
+- 19 frontend behavioral scenarios passed. They cover independent drafts/results, pagination/view switching, duplicate opens, no duplicate sidebar entries, tree close controls after refresh, hiding the empty outside list, path boundaries, nested/root workspaces, cascading workspace closure with unrelated files retained and failed writes preserved, inactive/active/last-file closure and recovery when a neighboring file disappears.
 - Real Go tests include multi-root authorization, selective closing, saved-file clearing, failed writes, old-config migration, missing-root restoration, and engine release/reuse. Existing DuckDB million-row, precise-value, query-boundary, cancellation and export tests also passed.
-- Instrumented native runs passed 75 assertions: 19 standard, 15 folder creation, 9 process restart, 24 multi-file and 8 multi-root restart/closing checks.
-- The delivered signed app separately passed the 19 standard and 32 new multi-file/restart assertions. Those runs add no coverage counters.
+- Instrumented native runs passed 99 assertions: 19 standard, 15 folder creation, 9 process restart, 24 multi-file 8 multi-root restart/closing checks, and 24 wide/narrow switch-stability checks.
+- The delivered signed app separately passed the 19 standard, 32 multi-file/restart and 24 switch-stability assertions. Those runs add no coverage counters.
 - New native checks use two real throwaway roots containing identically named real Parquet files plus a third real outside file. SQL and file operations use production IPC and DuckDB. The outside file enters through a synthetic already-delivered MyGo drop event; this is **not** actual Finder gesture validation.
 - TypeScript, go vet, npm audit, pinned govulncheck and app signature verification passed. Dependency scans reported no known vulnerabilities. Native DuckDB/MyGo libraries are not exhaustively covered by these advisory scanners. No separate security-audit skill was available.
 - Actual light, dark and 700px narrow screenshots were inspected. Both sidebar sections remain labeled, and workspace trees scroll independently. Native checks assert no document-width overflow and reachable result pagination.

@@ -113,6 +113,12 @@ def main():
                 for phase, count in [("multi", 24), ("multi-restore", 8)]:
                     smoke(binary, fixture, ROOT, target / phase, covered=covered, launch_args=[],
                           extra_env={"BAMBOO_CONFIG_DIR": str(config), "BAMBOO_WORKSPACE_SMOKE": phase}, expected_checks=count)
+        for binary, target, covered in [(ROOT / "build/bamboo-covered", desktop, True),
+                                        (ROOT / "build/Bamboo.app/Contents/MacOS/Bamboo", OUT / "app-desktop", False)]:
+            for phase in ["stable", "stable-narrow"]:
+                smoke(binary, fixture, ROOT, target / phase, covered=covered,
+                      launch_args=["--workspace", str(fixture.parent)],
+                      extra_env={"BAMBOO_WORKSPACE_SMOKE": phase}, expected_checks=12)
         for name, expected in [("missing-script", "no such file"), ("script-error", "expected smoke failure")]:
             with tempfile.TemporaryDirectory(prefix="bamboo-smoke-") as d:
                 if name == "script-error":

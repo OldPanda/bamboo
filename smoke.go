@@ -39,6 +39,13 @@ func smoke(win *mygo.Window) {
 		if workspacePhase == "multi" || workspacePhase == "multi-restore" {
 			scriptPath = "scripts/multi-smoke.js"
 		}
+		if workspacePhase == "stable" || workspacePhase == "stable-narrow" {
+			scriptPath = "scripts/switch-smoke.js"
+		}
+		if workspacePhase == "stable-narrow" {
+			win.SetSize(700, 640)
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
 	script, err := os.ReadFile(scriptPath)
 	if err != nil {

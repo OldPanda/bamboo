@@ -163,20 +163,33 @@ async function directory(container: HTMLElement, info: Info, rel: string, offset
 }
 async function activate(f: DataFile, saved?: {draft:string;applied:string}) {
   const cached=documents.get(f.path);
+  const draft=cached ? cached.draft : saved ? saved.draft : "SELECT * FROM data";
+  let applied=cached ? cached.applied : saved?.applied || "SELECT * FROM data";
+  const initial:Request={sql:"SELECT * FROM data",offset:0,limit:Number($<HTMLSelectElement>("page-size").value),sort:"",desc:false,filterColumn:"",filterValue:""};
+  let next=cached ? {...cached.request} : {...initial,sql:applied};
+  let loaded:Result, warning="";
+  try{loaded=await queryResult(next);}catch(e){
+    next=initial;applied=initial.sql;
+    warning=`Saved query could not run; showing the file preview. Draft preserved. ${String(e)}`;
+    try{loaded=await queryResult(next);}catch(error){
+      // The backend already opened this file. Never leave another file's rows
+      // visible as if they belonged to the new engine after a failed preview.
+      showFile(f);$<HTMLTextAreaElement>("sql").value=draft;
+      rememberCurrent();updateFolder();throw error;
+    }
+  }
+  // Commit metadata, editor, view and result together, without an IPC await
+  // between clearing the previous table and painting its replacement.
   showFile(f);
-  $<HTMLTextAreaElement>("sql").value=cached ? cached.draft : saved ? saved.draft : appliedSQL;
-  appliedSQL=cached ? cached.applied : saved?.applied || "SELECT * FROM data";
-  const next=cached ? {...cached.request} : {...request,sql:appliedSQL};
+  $<HTMLTextAreaElement>("sql").value=draft;
+  appliedSQL=applied;request=next;
   $<HTMLSelectElement>("page-size").value=String(next.limit);
   $<HTMLInputElement>("filter-value").value=next.filterValue;
-  rememberCurrent(); updateFolder();
+  render(loaded);setView(cached ? cached.view : "explore");rememberCurrent();updateFolder();
   $("query-save").textContent=folder ? "Saved locally" : "Kept for this session";
-  try{await run(next);}catch(e){
-    appliedSQL="SELECT * FROM data";await run({...request,sql:appliedSQL});
-    notify(`Saved query could not run; showing the file preview. Draft preserved. ${String(e)}`,true);
-  }
-  setView(cached ? cached.view : "explore");rememberCurrent();updateFolder();
+  if(warning)notify(warning,true);
 }
+
 async function openFolderFile(info: Info,path:string){
   const opened=await Workbench.openWorkspaceFile(info.root,path);
   if(!opened?.file)throw new Error("No file returned");
@@ -285,6 +298,8 @@ function controls() {
 async function task(label: string, fn: () => Promise<void>) {
   if (busy) return;
   busy = true;
+  document.body.classList.add("is-busy");
+  $("workspace").setAttribute("aria-busy", "true");
   $("busy").hidden = false;
   $("busy-text").textContent = label;
   $("notification").hidden = true;
@@ -295,6 +310,8 @@ async function task(label: string, fn: () => Promise<void>) {
     notify(e instanceof Error ? e.message : String(e), true);
   } finally {
     busy = false;
+    document.body.classList.remove("is-busy");
+    $("workspace").setAttribute("aria-busy", "false");
     $("busy").hidden = true;
     controls();
   }
@@ -440,9 +457,13 @@ function render(r: Result) {
   select.value = request.filterColumn;
   $("grid-scroll").scrollTop = 0;
 }
-async function run(next: Request) {
+async function queryResult(next: Request) {
   const r = await Workbench.query(next);
   if (!r) throw new Error("No query result returned");
+  return r;
+}
+async function run(next: Request) {
+  const r = await queryResult(next);
   request = next;
   render(r);
 }

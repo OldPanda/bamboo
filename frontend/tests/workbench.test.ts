@@ -318,6 +318,18 @@ describe("multiple open files and workspaces",()=>{
   expect(bridge.call.mock.calls.filter(([n])=>n==="Workbench.Query")).toHaveLength(count);
   await openedAction(outside.path,"close-file");expect($("welcome").hidden).toBe(false);expect(openedRows()).toHaveLength(0);
  });
+ it("keeps the old preview intact until the next file result is ready and commits atomically",async()=>{
+  const a={...dataFile(),name:"a.parquet",path:"/a.parquet"},b={...dataFile(),name:"b.parquet",path:"/b.parquet"};
+  responses["Workbench.Open"]=()=>a;await open();await click("tab-schema");
+  const oldTable=$("grid").textContent;
+  let finish!:(r:Result)=>void;responses["Workbench.Open"]=()=>b;responses["Workbench.Query"]=()=>new Promise<Result>(resolve=>{finish=resolve;});
+  $("open").click();await vi.waitFor(()=>expect(finish).toBeTypeOf("function"));
+  expect($("file-name").textContent).toBe("a.parquet");expect($("grid").textContent).toBe(oldTable);expect($("schema-panel").hidden).toBe(false);expect(document.body.classList.contains("is-busy")).toBe(true);
+  finish({...page(),rows:[["b-row","new","time"]]});await settled();
+  expect($("file-name").textContent).toBe("b.parquet");expect($("grid").textContent).toContain("b-row");expect($("schema-panel").hidden).toBe(true);expect(document.body.classList.contains("is-busy")).toBe(false);
+  responses["Workbench.Open"]=()=>a;responses["Workbench.Query"]=()=>{throw new Error("preview unavailable")};await click("open");
+  expect($("file-name").textContent).toBe("a.parquet");expect($("grid").querySelectorAll("tbody tr")).toHaveLength(0);expect($<HTMLButtonElement>("export").disabled).toBe(true);expect($("notification").textContent).toBe("preview unavailable");
+ });
  it("keeps surviving files available if a neighbor disappears during close",async()=>{
   const a={...dataFile(),name:"a",path:"/a.parquet"},b={...dataFile(),name:"b",path:"/b.parquet"};
   responses["Workbench.Open"]=()=>a;await open();responses["Workbench.Open"]=()=>b;await click("open");
