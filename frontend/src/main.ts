@@ -3,6 +3,7 @@ import {
   type File as DataFile,
   type Result,
   type Request,
+  type Info,
 } from "./mygo";
 import { onFileDrop } from "mygo-runtime";
 import "./style.css";
@@ -13,7 +14,15 @@ const app = $("app");
 app.innerHTML = `
 <aside class="sidebar">
   <div class="brand"><span class="brand-mark">竹</span><div>Bamboo<span class="edition">Local data workbench</span></div></div>
+  <button id="open-folder" class="open-button" title="Open workspace folder" aria-label="Open workspace folder"><span>▱</span> Open Folder</button>
   <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘O)"><span>＋</span> Open Parquet <kbd>⌘ O</kbd></button>
+  <section id="folder-panel" hidden>
+    <div class="folder-heading"><strong id="folder-name"></strong><button id="folder-rename" class="quiet" title="Rename workspace" aria-label="Rename workspace">✎</button></div>
+    <p id="folder-path"></p>
+    <form id="folder-rename-form" hidden><input id="folder-name-input" aria-label="Workspace name" maxlength="200" required><button type="submit">Save</button><button id="folder-rename-cancel" type="button">Cancel</button></form>
+    <div class="folder-actions"><button id="folder-refresh" class="quiet">Refresh</button><button id="folder-close" class="quiet">Close workspace</button></div>
+    <div id="folder-tree" aria-label="Workspace files"></div>
+  </section>
   <div class="section-label">Active file</div>
   <div id="file-card" class="file-card muted">No file open</div>
   <div class="section-label columns-label">Columns <span id="column-count">—</span></div>
@@ -21,19 +30,19 @@ app.innerHTML = `
   <div class="privacy"><div>Only on your machine<small>No accounts. No uploads.</small></div></div>
 </aside>
 <main>
-  <header><div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge">Local session</span><button id="export" title="Export the visible result page as JSON">Export page</button></div></header>
+  <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge">Local session</span><button id="export" title="Export the visible result page as JSON">Export page</button></div></header>
   <section id="welcome" class="welcome">
     <div class="welcome-mark" aria-hidden="true">竹</div>
-    <h1>Explore a Parquet file</h1>
-    <p>Open a Parquet file and get straight to the details.<br>Browse rows, inspect types, and ask questions with SQL.</p>
-    <button id="welcome-open" class="primary">Open a Parquet file</button>
+    <h1 id="welcome-title">Explore your local data</h1>
+    <p id="welcome-description">Open a folder as a workspace, or explore a single Parquet file.</p>
+    <div class="welcome-actions"><button id="welcome-folder" class="primary">Open a folder</button><button id="welcome-open">Open a Parquet file</button></div>
     <span class="drop-note">or drop a .parquet file anywhere</span>
     <div class="welcome-features"><div><strong>Browse rows</strong><span>Small pages, precise values.</span></div><div><strong>Query with SQL</strong><span>Filter, sort, and query.</span></div><div><strong>Keep it local</strong><span>Your files stay yours.</span></div></div>
   </section>
   <section id="workspace" hidden>
     <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
     <nav class="tabs" aria-label="Views"><button id="tab-explore" class="active" aria-selected="true">Explore Data</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
-    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ Enter to run / 15 second timeout</span><button id="run" class="primary">Run query</button></div></div>
+    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ Enter to run / 15 second timeout <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
     <div id="data-panel" class="data-panel">
       <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
@@ -58,6 +67,139 @@ let request: Request = {
   filterColumn: "",
   filterValue: "",
 };
+let folder: Info | null = null;
+let relativeFile = "";
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingSave = Promise.resolve();
+function updateFolder() {
+  document.body.classList.toggle("folder-mode", !!folder);
+  $("folder-panel").hidden = !folder;
+  $("scope-name").textContent = folder ? folder.name : "File";
+  $("scope-name").title = folder ? folder.root : "Single file";
+  $("query-save").hidden = !folder;
+  if (folder) {
+    $("folder-name").textContent = folder.name;
+    $("folder-path").textContent = folder.root;
+    $("folder-path").title = folder.root;
+    $<HTMLInputElement>("folder-name-input").value = folder.name;
+  }
+  document.querySelectorAll<HTMLButtonElement>(".tree-file").forEach(b => {
+    b.classList.toggle("selected", b.dataset.path === relativeFile);
+    b.setAttribute("aria-current", String(b.dataset.path === relativeFile));
+  });
+}
+function saveQuery() {
+  clearTimeout(saveTimer);
+  if (!folder || !relativeFile) return pendingSave;
+  const root = folder.root, path = relativeFile, draft = $<HTMLTextAreaElement>("sql").value, applied = appliedSQL;
+  $("query-save").textContent = "Saving…";
+  pendingSave = pendingSave.catch(() => {}).then(() => Workbench.saveWorkspaceQuery(root, path, draft, applied));
+  void pendingSave.then(() => { $("query-save").textContent = "Saved locally"; }, e => {
+    $("query-save").textContent = "Not saved";
+    notify(`Could not save query: ${String(e)}`, true);
+  });
+  return pendingSave;
+}
+function queryEdited() {
+  if (!folder || !relativeFile) return;
+  $("query-save").textContent = "Unsaved changes";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { void saveQuery(); }, 350);
+}
+async function directory(container: HTMLElement, rel: string, offset = 0) {
+  const page = await Workbench.listDirectory(folder!.root, rel, offset);
+  if (!page) throw new Error("No directory listing returned");
+  if (offset === 0) container.replaceChildren();
+  container.querySelector(":scope > .tree-more")?.remove();
+  for (const entry of page.entries) {
+    const row = el("div", "", "tree-entry");
+    const button = el("button", `${entry.directory ? "▸" : "▧"} ${entry.name}`, entry.directory ? "tree-folder" : "tree-file") as HTMLButtonElement;
+    button.title = entry.path; button.dataset.path = entry.path;
+    row.append(button); container.append(row);
+    if (entry.directory) {
+      const children = el("div", "", "tree-children"); children.hidden = true; row.append(children);
+      button.setAttribute("aria-expanded", "false");
+      button.onclick = () => void task("Reading folder…", async () => {
+        if (children.hidden) {
+          await directory(children, entry.path); children.hidden = false;
+          button.textContent = `▾ ${entry.name}`; button.setAttribute("aria-expanded", "true");
+        } else {
+          children.hidden = true; button.textContent = `▸ ${entry.name}`; button.setAttribute("aria-expanded", "false");
+        }
+      });
+    } else {
+      button.onclick = () => void task("Opening file…", async () => { await saveQuery(); await openFolderFile(entry.path); });
+    }
+  }
+  if (page.more) {
+    const more = el("button", "Load more entries", "tree-more");
+    more.onclick = () => void task("Reading folder…", () => directory(container, rel, page.next));
+    container.append(more);
+  } else if (!container.children.length) container.append(el("p", "No visible folders or Parquet files", "aside-hint"));
+  updateFolder();
+}
+async function openFolderFile(path: string) {
+  const opened = await Workbench.openWorkspaceFile(folder!.root, path);
+  if (!opened) throw new Error("No file returned");
+  relativeFile = path;
+  showFile(opened.file!);
+  $("breadcrumb").textContent = path;
+  $<HTMLTextAreaElement>("sql").value = opened.query.draft;
+  appliedSQL = opened.query.applied || "SELECT * FROM data";
+  updateFolder();
+  $("query-save").textContent = "Saved locally";
+  try { await run({ ...request, sql: appliedSQL }); }
+  catch (e) {
+    appliedSQL = "SELECT * FROM data";
+    await run({ ...request, sql: appliedSQL });
+    notify(`Saved query could not run; showing the file preview. Draft preserved. ${String(e)}`, true);
+  }
+  if (opened.warning) notify(opened.warning, true);
+}
+async function showFolder(info: Info) {
+  folder = info; relativeFile = ""; file = null; result = null;
+  $("workspace").hidden = true; $("welcome").hidden = false;
+  $("welcome-title").textContent = "Choose a file to explore";
+  $("welcome-description").textContent = "Browse your workspace on the left. Open a Parquet file to query and preview its data.";
+  $("breadcrumb").textContent = "Choose a file";
+  $("folder-rename-form").hidden = true;
+  $("file-card").textContent = "No file open"; $("column-list").replaceChildren(); $("column-count").textContent = "—";
+  updateFolder();
+  await directory($("folder-tree"), ".");
+  if (info.active) {
+    try { await openFolderFile(info.active); }
+    catch (e) { notify(`Last file is unavailable. Choose another file. ${String(e)}`, true); }
+  }
+}
+async function openFolder() {
+  await task("Opening workspace…", async () => {
+    await saveQuery();
+    const info = await Workbench.openWorkspace();
+    if (info) await showFolder(info);
+  });
+}
+$("open-folder").onclick = () => void openFolder();
+$("welcome-folder").onclick = () => void openFolder();
+$("folder-refresh").onclick = () => void task("Refreshing folder…", () => directory($("folder-tree"), "."));
+$("folder-rename").onclick = () => { $("folder-rename-form").hidden = false; $("folder-name-input").focus(); };
+$("folder-rename-cancel").onclick = () => { $("folder-rename-form").hidden = true; updateFolder(); };
+$("folder-rename-form").onsubmit = e => {
+  e.preventDefault();
+  void task("Renaming workspace…", async () => {
+    const info = await Workbench.renameWorkspace(folder!.root, $<HTMLInputElement>("folder-name-input").value);
+    if (!info) throw new Error("No workspace returned");
+    folder = info; updateFolder(); $("folder-rename-form").hidden = true;
+  });
+};
+$("folder-close").onclick = () => void task("Closing workspace…", async () => {
+  await saveQuery(); await Workbench.leaveWorkspace(); folder = null; relativeFile = ""; updateFolder();
+  $("breadcrumb").textContent = file ? file.name : "Welcome";
+  $("welcome-title").textContent = "Explore your local data";
+  $("welcome-description").textContent = "Open a folder as a workspace, or explore a single Parquet file.";
+});
+$("sql").oninput = queryEdited;
+$("sql").onblur = () => { if (saveTimer) void saveQuery(); };
+
 const fmt = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const size = (s: string) => {
   const n = Number(s);
@@ -126,6 +268,8 @@ function setView(next: string) {
 function showFile(f: DataFile) {
   file = f;
   result = null;
+  $("grid").querySelector("thead")!.replaceChildren();
+  $("grid").querySelector("tbody")!.replaceChildren();
   appliedSQL = "SELECT * FROM data";
   request = {
     sql: appliedSQL,
@@ -259,10 +403,17 @@ async function run(next: Request) {
 }
 async function open(path?: string) {
   await task("Opening Parquet…", async () => {
+    await saveQuery();
     const f = path ? await Workbench.openPath(path) : await Workbench.open();
     if (f) {
+      let warning = "";
+      if (folder) {
+        try { await Workbench.leaveWorkspace(); } catch (e) { warning = `File opened, but workspace state could not be saved: ${String(e)}`; }
+        folder = null; relativeFile = ""; updateFolder();
+      }
       showFile(f);
       await run(request);
+      if (warning) notify(warning, true);
     }
   });
 }
@@ -284,10 +435,12 @@ $("run").onclick = () =>
       filterValue: "",
     });
     appliedSQL = sql;
+    await saveQuery();
     $<HTMLInputElement>("filter-value").value = "";
   });
 $("reset-sql").onclick = () => {
   $<HTMLTextAreaElement>("sql").value = "SELECT * FROM data";
+  queryEdited();
 };
 $("filter-form").onsubmit = (e) => {
   e.preventDefault();
@@ -343,6 +496,7 @@ async function boot() {
   try {
     const path = await Workbench.initialFile();
     if (path) await open(path);
+    else { const info = await Workbench.restoreWorkspace(); if (info) await task("Restoring workspace…", () => showFolder(info)); }
   } catch (e) {
     notify(String(e), true);
   }

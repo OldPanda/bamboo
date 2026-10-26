@@ -32,12 +32,21 @@ func smoke(win *mygo.Window) {
 		report["error"] = "frontend did not become ready"
 		return
 	}
-	script, err := os.ReadFile("scripts/smoke.js")
+	scriptPath := "scripts/smoke.js"
+	workspacePhase := os.Getenv("BAMBOO_WORKSPACE_SMOKE")
+	if workspacePhase != "" {
+		scriptPath = "scripts/workspace-smoke.js"
+	}
+	script, err := os.ReadFile(scriptPath)
 	if err != nil {
 		report["error"] = err.Error()
 		return
 	}
-	result, err := win.Page().Eval(string(script))
+	source := string(script)
+	if workspacePhase != "" {
+		source = fmt.Sprintf("const workspacePhase = %q;\n", workspacePhase) + source
+	}
+	result, err := win.Page().Eval(source)
 	report["result"] = result
 	if err != nil {
 		report["error"] = fmt.Sprint(err)
@@ -70,7 +79,10 @@ func smoke(win *mygo.Window) {
 	capture("bamboo-schema-dark")
 	mygo.Theme.SetSource(mygo.ThemeLight)
 	time.Sleep(200 * time.Millisecond)
-	win.Page().Eval(`document.getElementById('tab-explore').click(); document.getElementById('sql').value='SELECT city, count(*) AS orders, sum(amount) AS revenue FROM data GROUP BY city ORDER BY revenue DESC'; document.getElementById('run').click()`)
+	win.Page().Eval(`document.getElementById('tab-explore').click()`)
+	if workspacePhase == "" {
+		win.Page().Eval(`document.getElementById('tab-explore').click(); document.getElementById('sql').value='SELECT city, count(*) AS orders, sum(amount) AS revenue FROM data GROUP BY city ORDER BY revenue DESC'; document.getElementById('run').click()`)
+	}
 	for i := 0; i < 100; i++ {
 		v, _ := win.Page().Eval(`document.getElementById('busy').hidden`)
 		if v == true {

@@ -9,6 +9,12 @@ export interface Column {
   type: string;
 }
 
+export interface Entry {
+  name: string;
+  path: string;
+  directory: boolean;
+}
+
 export interface File {
   name: string;
   path: string;
@@ -16,6 +22,23 @@ export interface File {
   rows: string;
   rowGroups: string;
   columns: Column[];
+}
+
+export interface Info {
+  root: string;
+  name: string;
+  active: string;
+}
+
+export interface Page {
+  entries: Entry[];
+  next: number;
+  more: boolean;
+}
+
+export interface Query {
+  draft: string;
+  applied: string;
 }
 
 export interface Request {
@@ -36,6 +59,12 @@ export interface Result {
   elapsedMS: number;
 }
 
+export interface WorkspaceFile {
+  file: File | null;
+  query: Query;
+  warning: string;
+}
+
 // ---- Services ----
 
 /** Workbench exposes only local file selection, bounded queries and explicit export. */
@@ -53,13 +82,34 @@ export const Workbench = {
   initialFile(): Promise<string> {
     return call("Workbench.InitialFile");
   },
+  leaveWorkspace(): Promise<void> {
+    return call("Workbench.LeaveWorkspace");
+  },
+  listDirectory(root: string, relative: string, offset: number): Promise<Page | null> {
+    return call("Workbench.ListDirectory", root, relative, offset);
+  },
   open(): Promise<File | null> {
     return call("Workbench.Open");
   },
   openPath(path: string): Promise<File | null> {
     return call("Workbench.OpenPath", path);
   },
+  openWorkspace(): Promise<Info | null> {
+    return call("Workbench.OpenWorkspace");
+  },
+  openWorkspaceFile(root: string, relative: string): Promise<WorkspaceFile | null> {
+    return call("Workbench.OpenWorkspaceFile", root, relative);
+  },
   query(r: Request): Promise<Result | null> {
     return call("Workbench.Query", r);
+  },
+  renameWorkspace(root: string, name: string): Promise<Info | null> {
+    return call("Workbench.RenameWorkspace", root, name);
+  },
+  restoreWorkspace(): Promise<Info | null> {
+    return call("Workbench.RestoreWorkspace");
+  },
+  saveWorkspaceQuery(root: string, relative: string, draft: string, applied: string): Promise<void> {
+    return call("Workbench.SaveWorkspaceQuery", root, relative, draft, applied);
   },
 } as const;

@@ -122,6 +122,22 @@ cat artifacts/desktop-smoke.json
 
 The smoke runner writes an `error` field if it fails; inspect the report rather than relying only on the process exit status. [VALIDATION.md](VALIDATION.md) contains actual test results, fixture sizes, measurements, screenshots, and remaining manual checks.
 
+## Folder workspaces
+
+Choose **Open Folder**, then browse the sidebar and click a Parquet file. Directories expand on demand; **Load more entries** reads another bounded page. **Refresh** reloads the root after filesystem changes. Hidden entries and symbolic links are not listed. Only directories and `.parquet` files appear. No data is copied or imported.
+
+Use the pencil beside the workspace name to rename its display label (the folder itself is never renamed). The top breadcrumb now shows the actual workspace name. **Open Parquet** still opens an individual file; its breadcrumb says File. **Close workspace** leaves the current file available in single-file mode.
+
+Each workspace remembers its last file and each file's SQL draft plus last successful query. Drafts save after 350 ms of inactivity and on editor blur; wait for **Saved locally** before quitting. File/workspace switches flush pending changes first. On the next launch Bamboo reopens the last workspace and file, runs the saved successful query through the same read-only engine, and restores the draft. If that query no longer works, the default file preview appears and the draft remains intact. Missing roots/files and failed settings writes show actionable errors.
+
+Settings live in `~/Library/Application Support/Bamboo/workspaces.json` on macOS, with private file permissions and atomic replacement; no management file is written inside the data folder. Settings contain local paths and SQL, not result rows. At most 32 workspace profiles and 256 per-file queries per profile are retained; queries are limited to 32 KiB each and the settings file to 8 MiB. Directory pages inspect 200 raw entries at a time, with a one-million-entry paging ceiling. Refresh if a directory changes during paging. File selection is checked against the selected root; this is not an OS sandbox against concurrent filesystem replacement. Simultaneous independent app instances sharing one config are not supported.
+
+```sh
+open build/Bamboo.app --args --workspace "/path/to/data-folder"
+```
+
+`--file` explicitly opens a standalone file for that launch. `BAMBOO_CONFIG_DIR` overrides the settings directory for isolated tests. The native folder picker is wired through MyGo's `Directory` option and covered by a dialog double; actual native picker interaction remains a manual acceptance step.
+
 ## Explore Data
 
 Explore Data combines the query editor and data preview in one view. Open a file to see both, run read-only SQL above the results, or switch to Schema to inspect column types.
@@ -132,7 +148,7 @@ Clicking a cell stays in the table without opening a dialog. Drag over text to s
 
 ## First-version limits
 
-One active file per window/session; opening another replaces it. No history, multi-file workspace, cloud access, charts, editing, CSV input, or saved queries. Export covers only the visible page, in JSON. Page navigation uses `LIMIT/OFFSET`; deep pages, sorting, and aggregation can scan significant data. Queries are rerun on each page; use a unique `ORDER BY` for deterministic pagination, and reopen files after external modification. Concurrent external file replacement is not snapshot-isolated.
+One active data file per window/session; opening another replaces its preview. Folder workspaces remember names, recent files and per-file query drafts, but do not provide cross-file SQL joins, virtual/custom collections, cloud access, charts, editing or CSV input. Export covers only the visible page, in JSON. Page navigation uses `LIMIT/OFFSET`; deep pages, sorting, and aggregation can scan significant data. Queries are rerun on each page; use a unique `ORDER BY` for deterministic pagination, and reopen files after external modification. Concurrent external file replacement is not snapshot-isolated.
 
 The SQL gate supports standard quoted strings/identifiers and comments within queries, but not dollar-quoted text, parameters, leading comments, or multiple statements. File paths containing `* ? [ ]` are rejected to avoid Parquet glob expansion. Very wide schemas/large cells need a future projected-open workflow. No partial truncation is hidden. The app follows system light/dark mode and supports a 700 px minimum desktop window, with scrolling for small heights.
 

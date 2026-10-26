@@ -2,6 +2,7 @@ package main
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/workspace"
 	"context"
 	"encoding/json"
 	"errors"
@@ -21,6 +22,7 @@ type fileDialogs interface {
 // Workbench exposes only local file selection, bounded queries and explicit export.
 type Workbench struct {
 	engine  *engine.Engine
+	folders *workspace.Store
 	mu      sync.Mutex
 	opMu    sync.Mutex
 	last    *engine.Result

@@ -35,6 +35,7 @@ def measure(blocks, predicate=lambda _: True):
 
 
 def fmt(result):
+    if result is None: return "Not present in baseline"
     return f'{result["pct"]:.2f}% ({result["covered"]}/{result["total"]})'
 
 
@@ -54,10 +55,10 @@ def write_report():
     package_rows = []
     for package in packages:
         pred = lambda loc, p=package: loc.split(":")[0].rsplit("/", 1)[0] == p
-        package_rows.append({"name": package, "before": measure(baseline, pred),
+        package_rows.append({"name": package, "before": measure(baseline, pred) if any(pred(loc) for loc in baseline) else None,
                              "unit": measure(unit, pred), "combined": measure(combined, pred)})
-    core = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/workbench.go:"))
-    production = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/workbench.go:", "bamboo/main.go:"))
+    core = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/internal/workspace/", "bamboo/folder.go:", "bamboo/workbench.go:"))
+    production = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/internal/workspace/", "bamboo/folder.go:", "bamboo/workbench.go:", "bamboo/main.go:"))
     front = json.loads((OUT / "frontend/coverage-summary.json").read_text())
     source_paths = sorted({loc.split(":")[0].removeprefix("bamboo/") for loc in unit})
     source_paths += sorted(str(p.relative_to(ROOT)) for p in (ROOT / "frontend/src").glob("*.ts"))
@@ -96,16 +97,16 @@ def write_report():
         frows.append("| " + " | ".join([name] + values) + " |")
     explanation = """The historical baseline is the preserved, unmodified profile from commit e1235f6 using `BAMBOO_LARGE_TEST=1 GOTOOLCHAIN=go1.27.3 go test -ldflags='-s -w' -count=1 -coverprofile=... ./...`. The same test-only measurement remains separate from desktop coverage. No frontend baseline existed; it is **unmeasured**, not 0%.
 
-All Go files remain in the full repository denominator, including the fixture generator, fixture CLI, startup, and desktop smoke runner. The Workbench service was moved unchanged in behavior from main.go to workbench.go; a native-dialog interface and a file-creation adapter add two statements (359 → 361). The redesign adds 12 statements for additional native screenshot states (361 → 373). No coverage ignores or production-file exclusions were added. Core means engine plus Workbench/export; production additionally includes main.go startup. The fixture generator creates deterministic test data; smoke.go is opt-in developer automation. These are separately described, never silently removed from the raw total.
+All Go files remain in the full repository denominator, including the fixture generator, fixture CLI, startup, and desktop smoke runner. The Workbench service was moved unchanged in behavior from main.go to workbench.go; a native-dialog interface and a file-creation adapter add two statements (359 → 361). The redesign and later folder-workspace feature add production and validation code; all new files remain counted. No coverage ignores or production-file exclusions were added. Core includes the engine, workspace persistence/navigation and Workbench services; production additionally includes main.go startup. The fixture generator creates deterministic test data; smoke.go is opt-in developer automation. These are separately described, never silently removed from the raw total.
 
-The combined Go profile is the union of actually hit statement blocks from ordinary tests and instrumented native-app processes: the successful 16-check DOM/IPC suite, an intentionally missing smoke script, an intentionally throwing smoke script, and an intentionally unready frontend. Failure runs assert the specific structured error; they test the harness, not product dialog behavior. Blocks must exist with identical locations and statement counts in the unit profile before merging. Native covmeta/covcounters and both original profiles are retained. The final signed uninstrumented app also passes the 16-check suite, but its run adds no coverage counters.
+The combined Go profile is the union of actually hit statement blocks from ordinary tests and instrumented native-app processes: the successful 19-check single-file DOM/IPC suite plus two actual workspace processes for creation and restart restoration, an intentionally missing smoke script, an intentionally throwing smoke script, and an intentionally unready frontend. Failure runs assert the specific structured error; they test the harness, not product dialog behavior. Blocks must exist with identical locations and statement counts in the unit profile before merging. Native covmeta/covcounters and both original profiles are retained. The final signed uninstrumented app also passes the 19-check suite, but its run adds no coverage counters.
 
 Frontend tests execute the shipped main.ts and generated mygo.ts through a mocked mygo-runtime transport in jsdom. All TypeScript production files are explicitly included. Generated bindings are included and separately listed; dependencies, tests, CSS and build configuration are not application TypeScript. V8 supplies statement/branch/function/line measurements; Vitest's raw inspector payloads are preserved byte-for-byte as gzip files in v8-raw/ before its normal cleanup, and source-mapped counters are in frontend/coverage-final.json. The evidence reporter verifies that application scripts are present and does not alter counters or coverage calculation. The branch report is retained as emitted, including a conservative negative counter from V8 remapping at the open-result guard; it is not manually corrected.
 """
     checks = """- Real DuckDB tests: million-row fixture, exact integers/decimal/time/nested/null values, empty files, malformed and wide schemas, quoted paths and symlinks, SQL lexical/injection boundaries, inclusive resource limits, cancellation/deadlines, and recovery.
 - Workbench: picker cancel/failure, concurrent operation rejection, failed-open/query state retention, export snapshot across a later query, exact JSON/permissions, extension checks, existing-file/symlink refusal, and cleanup after write/close failure.
-- Frontend: 8 behavioral scenarios covering state transitions, paging/filter/sort, schema, cell inspection, literal hostile text, keyboard shortcuts/drop events, failed/null bridge returns, busy/cancel recovery, and export results.
-- Production desktop: 16 explicit DOM/IPC assertions; light, dark and narrow screenshots; narrow overflow/footer checks. Native-dialog doubles are not native-dialog acceptance.
+- Frontend: single-file and folder-workspace behavioral scenarios covering state transitions, paging/filter/sort, schema, selectable cell text, literal hostile text, keyboard shortcuts/drop events, failed/null bridge returns, busy/cancel recovery, and export results.
+- Production desktop: 19 single-file assertions plus workspace creation and process restart assertions; light, dark and narrow screenshots; narrow overflow/footer checks. Native-dialog doubles are not native-dialog acceptance.
 - TypeScript, go vet, npm audit, pinned govulncheck, native build and bundle signature checks. No applicable security-audit skill was available; negative boundary tests and scanners are used. Go/npm advisories do not exhaustively scan statically linked DuckDB or native MyGo/platform libraries.
 """
     limits = """Remaining uncovered Go statements are recorded below and in uncovered.json: database-driver setup/scan/iteration and metadata error paths, process-fatal startup paths, native navigation/window-open callbacks, and smoke readiness/screenshot failures. Each remains in the denominator. Some are difficult to induce deterministically without replacing the real driver or platform.
@@ -156,7 +157,7 @@ Full Go combined coverage, core Go, and frontend statements/branches/functions/l
                     ("Go 核心 · 普通测试", go["core"]),
                     ("前端语句", {"pct": front["total"]["statements"]["pct"], "covered": front["total"]["statements"]["covered"], "total": front["total"]["statements"]["total"]})]
     cards = "".join(f'<article class="metric"><p>{label}</p><strong>{m["pct"]:.2f}<small>%</small></strong><span>{m["covered"]} / {m["total"]} statements</span><div class="track"><i style="width:{m["pct"]}%"></i></div></article>' for label, m in metric_cards)
-    package_html = "".join(f'<article class="package"><h3>{esc(p["name"])}</h3><div class="numbers"><span>基线<b>{p["before"]["pct"]:.2f}%</b></span><span>普通测试<b>{p["unit"]["pct"]:.2f}%</b></span><span>{scope_label}<b>{p["combined"]["pct"]:.2f}%</b></span></div></article>' for p in package_rows)
+    package_html = "".join(f'<article class="package"><h3>{esc(p["name"])}</h3><div class="numbers"><span>基线<b>{esc(fmt(p["before"]))}</b></span><span>普通测试<b>{p["unit"]["pct"]:.2f}%</b></span><span>{scope_label}<b>{p["combined"]["pct"]:.2f}%</b></span></div></article>' for p in package_rows)
     front_html = "".join(f'<article class="package"><h3>{esc(name)}</h3><div class="numbers four">' + "".join(f'<span>{label}<b>{data[key]["pct"]}%</b><small>{data[key]["covered"]}/{data[key]["total"]}</small></span>' for key, label in [("statements","语句"),("branches","分支"),("functions","函数"),("lines","行")]) + '</div></article>' for name, data in result["frontend"].items())
     gaps = "".join(f'<details><summary>{esc(path)} · {sum(x["statements"] for x in spans)} uncovered statements</summary>' + "".join(f'<p>Lines {esc(x["span"])} · {x["statements"]} statement(s)</p><pre>{esc(x["source"])}</pre>' for x in spans) + '</details>' for path, spans in uncovered.items())
     html_text = f'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bamboo · 测试覆盖率</title>

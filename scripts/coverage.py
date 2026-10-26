@@ -34,23 +34,23 @@ def run(args, log, *, cwd=ROOT, env=None, timeout=300):
     result.check_returncode()
 
 
-def smoke(binary, fixture, cwd, destination, expected=None, covered=True, frontend_url=None):
+def smoke(binary, fixture, cwd, destination, expected=None, covered=True, frontend_url=None, launch_args=None, extra_env=None, expected_checks=19):
     destination.mkdir(parents=True, exist_ok=True)
     report_path = destination / "desktop-smoke.json"
     report_path.unlink(missing_ok=True)
-    env = {**ENV, "BAMBOO_SMOKE": str(destination)}
+    env = {**ENV, "BAMBOO_SMOKE": str(destination), "BAMBOO_CONFIG_DIR": str(destination / "config"), **(extra_env or {})}
     if frontend_url:
         env["MYGO_DEV_URL"] = frontend_url
     if covered:
         env["GOCOVERDIR"] = str(OUT / "desktop/raw")
-    run([str(binary), "--file", str(fixture)], str(destination.relative_to(OUT) / "process.log"),
+    run([str(binary)] + (launch_args if launch_args is not None else ["--file", str(fixture)]), str(destination.relative_to(OUT) / "process.log"),
         cwd=cwd, env=env, timeout=45)
     result = json.loads(report_path.read_text())
     if expected:
         assert expected in result.get("error", ""), result
     else:
         assert "error" not in result and "captureError" not in result, result
-        assert len(result["result"]["checks"]) == 16, result
+        assert len(result["result"]["checks"]) == expected_checks, result
         assert not result["narrowLayout"]["overflow"] and result["narrowFooterReachable"], result
         assert not any(k.endswith(".png") or k.startswith("bamboo-") for k in result), result
 
@@ -87,6 +87,12 @@ def main():
         run(["go", "run", "./cmd/fixtures", str(fixture_dir)], "fixtures.log")
         fixture = fixture_dir / "orders.parquet"
         smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop)
+        (fixture.parent / "nested").mkdir(exist_ok=True)
+        shutil.copyfile(fixture, fixture.parent / "nested/orders-copy.parquet")
+        with tempfile.TemporaryDirectory(prefix="bamboo-workspace-config-") as config:
+            for phase, args, count in [("create", ["--workspace", str(fixture.parent)], 15), ("restore", [], 9)]:
+                smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop / ("workspace-" + phase),
+                      launch_args=args, extra_env={"BAMBOO_CONFIG_DIR": config, "BAMBOO_WORKSPACE_SMOKE": phase}, expected_checks=count)
         for name, expected in [("missing-script", "no such file"), ("script-error", "expected smoke failure")]:
             with tempfile.TemporaryDirectory(prefix="bamboo-smoke-") as d:
                 if name == "script-error":

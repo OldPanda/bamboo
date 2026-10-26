@@ -2,6 +2,7 @@ package main
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/workspace"
 	"embed"
 	"io/fs"
 	"log"
@@ -22,7 +23,20 @@ func main() {
 	if len(os.Args) == 3 && os.Args[1] == "--file" {
 		initial, _ = filepath.Abs(os.Args[2])
 	}
-	w := &Workbench{engine: e, initial: initial, dialogs: mygo.Dialog}
+	config := os.Getenv("BAMBOO_CONFIG_DIR")
+	if config == "" {
+		base, err := os.UserConfigDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+		config = filepath.Join(base, "Bamboo")
+	}
+	w := &Workbench{engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config)}
+	if len(os.Args) == 3 && os.Args[1] == "--workspace" {
+		if _, err := w.useWorkspace(os.Args[2]); err != nil {
+			log.Fatal(err)
+		}
+	}
 	mygo.Bind(w)
 	web, err := fs.Sub(frontend, "frontend/dist")
 	if err != nil {
