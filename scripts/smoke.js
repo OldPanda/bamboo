@@ -103,12 +103,20 @@ await mygo.call("Workbench.OpenPath", path);
 $("sql").value = "SELECT * FROM data";
 await click("run");
 await click("tab-data");
-document.querySelectorAll("#grid tbody tr:first-child td")[1].click();
+const plainCell = document.querySelectorAll("#grid tbody tr:first-child td")[1];
+plainCell.click();
+const cellRange = document.createRange();
+cellRange.selectNodeContents(plainCell);
+const cellSelection = window.getSelection();
+cellSelection.removeAllRanges();
+cellSelection.addRange(cellRange);
 assert(
-  $("cell-dialog").open && $("cell-value").textContent === "1001",
-  "cell inspector opens exact full value",
+  !document.querySelector("dialog, [role=dialog]") &&
+    cellSelection.toString() === "1001" &&
+    getComputedStyle(plainCell).cursor === "text",
+  "cell click stays in table; exact text remains selectable",
 );
-await click("close-cell");
+cellSelection.removeAllRanges();
 await click("tab-sql");
 $("sql").value =
   "SELECT '<img src=x onerror=alert(1)>' AS html, NULL AS missing, '' AS empty_text, 9223372036854775807::BIGINT AS exact_id";

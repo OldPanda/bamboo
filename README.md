@@ -122,6 +122,10 @@ cat artifacts/desktop-smoke.json
 
 The smoke runner writes an `error` field if it fails; inspect the report rather than relying only on the process exit status. [VALIDATION.md](VALIDATION.md) contains actual test results, fixture sizes, measurements, screenshots, and remaining manual checks.
 
+## Table text selection
+
+Clicking a cell stays in the table without opening a dialog. Drag over text to select and copy it. Full values remain in the cell text even when visually shortened to fit the column.
+
 ## First-version limits
 
 One active file per window/session; opening another replaces it. No history, multi-file workspace, cloud access, charts, editing, CSV input, or saved queries. Export covers only the visible page, in JSON. Page navigation uses `LIMIT/OFFSET`; deep pages, sorting, and aggregation can scan significant data. Queries are rerun on each page; use a unique `ORDER BY` for deterministic pagination, and reopen files after external modification. Concurrent external file replacement is not snapshot-isolated.

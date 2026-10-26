@@ -92,7 +92,7 @@ th { background: var(--side); color: var(--ink); border-bottom: 1px solid var(--
 th button { position: relative; min-height: 32px; display: block; width: 100%; border: 0; padding: 0; background: transparent; text-align: inherit; font-size: var(--text-sm); font-weight: 600; }
 th button::before { content: ""; position: absolute; inset: -6px 0; }
 th small { display: block; font-size: var(--text-xs); color: var(--muted); font-weight: 400; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
-td { height: 30px; padding: var(--space-2xs) var(--space-sm); border-bottom: 1px solid var(--line); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-variant-numeric: tabular-nums; }
+td { height: 30px; padding: var(--space-2xs) var(--space-sm); border-bottom: 1px solid var(--line); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; -webkit-user-select: text; user-select: text; font-variant-numeric: tabular-nums; }
 td:focus-visible { outline-offset: -2px; }
 .row-number { width: 48px; color: var(--muted); text-align: right; font-size: var(--text-xs); cursor: default; background: var(--side); }
 .numeric { font-family: var(--font-outlier); }
@@ -121,13 +121,6 @@ textarea { resize: vertical; display: block; width: calc(100% - 32px); margin: 0
 @keyframes spin { to { transform: rotate(360deg); } }
 #notification { position: absolute; bottom: 64px; left: var(--space-md); right: var(--space-md); z-index: var(--z-toast); padding: var(--space-sm) var(--space-md); border: 1px solid var(--color-rule-2); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); font-size: var(--text-md); overflow-wrap: anywhere; max-height: 200px; overflow: auto; }
 #notification.error { border-color: var(--color-error); color: var(--color-error); background: var(--color-error-soft); }
-dialog { position: fixed; inset: 0; margin: auto; width: min(650px, 90%); max-height: 80dvh; border: 1px solid var(--color-rule-2); border-radius: var(--radius-card); padding: var(--space-lg); background: var(--surface); color: var(--ink); }
-dialog::backdrop { background: var(--color-backdrop); }
-.cell-header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); }
-.inspector-label { font-size: var(--text-sm); color: var(--muted); }
-.cell-header h2 { font-size: var(--text-xl); margin-top: var(--space-xs); }
-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; font: var(--text-md)/1.7 var(--font-outlier); padding: var(--space-md); margin: var(--space-md) 0; background: var(--side); color: var(--ink); max-height: 50dvh; overflow: auto; }
-dialog p { font-size: var(--text-sm); color: var(--muted); }
 @media (hover: hover) {
   button:hover:not(:disabled) { background: var(--hover); }
   button.primary:hover:not(:disabled) { background: var(--color-accent-hover); }

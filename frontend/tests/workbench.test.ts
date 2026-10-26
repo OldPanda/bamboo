@@ -44,8 +44,6 @@ beforeEach(() => {
     if (!responses[name]) throw new Error(`Unexpected IPC ${name}`);
     return responses[name](...args);
   });
-  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
-  HTMLDialogElement.prototype.close = function () { this.open = false; };
   listeners = [];
   const original = document.addEventListener.bind(document);
   vi.spyOn(document, "addEventListener").mockImplementation((type: string, listener: any, options?: any) => {
@@ -70,7 +68,7 @@ describe("the shipped page through its generated IPC binding", () => {
     expect($("welcome").hidden).toBe(false);
   });
 
-  it("renders exact values, schema and hostile text safely, with accessible inspection", async () => {
+  it("renders exact values, schema and hostile text safely, without disruptive cell popups", async () => {
     await open();
     expect($("row-count").textContent).toBe("1,000,000"); expect($("file-size").textContent).toBe("2.0 KB");
     expect($("file-name").textContent).toBe(dataFile().name); expect($("file-path").title).toBe(dataFile().path);
@@ -78,13 +76,17 @@ describe("the shipped page through its generated IPC binding", () => {
     expect([...document.querySelectorAll(".type-icon")].map(n => n.textContent)).toEqual(["#", "T", "◷"]);
     const cells = document.querySelectorAll<HTMLTableCellElement>("#grid tbody td");
     expect(cells[1].textContent).toBe("9223372036854775807"); expect(cells[1].className).toBe("numeric");
-    for (const [index, expected] of [[1, "9223372036854775807"], [5, "NULL (no value)"], [6, '\"\" (empty string)']] as const) {
-      cells[index].click(); expect($<HTMLDialogElement>("cell-dialog").open).toBe(true); expect($("cell-value").textContent).toBe(expected);
-      await click("close-cell"); expect($<HTMLDialogElement>("cell-dialog").open).toBe(false);
+    for (const [index, expected] of [[1, "9223372036854775807"], [5, "NULL"], [6, "empty"]] as const) {
+      cells[index].click();
+      cells[index].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      expect(document.querySelector("dialog, [role=dialog]")).toBeNull();
+      expect(cells[index].textContent).toBe(expected);
     }
-    cells[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); expect($<HTMLDialogElement>("cell-dialog").open).toBe(false);
-    cells[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })); expect($("cell-value").textContent).toBe("<img src=x onerror=alert(1)>");
-    await click("close-cell"); await click("tab-schema"); expect($("data-panel").hidden).toBe(true); expect($("schema-panel").hidden).toBe(false);
+    const range = document.createRange(); range.selectNodeContents(cells[1]);
+    const selection = window.getSelection()!; selection.removeAllRanges(); selection.addRange(range);
+    expect(selection.toString()).toBe("9223372036854775807"); selection.removeAllRanges();
+    expect(cells[2].textContent).toBe("<img src=x onerror=alert(1)>");
+    await click("tab-schema"); expect($("data-panel").hidden).toBe(true); expect($("schema-panel").hidden).toBe(false);
     expect(document.querySelectorAll("#schema-body tr")).toHaveLength(3); expect($("tab-schema").getAttribute("aria-selected")).toBe("true");
     await click("tab-sql"); expect($("sql-panel").hidden).toBe(false); await click("tab-data"); expect($("sql-panel").hidden).toBe(true);
   });

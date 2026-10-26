@@ -43,8 +43,7 @@ app.innerHTML = `
   </section>
   <div id="notification" role="status" aria-live="polite" hidden></div>
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Reading your file…</span><button id="cancel">Cancel</button></div>
-</main>
-<dialog id="cell-dialog"><div class="cell-header"><div><span class="inspector-label">Cell inspector</span><h2 id="cell-title"></h2></div><button id="close-cell" aria-label="Close inspector">×</button></div><pre id="cell-value"></pre><p>Full text representation / select to copy</p></dialog>`;
+</main>`;
 let file: DataFile | null = null;
 let result: Result | null = null;
 let busy = false;
@@ -234,19 +233,6 @@ function render(r: Result) {
               : "",
       );
       td.dataset.type = r.columns[j].type;
-      td.tabIndex = 0;
-      td.title = "Click to inspect the full value";
-      const inspect = () => {
-        $("cell-title").textContent =
-          `${r.columns[j].name} / ${r.columns[j].type}`;
-        $("cell-value").textContent =
-          v === null ? "NULL (no value)" : v === "" ? '"" (empty string)' : v;
-        $<HTMLDialogElement>("cell-dialog").showModal();
-      };
-      td.onclick = inspect;
-      td.onkeydown = (e) => {
-        if (e.key === "Enter") inspect();
-      };
       tr.append(td);
     });
     body.append(tr);
@@ -340,7 +326,6 @@ $("export").onclick = () =>
     const path = await Workbench.exportPage();
     if (path) notify(`Exported visible page to ${path}`);
   });
-$("close-cell").onclick = () => $<HTMLDialogElement>("cell-dialog").close();
 document.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") {
     e.preventDefault();
