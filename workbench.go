@@ -2,6 +2,7 @@ package main
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/r2"
 	"bamboo/internal/workspace"
 	"context"
 	"encoding/json"
@@ -21,13 +22,15 @@ type fileDialogs interface {
 
 // Workbench exposes only local file selection, bounded queries and explicit export.
 type Workbench struct {
-	engine  *engine.Engine
-	folders *workspace.Store
-	mu      sync.Mutex
-	opMu    sync.Mutex
-	last    *engine.Result
-	initial string
-	dialogs fileDialogs
+	engine       *engine.Engine
+	remote       *r2.Store
+	remoteCancel context.CancelFunc
+	folders      *workspace.Store
+	mu           sync.Mutex
+	opMu         sync.Mutex
+	last         *engine.Result
+	initial      string
+	dialogs      fileDialogs
 }
 
 func (w *Workbench) InitialFile() string { return w.initial }
@@ -64,7 +67,14 @@ func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result
 	}
 	return result, err
 }
-func (w *Workbench) Cancel() { w.engine.Cancel() }
+func (w *Workbench) Cancel() {
+	w.mu.Lock()
+	if w.remoteCancel != nil {
+		w.remoteCancel()
+	}
+	w.mu.Unlock()
+	w.engine.Cancel()
+}
 
 // ExportPage saves the last successful page as typed JSON, keeping null distinct
 // from empty text and preserving numeric precision. It never re-runs the query.

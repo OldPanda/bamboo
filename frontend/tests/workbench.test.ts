@@ -85,7 +85,7 @@ describe("the shipped page through its generated IPC binding", () => {
     for (const [index, expected] of [[1, "9223372036854775807"], [5, "NULL"], [6, "empty"]] as const) {
       cells[index].click();
       cells[index].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-      expect(document.querySelector("dialog, [role=dialog]")).toBeNull();
+      expect(document.querySelector("dialog[open], [role=dialog]:not([hidden])")).toBeNull();
       expect(cells[index].textContent).toBe(expected);
     }
     const range = document.createRange(); range.selectNodeContents(cells[1]);
@@ -406,4 +406,45 @@ it("keeps the last file's workspace selected and distinguishes an empty query re
  responses['Workbench.QueryWorkspace']=()=>({...page(),rows:[],more:false});
  value('sql','SELECT * FROM workspace."empty.parquet"');$('sql').dispatchEvent(new Event('input'));await click('run');
  expect($('empty-result').hidden).toBe(false);expect($('empty-result').textContent).toContain('No matching rows.');expect($('empty-result').textContent).not.toContain('Write a query');
+});
+
+describe("R2 connection workspaces",()=>{
+ beforeEach(()=>{
+  Object.defineProperty(HTMLDialogElement.prototype,"showModal",{configurable:true,value:function(this:HTMLDialogElement){this.open=true;}});
+  Object.defineProperty(HTMLDialogElement.prototype,"close",{configurable:true,value:function(this:HTMLDialogElement){this.open=false;this.dispatchEvent(new Event("close"));}});
+ });
+ const root="r2://analytics/test-connection";
+ function setup(){
+  responses["Workbench.ConnectR2"]=()=>({root,name:"Cloud analytics",active:"."});
+  responses["Workbench.ListDirectory"]=()=>({entries:[{name:"orders.parquet",path:"orders.parquet",directory:false}],next:0,more:false});
+  responses["Workbench.SaveWorkspaceQuery"]=()=>undefined;
+  responses["Workbench.CloseWorkspace"]=()=>undefined;
+  responses["Workbench.OpenWorkspaceFile"]=()=>({file:{...dataFile(),name:"orders.parquet",path:root+"/orders.parquet"},query:{draft:"SELECT * FROM data",applied:"SELECT * FROM data"},warning:""});
+ }
+ function fill(){value("r2-endpoint","https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com");value("r2-bucket","analytics");value("r2-access","test-access");value("r2-secret","test-secret");}
+ async function submit(){ $("r2-form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));await settled(); }
+ it("connects to R2, clears credential inputs, shows the workspace editor, and closes its files with the root",async()=>{
+  setup();await boot();await click("open-r2");expect($<HTMLDialogElement>("r2-dialog").open).toBe(true);fill();
+  expect(key("o",{metaKey:true}).defaultPrevented).toBe(true);
+  await submit();expect($<HTMLDialogElement>("r2-dialog").open).toBe(false);
+  expect($<HTMLInputElement>("r2-secret").value).toBe("");expect($<HTMLInputElement>("r2-access").value).toBe("");
+  expect($("workspace").hidden).toBe(false);expect($("file-name").textContent).toBe("Cloud analytics");expect(document.querySelector(".local-badge")!.textContent).toBe("R2 / read-only");
+  value("sql",'SELECT * FROM workspace."orders.parquet"');$("sql").dispatchEvent(new Event("input"));await click("run");expect($("grid").querySelectorAll("tbody tr").length).toBe(2);
+  (document.querySelector(".tree-file") as HTMLButtonElement).click();await settled();expect($("file-name").textContent).toBe("orders.parquet");expect($("open-files-panel").hidden).toBe(true);
+  await click("folder-close");expect($("welcome").hidden).toBe(false);expect(document.querySelector(".workspace-group")).toBeNull();
+ });
+ it("keeps connection errors visible without echoing credentials and can retry or dismiss",async()=>{
+  setup();await boot();await click("open-r2");fill();responses["Workbench.ConnectR2"]=()=>{throw new Error("R2 access denied")};await submit();
+  expect($("r2-error").textContent).toContain("R2 access denied");expect($("r2-error").hidden).toBe(false);expect(document.body.textContent).not.toContain("test-secret");expect($<HTMLInputElement>("r2-secret").value).toBe("");
+  await click("r2-cancel");expect($<HTMLDialogElement>("r2-dialog").open).toBe(false);await click("open-r2");expect($("r2-error").hidden).toBe(true);await click("r2-dismiss");
+  await click("open-r2");fill();responses["Workbench.ConnectR2"]=()=>null;await submit();expect($("r2-error").textContent).toContain("No R2 workspace");
+ });
+ it("cancels an in-flight connection and retains a disconnected R2 root for refresh",async()=>{
+  setup();await boot();await click("open-r2");fill();let reject!: (e:Error)=>void;
+  responses["Workbench.ConnectR2"]=()=>new Promise((_,r)=>{reject=r});responses["Workbench.Cancel"]=()=>{reject(new Error("connection canceled"))};
+  $("r2-form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));await vi.waitFor(()=>expect(reject).toBeTypeOf("function"));
+  const cancel=new Event("cancel",{cancelable:true});$("r2-dialog").dispatchEvent(cancel);expect(cancel.defaultPrevented).toBe(true);await settled();expect($("r2-error").textContent).toContain("canceled");
+  fill();responses["Workbench.ConnectR2"]=()=>({root,name:"Cloud analytics",active:"."});responses["Workbench.ListDirectory"]=()=>{throw new Error("R2 network unavailable")};await submit();
+  expect(document.querySelector(".folder-tree")!.textContent).toContain("Refresh to retry");expect($("workspace").hidden).toBe(false);
+ });
 });

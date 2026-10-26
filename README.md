@@ -165,3 +165,11 @@ MIT for Bamboo. See [THIRD_PARTY.md](THIRD_PARTY.md) and `licenses/` for pinned 
 Use `workspace."orders.parquet"` or `workspace."nested/orders.parquet"` in JOIN, UNION and aggregation queries. `data` remains the active file. Open **Workspace tables** above the query editor to insert references; files need not be opened beforehand. Queries resolve only the active workspace, with at most 32 referenced files and existing read-only/resource limits. See [WORKSPACE_SQL.md](WORKSPACE_SQL.md) for examples, boundaries and validation.
 
 Opening a workspace now immediately shows its independent query editor, even with no open files. Click the workspace name to return to it. Workspace drafts and successful SQL persist separately from per-file queries; closing the last file retains an available workspace editor. With no active file, reference `workspace."filename.parquet"` instead of `data`.
+
+## Cloudflare R2 workspaces
+
+Choose **Connect R2**, enter the bucket's S3 endpoint, bucket name, optional folder prefix, and bucket-scoped **Object Read only** Access Key ID / Secret Access Key. **Test & connect** verifies listing access before saving the connection. Credentials live in macOS Keychain; metadata and saved SQL stay in Bamboo's private settings. Closing the R2 workspace removes its saved connection and Keychain entry, without changing cloud files.
+
+R2 appears beside local workspaces. You can query immediately without opening a document, browse folders, preview Parquet, inspect schema, and join files using `workspace."orders.parquet"` / `workspace."nested/other.parquet"`. Reads use byte ranges; large scans can still transfer substantial data and consume R2 read operations. Export remains local and page-only.
+
+See [R2_WORKSPACES.md](R2_WORKSPACES.md) for setup, read boundaries, validation and limitations. The macOS arm64 build downloads a hash-pinned official httpfs extension once and packages it for offline startup. Local-only workspaces make no R2 requests.

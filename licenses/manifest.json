@@ -54,5 +54,21 @@
     "licenses": [
       "github.com_ebitengine_purego-LICENSE.txt"
     ]
+  },
+  {
+    "module": "github.com/aws/aws-sdk-go-v2",
+    "version": "v1.47.4",
+    "licenses": [
+      "github.com_aws_aws-sdk-go-v2-LICENSE.txt",
+      "github.com_aws_aws-sdk-go-v2-NOTICE.txt"
+    ]
+  },
+  {
+    "module": "github.com/aws/smithy-go",
+    "version": "v1.28.6",
+    "licenses": [
+      "github.com_aws_smithy-go-LICENSE",
+      "github.com_aws_smithy-go-NOTICE"
+    ]
   }
 ]

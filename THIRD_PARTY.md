@@ -15,3 +15,7 @@ Official references reviewed during implementation:
 - https://duckdb.org/docs/stable/data/parquet/overview — direct Parquet scans and filter/projection pushdown.
 - https://duckdb.org/docs/stable/operations_manual/securing_duckdb/overview — external resource restrictions and limitations.
 - https://parqlab.app/ — product workflow reference; no comparative performance claims.
+
+R2 support adds AWS SDK for Go v2 **v1.47.4** (SigV4 signing only) and Smithy Go **v1.28.6**, Apache-2.0; license and notice files are included under `licenses/`. No AWS environment credential discovery is used.
+
+The macOS arm64 bundle includes the official **DuckDB 2.0.0 httpfs** extension (MIT), downloaded during explicit builds from `https://extensions.duckdb.org/v2.0.0/osx_arm64/httpfs.duckdb_extension.gz`. Its uncompressed SHA-256 is pinned to `c2d72a98ad081bf4d62c908b8d9f60b70ab1b83faa9141fc7e7d53526658761d`; DuckDB also verifies the embedded extension signature. See `licenses/duckdb-httpfs-LICENSE.txt` and upstream component notices at https://github.com/duckdb/duckdb-httpfs/tree/main/third_party. Native-extension dependency coverage is outside `govulncheck` and npm audit.

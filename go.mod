@@ -3,12 +3,14 @@ module bamboo
 go 1.27.3
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.47.4
 	github.com/duckdb/duckdb-go/v2 v2.20000.0
 	github.com/egoist/mygo v0.6.4
 )
 
 require (
 	github.com/apache/arrow-go/v18 v18.5.1 // indirect
+	github.com/aws/smithy-go v1.28.6 // indirect
 	github.com/duckdb/duckdb-go-bindings v0.20000.0 // indirect
 	github.com/ebitengine/purego v0.11.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect

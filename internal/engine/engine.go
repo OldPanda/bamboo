@@ -52,12 +52,16 @@ type Result struct {
 
 // Engine has one active operation and a separately cancellable context.
 type Engine struct {
-	gate    chan struct{}
-	mu      sync.Mutex
-	cancel  context.CancelFunc
-	db      *sql.DB
-	file    *File
-	resolve func(string) (string, error)
+	gate        chan struct{}
+	mu          sync.Mutex
+	cancel      context.CancelFunc
+	db          *sql.DB
+	file        *File
+	resolve     func(string) (string, error)
+	httpfs      string
+	remote      RemoteResolver
+	remoteRef   string
+	remoteScope *RemoteScope
 }
 
 func New() *Engine { return &Engine{gate: make(chan struct{}, 1)} }
@@ -90,6 +94,8 @@ func (e *Engine) Close() {
 	}
 	e.file = nil
 	e.resolve = nil
+	e.remote = nil
+	e.remoteRef = ""
 }
 func literal(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 func ident(s string) string   { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
@@ -154,6 +160,8 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 	e.db = db
 	e.file = f
 	e.resolve = resolve
+	e.remote = nil
+	e.remoteRef = ""
 	ok = true
 	return f, nil
 }
@@ -224,8 +232,8 @@ func (e *Engine) QueryWorkspace(parent context.Context, r Request, resolve func(
 	scoped := &Engine{resolve: resolve}
 	return scoped.run(ctx, r)
 }
-func (e *Engine) run(ctx context.Context, r Request) (*Result, error) {
-	if e.db == nil && e.resolve == nil {
+func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure error) {
+	if e.db == nil && e.resolve == nil && e.remote == nil {
 		return nil, errors.New("open a Parquet file first")
 	}
 	started := time.Now()
@@ -238,6 +246,11 @@ func (e *Engine) run(ctx context.Context, r Request) (*Result, error) {
 		return nil, err
 	}
 	defer cleanup()
+	defer func() {
+		if e.remoteScope != nil {
+			failure = remoteError(e.remoteScope, failure)
+		}
+	}()
 	// Describe the unfiltered source to avoid binding filter values twice.
 	base := r
 	base.FilterColumn = ""

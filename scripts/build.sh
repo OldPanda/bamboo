@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export GOTOOLCHAIN=go1.27.3
+python3 scripts/prepare-httpfs.py
 # A tiny placeholder breaks the first-build embed/bindings dependency cycle.
 mkdir -p frontend/dist build
 if [ ! -f frontend/dist/index.html ]; then printf '<!doctype html><title>Bamboo</title>' > frontend/dist/index.html; fi
@@ -36,6 +37,8 @@ if [ "$(uname -s)" = Darwin ]; then
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+  mkdir -p build/Bamboo.app/Contents/Resources/extensions
+  cp build/extensions/httpfs.duckdb_extension build/Bamboo.app/Contents/Resources/extensions/
   cp -R licenses build/Bamboo.app/Contents/Resources/
   cp LICENSE THIRD_PARTY.md build/Bamboo.app/Contents/Resources/
   codesign --force --sign - build/Bamboo.app

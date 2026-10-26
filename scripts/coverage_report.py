@@ -19,8 +19,13 @@ def profile(path):
     result = {}
     for line in lines[1:]:
         location, statements, hits = line.split()
-        assert location not in result, f"duplicate block: {location}"
-        result[location] = (int(statements), int(hits) > 0)
+        # -coverpkg=./... records the same block in several test binaries.
+        # Union hits, count its statements once, and reject incompatible blocks.
+        n, hit = int(statements), int(hits) > 0
+        if location in result:
+            assert result[location][0] == n, f"incompatible block: {location}"
+            hit = hit or result[location][1]
+        result[location] = (n, hit)
     return result
 
 
@@ -57,8 +62,8 @@ def write_report():
         pred = lambda loc, p=package: loc.split(":")[0].rsplit("/", 1)[0] == p
         package_rows.append({"name": package, "before": measure(baseline, pred) if any(pred(loc) for loc in baseline) else None,
                              "unit": measure(unit, pred), "combined": measure(combined, pred)})
-    core = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/internal/workspace/", "bamboo/folder.go:", "bamboo/workbench.go:"))
-    production = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/internal/workspace/", "bamboo/folder.go:", "bamboo/workbench.go:", "bamboo/main.go:"))
+    core = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/internal/workspace/", "bamboo/internal/r2/", "bamboo/r2.go:", "bamboo/folder.go:", "bamboo/workbench.go:"))
+    production = lambda loc: loc.startswith(("bamboo/internal/engine/", "bamboo/internal/workspace/", "bamboo/internal/r2/", "bamboo/r2.go:", "bamboo/folder.go:", "bamboo/workbench.go:", "bamboo/main.go:"))
     front = json.loads((OUT / "frontend/coverage-summary.json").read_text())
     source_paths = sorted({loc.split(":")[0].removeprefix("bamboo/") for loc in unit})
     source_paths += sorted(str(p.relative_to(ROOT)) for p in (ROOT / "frontend/src").glob("*.ts"))
@@ -97,16 +102,16 @@ def write_report():
         frows.append("| " + " | ".join([name] + values) + " |")
     explanation = """The historical baseline is the preserved, unmodified profile from commit e1235f6 using `BAMBOO_LARGE_TEST=1 GOTOOLCHAIN=go1.27.3 go test -ldflags='-s -w' -count=1 -coverprofile=... ./...`. The same test-only measurement remains separate from desktop coverage. No frontend baseline existed; it is **unmeasured**, not 0%.
 
-All Go files remain in the full repository denominator, including the fixture generator, fixture CLI, startup, and desktop smoke runner. The Workbench service was moved unchanged in behavior from main.go to workbench.go; a native-dialog interface and a file-creation adapter add two statements (359 → 361). The redesign and later folder-workspace feature add production and validation code; all new files remain counted. No coverage ignores or production-file exclusions were added. Core includes the engine, workspace persistence/navigation and Workbench services; production additionally includes main.go startup. The fixture generator creates deterministic test data; smoke.go is opt-in developer automation. These are separately described, never silently removed from the raw total.
+All Go files remain in the full repository denominator, including the fixture generator, fixture CLI, startup, and desktop smoke runner. The Workbench service was moved unchanged in behavior from main.go to workbench.go; a native-dialog interface and a file-creation adapter add two statements (359 → 361). The redesign and later folder-workspace feature add production and validation code; all new files remain counted. No coverage ignores or production-file exclusions were added. Core includes the engine, local/R2 workspace persistence, R2 transport/Keychain and Workbench services; production additionally includes main.go startup. The fixture generator creates deterministic test data; smoke.go is opt-in developer automation. These are separately described, never silently removed from the raw total.
 
-The combined Go profile is the union of actually hit statement blocks from ordinary tests and instrumented native-app processes: the successful 19-check single-file DOM/IPC suite plus actual workspace processes for creation, restart restoration, multi-root file switching/closing, multi-root restart, and wide/narrow file-switch stability sampling, an intentionally missing smoke script, an intentionally throwing smoke script, and an intentionally unready frontend. Failure runs assert the specific structured error; they test the harness, not product dialog behavior. Blocks must exist with identical locations and statement counts in the unit profile before merging. Native covmeta/covcounters and both original profiles are retained. The final signed uninstrumented app also passes the single-file and multi-workspace suites, but its run adds no coverage counters.
+Ordinary Go tests now instrument all repository packages with `-coverpkg=./...`, including cross-package integration calls. The historical baseline used package-local instrumentation. Duplicate block locations from test binaries are unioned only after verifying their statement counts match; every block stays in the denominator once. The combined Go profile is the union of actually hit statement blocks from ordinary tests and instrumented native-app processes: the successful 19-check single-file DOM/IPC suite plus actual workspace processes for creation, restart restoration, multi-root file switching/closing, multi-root restart, and wide/narrow file-switch stability sampling, an intentionally missing smoke script, an intentionally throwing smoke script, and an intentionally unready frontend. Failure runs assert the specific structured error; they test the harness, not product dialog behavior. Blocks must exist with identical locations and statement counts in the unit profile before merging. Native covmeta/covcounters and both original profiles are retained. The final signed uninstrumented app also passes the single-file and multi-workspace suites, but its run adds no coverage counters.
 
 Frontend tests execute the shipped main.ts and generated mygo.ts through a mocked mygo-runtime transport in jsdom. All TypeScript production files are explicitly included. Generated bindings are included and separately listed; dependencies, tests, CSS and build configuration are not application TypeScript. V8 supplies statement/branch/function/line measurements; Vitest's raw inspector payloads are preserved byte-for-byte as gzip files in v8-raw/ before its normal cleanup, and source-mapped counters are in frontend/coverage-final.json. The evidence reporter verifies that application scripts are present and does not alter counters or coverage calculation. The branch report is retained as emitted, including a conservative negative counter from V8 remapping at the open-result guard; it is not manually corrected.
 """
     checks = """- Real DuckDB tests: million-row fixture, exact integers/decimal/time/nested/null values, empty files, malformed and wide schemas, quoted paths and symlinks, SQL lexical/injection boundaries, inclusive resource limits, cancellation/deadlines, and recovery.
 - Workbench: picker cancel/failure, concurrent operation rejection, failed-open/query state retention, export snapshot across a later query, exact JSON/permissions, extension checks, existing-file/symlink refusal, and cleanup after write/close failure.
 - Frontend: single-file and folder-workspace behavioral scenarios covering state transitions, paging/filter/sort, schema, selectable cell text, literal hostile text, keyboard shortcuts/drop events, failed/null bridge returns, busy/cancel recovery, and export results.
-- Production desktop: 19 single-file assertions plus workspace creation, multi-root switching/closing, process restart and timed layout/DOM consistency assertions; light, dark and narrow screenshots; narrow overflow/footer checks. Native-dialog doubles are not native-dialog acceptance.
+- R2 desktop: 13 creation/query checks and 4 restart/close checks use an isolated `r2smoke` build with synthetic transport/vault; that hook is excluded from the delivered app and those runs do not add coverage counters. Native Keychain was verified separately with a temporary synthetic entry. Live Cloudflare acceptance remains manual. Production desktop: 19 single-file assertions plus workspace creation, multi-root switching/closing, process restart and timed layout/DOM consistency assertions; light, dark and narrow screenshots; narrow overflow/footer checks. Native-dialog doubles are not native-dialog acceptance.
 - TypeScript, go vet, npm audit, pinned govulncheck, native build and bundle signature checks. No applicable security-audit skill was available; negative boundary tests and scanners are used. Go/npm advisories do not exhaustively scan statically linked DuckDB or native MyGo/platform libraries.
 """
     limits = """Remaining uncovered Go statements are recorded below and in uncovered.json: database-driver setup/scan/iteration and metadata error paths, process-fatal startup paths, native navigation/window-open callbacks, and smoke readiness/screenshot failures. Each remains in the denominator. Some are difficult to induce deterministically without replacing the real driver or platform.

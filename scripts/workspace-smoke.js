@@ -4,7 +4,7 @@ const $ = id => (document.getElementById(id) || document.querySelector(`[data-co
 const wait = async () => { for (let i=0;i<200;i++) { if ($('busy').hidden) return; await new Promise(r=>setTimeout(r,30)); } throw new Error('workspace stayed busy'); };
 const click = async id => { $(id).click(); await wait(); };
 assert(!$('folder-panel').hidden, 'workspace restored or opened');
-assert(!document.querySelector('dialog'), 'no cell modal');
+assert(!document.querySelector('dialog[open]'), 'no cell modal');
 const phase = workspacePhase;
 if (phase === 'restore') {
  assert($('folder-name').textContent === 'Research workspace', 'workspace name restored across process launches');

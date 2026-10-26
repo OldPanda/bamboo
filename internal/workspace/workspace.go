@@ -20,9 +20,10 @@ type Query struct {
 	Applied string `json:"applied"`
 }
 type Info struct {
-	Root   string `json:"root"`
-	Name   string `json:"name"`
-	Active string `json:"active"`
+	Root     string `json:"root"`
+	Name     string `json:"name"`
+	Active   string `json:"active"`
+	Location string `json:"location,omitempty"`
 }
 type Entry struct {
 	Name      string `json:"name"`

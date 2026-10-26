@@ -13,15 +13,17 @@ from threading import Thread
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts/coverage"
-ENV = {**os.environ, "GOTOOLCHAIN": "go1.27.3", "BAMBOO_LARGE_TEST": "1"}
+ENV = {**os.environ, "GOTOOLCHAIN": "go1.27.3", "BAMBOO_LARGE_TEST": "1", "BAMBOO_KEYCHAIN_TEST": "1"}
 
 
 def sources():
     paths = list(ROOT.glob("*.go"))
     for folder, pattern in [("internal", "*.go"), ("cmd", "*.go"),
-                            ("frontend", "*.ts"), ("scripts", "*.py"), ("scripts", "*.mjs"), ("scripts", "*.js")]:
+                            ("frontend", "*.ts"), ("scripts", "*.py"), ("scripts", "*.mjs"), ("scripts", "*.js"), ("scripts", "*.sh")]:
         paths += list((ROOT / folder).rglob(pattern))
     paths += list((ROOT / "frontend/src").rglob("*.css"))
+    paths += list((ROOT / "frontend/src/assets").glob("*.png"))
+    paths += [ROOT / "assets/bamboo.png"]
     paths += [ROOT / name for name in ["go.mod", "go.sum", "package.json", "package-lock.json", "vitest.config.ts"]]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}
 
@@ -67,7 +69,7 @@ def main():
         run(["npm", "run", "build:web"], "bootstrap-web.log")
     # Each DuckDB-linked test binary is large; serialize package builds to keep
     # temporary disk use bounded without changing the coverage scope.
-    run(["go", "test", "-p=1", "-ldflags=-s -w", "-count=1", "-json",
+    run(["go", "test", "-p=1", "-coverpkg=./...", "-ldflags=-s -w", "-count=1", "-json",
          "-coverprofile=artifacts/coverage/go-unit.out", "./..."], "go-tests.jsonl")
     raw = OUT / "v8-raw"
     if raw.exists():
@@ -163,6 +165,8 @@ def main():
         run(["codesign", "--verify", "--deep", "--strict", "build/Bamboo.app"], "signature.log")
     run(["go", "vet", "./..."], "go-vet.log")
     run(["npm", "exec", "tsc", "--", "--noEmit"], "tsc.log")
+    if not unit:
+        run([sys.executable, "scripts/validate-r2.py"], "r2-native.log")
     run(["npm", "audit", "--json"], "npm-audit.json")
     run(["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.9.0", "./..."], "govulncheck.log")
     assert sources() == source_hashes, "Sources changed while coverage was running; rerun the workflow."

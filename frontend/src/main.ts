@@ -17,19 +17,20 @@ app.innerHTML = `
   <div class="brand"><img class="brand-mark" src="${brandIcon}" width="36" height="36" alt="" /><div>Bamboo</div></div>
   <button id="open-folder" class="open-button" title="Open workspace folder" aria-label="Open workspace folder"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg> Open Folder</button>
   <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘ + O)"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg> Open Parquet <kbd>⌘ + O</kbd></button>
+  <button id="open-r2" class="open-button" title="Connect a read-only R2 workspace"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg> Connect R2</button>
   <section id="open-files-panel" hidden><div class="section-label">Open files</div><div id="open-files"></div></section>
   <section id="folder-panel" hidden><div class="section-label">Workspaces</div><div id="workspace-roots"></div></section>
   <div id="file-card" hidden></div>
   <div class="section-label columns-label">Columns <span id="column-count">—</span></div>
   <div id="column-list" class="column-list"><p class="aside-hint">Your file’s structure,<br>at a glance.</p></div>
-  <div class="privacy"><div>Only on your machine<small>No accounts. No uploads.</small></div></div>
+  <div class="privacy"><div>Queries run on this Mac<small>Read-only. No uploads.</small></div></div>
 </aside>
 <main>
   <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge">Local session</span><button id="export" title="Export the visible result page as JSON">Export page</button></div></header>
   <section id="welcome" class="welcome">
     <img class="welcome-mark" src="${brandIcon}" width="72" height="72" alt="" />
-    <h1 id="welcome-title">Explore your local data</h1>
-    <p id="welcome-description">Open a folder as a workspace, or explore a single Parquet file.</p>
+    <h1 id="welcome-title">Explore your data</h1>
+    <p id="welcome-description">Open a folder, connect an R2 bucket, or explore a Parquet file.</p>
     <div class="welcome-actions"><button id="welcome-folder" class="primary">Open a folder</button><button id="welcome-open">Open a Parquet file</button></div>
     <span class="drop-note">or drop a .parquet file anywhere</span>
     <div class="welcome-features"><div><strong>Browse rows</strong><span>Small pages, precise values.</span></div><div><strong>Query with SQL</strong><span>Filter, sort, and query.</span></div><div><strong>Keep it local</strong><span>Your files stay yours.</span></div></div>
@@ -47,7 +48,20 @@ app.innerHTML = `
   </section>
   <div id="notification" role="status" aria-live="polite" hidden></div>
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Reading your file…</span><button id="cancel">Cancel</button></div>
-</main>`;
+</main>
+<dialog id="r2-dialog" class="connection-dialog" aria-labelledby="r2-title">
+ <form id="r2-form" autocomplete="off">
+ <div class="connection-heading"><div><h2 id="r2-title">Connect Cloudflare R2</h2><p>Browse and query Parquet files in a read-only workspace.</p></div><button id="r2-dismiss" type="button" class="quiet" aria-label="Close R2 connection">×</button></div>
+ <label>Workspace name <span class="optional">optional</span><input id="r2-name" maxlength="200" placeholder="Research data"></label>
+ <label>S3 endpoint<input id="r2-endpoint" type="url" required placeholder="https://ACCOUNT_ID.r2.cloudflarestorage.com" spellcheck="false"></label>
+ <div class="connection-row"><label>Bucket<input id="r2-bucket" required maxlength="63" spellcheck="false" placeholder="analytics"></label><label>Folder prefix <span class="optional">optional</span><input id="r2-prefix" maxlength="1024" spellcheck="false" placeholder="orders/2026"></label></div>
+ <label>Access Key ID<input id="r2-access" required maxlength="256" autocomplete="off" spellcheck="false"></label>
+ <label>Secret Access Key<input id="r2-secret" type="password" required maxlength="512" autocomplete="new-password" spellcheck="false"></label>
+ <p class="connection-note">Use R2 Object Read only credentials scoped to this bucket. Keys are stored in macOS Keychain. Files are read from R2 as needed; queries run on this Mac.</p>
+ <p id="r2-error" role="alert" hidden></p>
+ <div class="connection-actions"><button id="r2-cancel" type="button">Cancel</button><button id="r2-submit" type="submit" class="primary">Test &amp; connect</button></div>
+ </form>
+</dialog>`;
 let file: DataFile | null = null;
 let result: Result | null = null;
 let busy = false;
@@ -71,6 +85,7 @@ type DocumentState = { file: DataFile; draft: string; applied: string; request: 
 const documents = new Map<string, DocumentState>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSave = Promise.resolve();
+const displayRoot = (info: Info) => info.location || info.root;
 const prefix = (root: string) => root.endsWith("/") ? root : root + "/";
 function owner(path: string) {
   return [...folders.values()].filter(f => path.startsWith(prefix(f.root))).sort((a,b) => b.root.length-a.root.length)[0] || null;
@@ -86,13 +101,14 @@ function updateFolder() {
   document.body.classList.toggle("files-mode", documents.size > 0);
   $("folder-panel").hidden = folders.size === 0;
   $("scope-name").textContent = folder ? folder.name : "File";
-  $("scope-name").title = folder ? folder.root : "Single file";
+  $("scope-name").title = folder ? displayRoot(folder) : "Single file";
   $("query-save").hidden = !file && !folder;
   document.body.classList.toggle("workspace-query-mode", !file && !!folder);
+  document.querySelector(".local-badge")!.textContent = folder?.root.startsWith("r2://") ? "R2 / read-only" : "Local session";
   $("query-scope").textContent = file ? "Read-only / table: data" : "Read-only / workspace";
-  if (!file && folder) { $("breadcrumb").textContent="Explore Data"; $("file-name").textContent=folder.name; $("file-path").textContent=folder.root; $("file-path").title=folder.root; }
+  if (!file && folder) { $("breadcrumb").textContent="Explore Data"; $("file-name").textContent=folder.name; $("file-path").textContent=displayRoot(folder); $("file-path").title=displayRoot(folder); }
   document.querySelectorAll<HTMLElement>(".workspace-group").forEach(p=>p.querySelector('[data-control="folder-name"]')!.setAttribute("aria-current",String(!file && p.dataset.root===workspaceRoot)));
-  if (file) $("breadcrumb").textContent = folder ? relativeFile : file.name;
+  if (file) { $("breadcrumb").textContent = folder ? relativeFile : file.name; if(folder?.location){$("file-path").textContent=displayRoot(folder)+"/"+relativeFile;$("file-path").title=$("file-path").textContent;} }
   document.querySelectorAll<HTMLButtonElement>(".tree-file").forEach(b => {
     const path = b.dataset.fullPath!, row = b.parentElement!;
     const doc = documents.get(path), active = file?.path === path;
@@ -287,7 +303,7 @@ async function showFolder(info:Info,restore=false){
   const control=<T extends HTMLElement=HTMLElement>(name:string)=>panel.querySelector<T>(`[data-control="${name}"]`)!;
   control("folder-name").onclick=()=>void task("Opening workspace query…",async()=>{await saveQuery();await showWorkspace(info);});
   const heading=()=>{control("folder-name").textContent=info.name;control<HTMLInputElement>("folder-name-input").value=info.name;};heading();
-  const path=panel.querySelector<HTMLElement>(".folder-path")!;path.textContent=info.root;path.title=info.root;
+  const path=panel.querySelector<HTMLElement>(".folder-path")!;path.textContent=displayRoot(info);path.title=displayRoot(info);
   const tree=panel.querySelector<HTMLElement>(".folder-tree")!;
   control("folder-refresh").onclick=()=>void task("Refreshing folder…",()=>directory(tree,info,"."));
   control("folder-rename").onclick=()=>{control("folder-rename-form").hidden=false;control("folder-name-input").focus();};
@@ -309,12 +325,29 @@ async function showFolder(info:Info,restore=false){
     if(file)$("query-save").textContent=folder ? "Saved locally" : "Kept for this session";
   });
   $("workspace-roots").append(panel);updateFolder();
-  await directory(tree,info,".");
+  try { await directory(tree,info,"."); } catch(e) { if(!info.root.startsWith("r2://"))throw e;tree.replaceChildren(el("p","R2 is unavailable. Refresh to retry, or reconnect with updated credentials.","aside-hint"));notify(String(e),true); }
   if(restore && info.active && info.active!=="."){try{await openFolderFile(info,info.active);}catch(e){await showWorkspace(info);notify(`Last file is unavailable. Choose another file. ${String(e)}`,true);}}
   else await showWorkspace(info);
 }
 async function openFolder(){await task("Opening workspace…",async()=>{await saveQuery();const info=await Workbench.openWorkspace();if(info)await showFolder(info);});}
 $("open-folder").onclick=()=>void openFolder();$("welcome-folder").onclick=()=>void openFolder();
+const r2Dialog=$<HTMLDialogElement>("r2-dialog");
+const clearR2Keys=()=>{ $<HTMLInputElement>("r2-access").value="";$<HTMLInputElement>("r2-secret").value=""; };
+$("open-r2").onclick=()=>{ $("r2-error").hidden=true;r2Dialog.showModal();$<HTMLInputElement>("r2-endpoint").focus(); };
+r2Dialog.onclose=clearR2Keys;
+r2Dialog.oncancel=e=>{if(busy){e.preventDefault();void Workbench.cancel();}};
+$("r2-dismiss").onclick=()=>r2Dialog.close();
+$("r2-cancel").onclick=()=>{if(busy)void Workbench.cancel();else r2Dialog.close();};
+$("r2-form").onsubmit=e=>{
+ e.preventDefault();if(busy)return;
+ const input={name:$<HTMLInputElement>("r2-name").value,endpoint:$<HTMLInputElement>("r2-endpoint").value,bucket:$<HTMLInputElement>("r2-bucket").value,prefix:$<HTMLInputElement>("r2-prefix").value,accessKey:$<HTMLInputElement>("r2-access").value,secretKey:$<HTMLInputElement>("r2-secret").value};
+ clearR2Keys();$("r2-error").hidden=true;$("r2-submit").textContent="Connecting…";
+ void task("Connecting to R2…",async()=>{
+  try {await saveQuery();const info=await Workbench.connectR2(input);if(!info)throw new Error("No R2 workspace returned");r2Dialog.close();await showFolder(info);}
+  catch(e){$("r2-error").textContent=String(e);$("r2-error").hidden=false;throw e;}
+  finally{input.accessKey="";input.secretKey="";$("r2-submit").textContent="Test & connect";}
+ });
+};
 $("sql").oninput=queryEdited;$("sql").onblur=()=>{if(saveTimer)void saveQuery();};
 
 const fmt = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -346,7 +379,7 @@ function controls() {
       | HTMLSelectElement
       | HTMLTextAreaElement
     >("button,input,select,textarea")
-    .forEach((n) => (n.disabled = busy && n.id !== "cancel"));
+    .forEach((n) => (n.disabled = busy && n.id !== "cancel" && n.id !== "r2-cancel"));
   $("previous").toggleAttribute(
     "disabled",
     busy || !result || request.offset === 0,
@@ -607,6 +640,7 @@ $("export").onclick = () =>
     if (path) notify(`Exported visible page to ${path}`);
   });
 document.addEventListener("keydown", (e) => {
+  if(r2Dialog.open && (e.metaKey || e.ctrlKey)){e.preventDefault();return;}
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") {
     e.preventDefault();
     void open();

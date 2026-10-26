@@ -9,6 +9,15 @@ export interface Column {
   type: string;
 }
 
+export interface ConnectInput {
+  name: string;
+  endpoint: string;
+  bucket: string;
+  prefix: string;
+  accessKey: string;
+  secretKey: string;
+}
+
 export interface Entry {
   name: string;
   path: string;
@@ -28,6 +37,7 @@ export interface Info {
   root: string;
   name: string;
   active: string;
+  location?: string;
 }
 
 export interface Page {
@@ -86,6 +96,9 @@ export const Workbench = {
   },
   closeWorkspaceFile(root: string, relative: string): Promise<void> {
     return call("Workbench.CloseWorkspaceFile", root, relative);
+  },
+  connectR2(input: ConnectInput): Promise<Info | null> {
+    return call("Workbench.ConnectR2", input);
   },
   /**
    * ExportPage saves the last successful page as typed JSON, keeping null distinct

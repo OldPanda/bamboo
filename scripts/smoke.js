@@ -120,7 +120,7 @@ const cellSelection = window.getSelection();
 cellSelection.removeAllRanges();
 cellSelection.addRange(cellRange);
 assert(
-  !document.querySelector("dialog, [role=dialog]") &&
+  !document.querySelector("dialog[open], [role=dialog]:not([hidden])") &&
     cellSelection.toString() === "1001" &&
     getComputedStyle(plainCell).cursor === "text",
   "cell click stays in table; exact text remains selectable",

@@ -36,6 +36,9 @@ func smoke(win *mygo.Window) {
 	workspacePhase := os.Getenv("BAMBOO_WORKSPACE_SMOKE")
 	if workspacePhase != "" {
 		scriptPath = "scripts/workspace-smoke.js"
+		if workspacePhase == "r2" || workspacePhase == "r2-restore" {
+			scriptPath = "scripts/r2-smoke.js"
+		}
 		if workspacePhase == "multi" || workspacePhase == "multi-restore" {
 			scriptPath = "scripts/multi-smoke.js"
 		}
@@ -125,5 +128,11 @@ func smoke(win *mygo.Window) {
 	time.Sleep(100 * time.Millisecond)
 	report["narrowFooterReachable"], _ = win.Page().Eval(`document.querySelector(".table-footer").getBoundingClientRect().bottom <= innerHeight + 1`)
 	capture("bamboo-narrow-results")
+	if workspacePhase == "r2" {
+		win.Page().Eval(`document.getElementById("open-r2").click()`)
+		time.Sleep(100 * time.Millisecond)
+		capture("bamboo-r2-connection")
+		win.Page().Eval(`document.getElementById("r2-dismiss").click()`)
+	}
 
 }

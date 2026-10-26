@@ -2,6 +2,7 @@ package main
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/r2"
 	"bamboo/internal/workspace"
 	"embed"
 	"io/fs"
@@ -14,6 +15,8 @@ import (
 
 //go:embed all:frontend/dist
 var frontend embed.FS
+
+var remoteStoreFactory = r2.New
 
 func main() {
 	mygo.App.SetName("Bamboo")
@@ -31,7 +34,13 @@ func main() {
 		}
 		config = filepath.Join(base, "Bamboo")
 	}
-	w := &Workbench{engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config)}
+	executable, _ := os.Executable()
+	extension := filepath.Join(filepath.Dir(executable), "extensions", "httpfs.duckdb_extension")
+	if filepath.Base(filepath.Dir(executable)) == "MacOS" {
+		extension = filepath.Join(filepath.Dir(executable), "..", "Resources", "extensions", "httpfs.duckdb_extension")
+	}
+	e.SetHTTPFS(extension)
+	w := &Workbench{remote: remoteStoreFactory(config, r2.NewVault()), engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config)}
 	if len(os.Args) == 3 && os.Args[1] == "--workspace" {
 		if _, err := w.useWorkspace(os.Args[2]); err != nil {
 			log.Fatal(err)

@@ -39,7 +39,7 @@ if(workspacePhase==='multi-restore'){
   assert(rows()===100 && $('sql').value==='SELECT * FROM data','second file has an independent query');
   await click(row(first).querySelector('.activate-file'));
   assert($('sql').value==='SELECT city FROM data' && rows()===4,'switch restores draft separately from last successful results');
-  document.querySelector('#grid tbody td:nth-child(2)').click();assert(!document.querySelector('dialog'),'cell click remains in the table');
+  document.querySelector('#grid tbody td:nth-child(2)').click();assert(!document.querySelector('dialog[open]'),'cell click remains in the table');
   await drop(external);
   assert(opened().length===3 && groups().length===2,'outside file does not replace files or workspace roots');
   assert(document.querySelector('.external-files .opened-file').dataset.path===external,'outside file listed separately under Other files');

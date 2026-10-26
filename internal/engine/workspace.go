@@ -131,6 +131,9 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*sql.DB, func
 	if err != nil {
 		return nil, nil, err
 	}
+	if e.remote != nil {
+		return e.remoteDatabaseForQuery(ctx, refs)
+	}
 	if len(refs) == 0 && e.db != nil {
 		return e.db, func() {}, nil
 	}
