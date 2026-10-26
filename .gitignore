@@ -1,0 +1,8 @@
+.cindy-worktrees/
+node_modules/
+frontend/dist/
+build/
+/fixtures/
+artifacts/*.png
+artifacts/*.log
+.DS_Store

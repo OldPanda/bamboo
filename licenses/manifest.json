@@ -1,0 +1,58 @@
+[
+  {
+    "module": "github.com/duckdb/duckdb-go-bindings",
+    "version": "v0.20000.0",
+    "licenses": [
+      "github.com_duckdb_duckdb-go-bindings-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "go.duckdb.org/libduckdb/darwin-arm64",
+    "version": "v0.20000.0",
+    "licenses": [
+      "go.duckdb.org_libduckdb_darwin-arm64-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "github.com/duckdb/duckdb-go/v2",
+    "version": "v2.20000.0",
+    "licenses": [
+      "github.com_duckdb_duckdb-go_v2-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "github.com/go-viper/mapstructure/v2",
+    "version": "v2.5.0",
+    "licenses": [
+      "github.com_go-viper_mapstructure_v2-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "github.com/google/uuid",
+    "version": "v1.6.0",
+    "licenses": [
+      "github.com_google_uuid-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "github.com/egoist/mygo",
+    "version": "v0.6.4",
+    "licenses": [
+      "github.com_egoist_mygo-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "golang.org/x/text",
+    "version": "v0.43.0",
+    "licenses": [
+      "golang.org_x_text-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "github.com/ebitengine/purego",
+    "version": "v0.11.1",
+    "licenses": [
+      "github.com_ebitengine_purego-LICENSE.txt"
+    ]
+  }
+]
