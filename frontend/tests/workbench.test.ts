@@ -113,7 +113,7 @@ describe("the shipped page through its generated IPC binding", () => {
     responses["Workbench.Query"] = () => { throw "bridge disconnected"; }; await click("run"); expect($("notification").textContent).toBe("bridge disconnected");
     responses["Workbench.Query"] = () => ({...page(0,false),rows:[]}); value("sql", "SELECT * FROM data WHERE false"); await click("run");
     expect(lastRequest()).toMatchObject({offset:0, sort:"", desc:false,filterColumn:"",filterValue:""}); expect($("empty-result").hidden).toBe(false);
-    expect($("result-summary").textContent).toBe("0 rows · 3 ms"); expect($("query-badge").textContent).toBe("SQL result"); expect($("notification").hidden).toBe(true);
+    expect($("result-summary").textContent).toBe("0 rows / 3 ms"); expect($("query-badge").textContent).toBe("SQL result"); expect($("notification").hidden).toBe(true);
     await click("reset-sql"); expect($<HTMLTextAreaElement>("sql").value).toBe("SELECT * FROM data");
   });
 

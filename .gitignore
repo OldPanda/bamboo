@@ -1,7 +1,7 @@
 .cindy-worktrees/
 node_modules/
 frontend/dist/
-build/
+/build
 /fixtures/
 artifacts/*.png
 artifacts/*.log
@@ -11,3 +11,5 @@ artifacts/coverage/frontend/*.png
 artifacts/coverage/frontend/*.css
 artifacts/coverage/frontend/*.js
 artifacts/coverage/frontend/*.html
+
+artifacts/redesign/comparison-render/

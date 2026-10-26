@@ -1,0 +1,58 @@
+:root {
+  color-scheme: light;
+  font-size: 13px;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-body);
+  --font-outlier: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.846154rem; --text-sm: 0.923077rem; --text-md: 1rem;
+  --text-lg: 1.169231rem; --text-xl: 1.369231rem; --text-2xl: 1.6rem; --text-3xl: 1.876923rem;
+  --text-display: var(--text-3xl); --text-section: var(--text-xl); --text-title: var(--text-lg);
+  --display-weight: 600; --tracking-display: -0.02em;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px;
+  --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px;
+  --space-3xl: 96px; --space-4xl: 144px;
+  --color-paper: oklch(98.5% 0.003 155);
+  --color-paper-2: oklch(96% 0.005 155);
+  --color-paper-3: oklch(93% 0.008 155);
+  --color-ink: oklch(25% 0.012 155);
+  --color-ink-2: oklch(38% 0.012 155);
+  --color-muted: oklch(47% 0.014 155);
+  --color-rule: oklch(86% 0.008 155);
+  --color-rule-2: oklch(59% 0.016 155);
+  --color-accent: #2f674a;
+  --color-accent-ink: oklch(99% 0.004 155);
+  --color-accent-hover: oklch(37% 0.075 155);
+  --color-accent-soft: oklch(92% 0.025 155);
+  --color-focus: oklch(44% 0.13 155);
+  --color-error: oklch(45% 0.15 30);
+  --color-error-soft: oklch(96% 0.016 30);
+  --color-backdrop: oklch(18% 0.01 155 / 0.45);
+  --radius-card: 8px; --radius-input: 4px;
+  --dur-micro: 120ms; --dur-short: 220ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --z-base: 1; --z-sticky: 200; --z-modal: 400; --z-toast: 500;
+  --line: var(--color-rule); --muted: var(--color-muted); --green: var(--color-accent);
+  --surface: var(--color-paper); --hover: var(--color-paper-2); --side: var(--color-paper-2);
+  --ink: var(--color-ink); --app: var(--color-paper);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-paper: oklch(20% 0.006 155);
+    --color-paper-2: oklch(23% 0.007 155);
+    --color-paper-3: oklch(27% 0.009 155);
+    --color-ink: oklch(94% 0.006 155);
+    --color-ink-2: oklch(84% 0.009 155);
+    --color-muted: oklch(72% 0.012 155);
+    --color-rule: oklch(33% 0.01 155);
+    --color-rule-2: oklch(58% 0.018 155);
+    --color-accent: oklch(78% 0.10 155);
+    --color-accent-ink: oklch(20% 0.025 155);
+    --color-accent-hover: oklch(84% 0.10 155);
+    --color-accent-soft: oklch(31% 0.027 155);
+    --color-focus: oklch(80% 0.13 155);
+    --color-error: oklch(79% 0.12 30);
+    --color-error-soft: oklch(25% 0.025 30);
+    --color-backdrop: oklch(12% 0.01 155 / 0.65);
+  }
+}

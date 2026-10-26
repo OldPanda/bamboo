@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run real tests; desktop measurements require a logged-in macOS GUI session."""
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from threading import Thread
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts/coverage"
@@ -32,11 +34,13 @@ def run(args, log, *, cwd=ROOT, env=None, timeout=300):
     result.check_returncode()
 
 
-def smoke(binary, fixture, cwd, destination, expected=None, covered=True):
+def smoke(binary, fixture, cwd, destination, expected=None, covered=True, frontend_url=None):
     destination.mkdir(parents=True, exist_ok=True)
     report_path = destination / "desktop-smoke.json"
     report_path.unlink(missing_ok=True)
     env = {**ENV, "BAMBOO_SMOKE": str(destination)}
+    if frontend_url:
+        env["MYGO_DEV_URL"] = frontend_url
     if covered:
         env["GOCOVERDIR"] = str(OUT / "desktop/raw")
     run([str(binary), "--file", str(fixture)], str(destination.relative_to(OUT) / "process.log"),
@@ -90,6 +94,30 @@ def main():
                     scripts.mkdir()
                     (scripts / "smoke.js").write_text("throw new Error('expected smoke failure');")
                 smoke(ROOT / "build/bamboo-covered", fixture, Path(d), desktop / name, expected)
+        # A real native process must report an unready frontend instead of hanging.
+        # This local, intentionally blank fixture contains no data or mocked IPC.
+        class UnreadyFrontend(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = b"<!doctype html><title>Intentional startup failure fixture</title>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        with ThreadingHTTPServer(("127.0.0.1", 0), UnreadyFrontend) as server:
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop / "frontend-not-ready",
+                      expected="frontend did not become ready",
+                      frontend_url=f"http://127.0.0.1:{server.server_port}/")
+            finally:
+                server.shutdown()
+                thread.join()
         run(["go", "tool", "covdata", "textfmt", "-i=artifacts/coverage/desktop/raw",
              "-o=artifacts/coverage/go-desktop.out"], "covdata.log")
         # Also validate the delivered signed, uninstrumented app bundle.

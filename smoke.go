@@ -63,6 +63,13 @@ func smoke(win *mygo.Window) {
 	}
 	report["lightButtonStyle"], _ = win.Page().Eval(`({background:getComputedStyle(document.getElementById("export")).backgroundColor,color:getComputedStyle(document.getElementById("export")).color,surface:getComputedStyle(document.documentElement).getPropertyValue("--surface"),appearance:getComputedStyle(document.getElementById("export")).appearance,dark:matchMedia("(prefers-color-scheme: dark)").matches})`)
 	capture("bamboo-light")
+	win.Page().Eval(`document.getElementById('tab-schema').click()`)
+	capture("bamboo-schema")
+	mygo.Theme.SetSource(mygo.ThemeDark)
+	time.Sleep(200 * time.Millisecond)
+	capture("bamboo-schema-dark")
+	mygo.Theme.SetSource(mygo.ThemeLight)
+	time.Sleep(200 * time.Millisecond)
 	win.Page().Eval(`document.getElementById('tab-sql').click(); document.getElementById('sql').value='SELECT city, count(*) AS orders, sum(amount) AS revenue FROM data GROUP BY city ORDER BY revenue DESC'; document.getElementById('run').click()`)
 	for i := 0; i < 100; i++ {
 		v, _ := win.Page().Eval(`document.getElementById('busy').hidden`)
@@ -72,6 +79,11 @@ func smoke(win *mygo.Window) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	capture("bamboo-sql")
+	mygo.Theme.SetSource(mygo.ThemeDark)
+	time.Sleep(200 * time.Millisecond)
+	capture("bamboo-sql-dark")
+	mygo.Theme.SetSource(mygo.ThemeLight)
+	time.Sleep(200 * time.Millisecond)
 	win.SetSize(700, 640)
 	time.Sleep(200 * time.Millisecond)
 	report["narrowLayout"], _ = win.Page().Eval(`({width:innerWidth,documentWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth})`)

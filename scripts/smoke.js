@@ -133,4 +133,18 @@ return {
   userAgent: navigator.userAgent,
   rows: document.querySelectorAll("#grid tbody tr").length,
   viewport: { width: innerWidth, height: innerHeight },
+  layout: (() => {
+    const grid = $("grid-scroll").getBoundingClientRect();
+    const rows = [...document.querySelectorAll("#grid tbody tr")];
+    return {
+      gridTop: grid.top,
+      gridHeight: grid.height,
+      fullyVisibleRows: rows.filter(row => {
+        const rect = row.getBoundingClientRect();
+        return rect.top >= document.querySelector("#grid thead").getBoundingClientRect().bottom && rect.bottom <= grid.bottom;
+      }).length,
+      numericAlignment: getComputedStyle(document.querySelector("#grid td.numeric")).textAlign,
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+    };
+  })(),
 };

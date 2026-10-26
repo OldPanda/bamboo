@@ -12,31 +12,30 @@ const $ = <T extends HTMLElement>(id: string) =>
 const app = $("app");
 app.innerHTML = `
 <aside class="sidebar">
-  <div class="brand"><span class="brand-mark">竹</span><div>Bamboo<span class="edition">LOCAL DATA WORKBENCH</span></div></div>
-  <button id="open" class="primary open-button"><span>＋</span> Open Parquet <kbd>⌘ O</kbd></button>
-  <div class="section-label">WORKSPACE <span>01</span></div>
+  <div class="brand"><span class="brand-mark">竹</span><div>Bamboo<span class="edition">Local data workbench</span></div></div>
+  <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘O)"><span>＋</span> Open Parquet <kbd>⌘ O</kbd></button>
+  <div class="section-label">Active file</div>
   <div id="file-card" class="file-card muted">No file open</div>
-  <div class="section-label columns-label">COLUMNS <span id="column-count">—</span></div>
+  <div class="section-label columns-label">Columns <span id="column-count">—</span></div>
   <div id="column-list" class="column-list"><p class="aside-hint">Your file’s structure,<br>at a glance.</p></div>
-  <div class="privacy"><span class="status-dot"></span><div>Only on your machine<small>No accounts. No uploads.</small></div></div>
+  <div class="privacy"><div>Only on your machine<small>No accounts. No uploads.</small></div></div>
 </aside>
 <main>
-  <header><div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb">Welcome</strong></div><span class="local-badge">● Local session</span></header>
+  <header><div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge">Local session</span><button id="export" title="Export the visible result page as JSON">Export page</button></div></header>
   <section id="welcome" class="welcome">
-    <div class="welcome-mark">竹</div><div class="eyebrow">A LITTLE CLARITY FOR YOUR DATA</div>
-    <h1>Big files.<br>Room to explore.</h1>
+    <div class="welcome-mark" aria-hidden="true">竹</div>
+    <h1>Explore a Parquet file</h1>
     <p>Open a Parquet file and get straight to the details.<br>Browse rows, inspect types, and ask questions with SQL.</p>
-    <button id="welcome-open" class="primary">Open a Parquet file <span>↗</span></button>
+    <button id="welcome-open" class="primary">Open a Parquet file</button>
     <span class="drop-note">or drop a .parquet file anywhere</span>
-    <div class="welcome-features"><div><b>01</b><strong>Browse comfortably</strong><span>Small pages, precise values.</span></div><div><b>02</b><strong>Follow your curiosity</strong><span>Filter, sort, and query.</span></div><div><b>03</b><strong>Keep it local</strong><span>Your files stay yours.</span></div></div>
+    <div class="welcome-features"><div><strong>Browse rows</strong><span>Small pages, precise values.</span></div><div><strong>Query with SQL</strong><span>Filter, sort, and query.</span></div><div><strong>Keep it local</strong><span>Your files stay yours.</span></div></div>
   </section>
   <section id="workspace" hidden>
-    <div class="file-heading"><div><div class="eyebrow">PARQUET FILE</div><h1 id="file-name"></h1><p id="file-path"></p></div><button id="export" title="Export the visible result page as JSON">↗ Export page</button></div>
-    <div class="metrics"><div><span>ROWS</span><strong id="row-count">—</strong></div><div><span>COLUMNS</span><strong id="metric-columns">—</strong></div><div><span>FILE SIZE</span><strong id="file-size">—</strong></div><div><span>ROW GROUPS</span><strong id="row-groups">—</strong></div></div>
-    <nav class="tabs" aria-label="Views"><button id="tab-data" class="active" aria-selected="true">▦ &nbsp; Data</button><button id="tab-sql" aria-selected="false">⌘ &nbsp; SQL</button><button id="tab-schema" aria-selected="false">≡ &nbsp; Schema</button><span id="query-badge">data</span></nav>
-    <div id="sql-panel" class="sql-panel" hidden><div class="editor-header"><label for="sql">QUERY EDITOR <span>Read-only · table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ Enter to run · 15 second timeout</span><button id="run" class="primary">▶ Run query</button></div></div>
+    <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
+    <nav class="tabs" aria-label="Views"><button id="tab-data" class="active" aria-selected="true">Data</button><button id="tab-sql" aria-selected="false">SQL</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
+    <div id="sql-panel" class="sql-panel" hidden><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ Enter to run / 15 second timeout</span><button id="run" class="primary">Run query</button></div></div>
     <div id="data-panel" class="data-panel">
-      <form id="filter-form" class="toolbar"><span class="filter-icon">⌕</span><select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select><input id="filter-value" aria-label="Filter value" placeholder="Contains text…"><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
+      <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
       <footer class="table-footer"><span id="result-summary">Ready</span><div class="pagination"><button id="previous" aria-label="Previous page">←</button><span id="page-label">Page 1</span><button id="next" aria-label="Next page">→</button></div></footer>
     </div>
@@ -45,7 +44,7 @@ app.innerHTML = `
   <div id="notification" role="status" aria-live="polite" hidden></div>
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Reading your file…</span><button id="cancel">Cancel</button></div>
 </main>
-<dialog id="cell-dialog"><div class="cell-header"><div><span class="eyebrow">CELL INSPECTOR</span><h2 id="cell-title"></h2></div><button id="close-cell" aria-label="Close inspector">×</button></div><pre id="cell-value"></pre><p>Full text representation · select to copy</p></dialog>`;
+<dialog id="cell-dialog"><div class="cell-header"><div><span class="inspector-label">Cell inspector</span><h2 id="cell-title"></h2></div><button id="close-cell" aria-label="Close inspector">×</button></div><pre id="cell-value"></pre><p>Full text representation / select to copy</p></dialog>`;
 let file: DataFile | null = null;
 let result: Result | null = null;
 let busy = false;
@@ -154,7 +153,7 @@ function showFile(f: DataFile) {
   card.replaceChildren(
     el("span", "▧", "file-icon"),
     el("strong", f.name),
-    el("small", `${fmt(f.rows)} rows · ${size(f.bytes)}`),
+    el("small", `${fmt(f.rows)} rows / ${size(f.bytes)}`),
   );
   const list = $("column-list");
   list.replaceChildren();
@@ -175,7 +174,7 @@ function showFile(f: DataFile) {
       el("span", c.name),
       el("small", c.type),
     );
-    item.title = `${c.name} · ${c.type}`;
+    item.title = `${c.name} / ${c.type}`;
     list.append(item);
     const tr = document.createElement("tr");
     tr.append(
@@ -199,6 +198,7 @@ function render(r: Result) {
   tr.append(el("th", "#", "row-number"));
   r.columns.forEach((c) => {
     const th = document.createElement("th");
+    th.dataset.type = c.type;
     const b = el(
       "button",
       c.name + (request.sort === c.name ? (request.desc ? " ↓" : " ↑") : ""),
@@ -233,11 +233,12 @@ function render(r: Result) {
               ? "numeric"
               : "",
       );
+      td.dataset.type = r.columns[j].type;
       td.tabIndex = 0;
       td.title = "Click to inspect the full value";
       const inspect = () => {
         $("cell-title").textContent =
-          `${r.columns[j].name} · ${r.columns[j].type}`;
+          `${r.columns[j].name} / ${r.columns[j].type}`;
         $("cell-value").textContent =
           v === null ? "NULL (no value)" : v === "" ? '"" (empty string)' : v;
         $<HTMLDialogElement>("cell-dialog").showModal();
@@ -254,8 +255,8 @@ function render(r: Result) {
   $("page-label").textContent =
     `Page ${Math.floor(r.offset / request.limit) + 1}`;
   $("result-summary").textContent = r.rows.length
-    ? `${fmt(String(r.offset + 1))}–${fmt(String(r.offset + r.rows.length))} ${r.more ? "· more rows available" : "· end of results"} · ${r.elapsedMS} ms`
-    : `0 rows · ${r.elapsedMS} ms`;
+    ? `${fmt(String(r.offset + 1))}–${fmt(String(r.offset + r.rows.length))} ${r.more ? "/ more rows available" : "/ end of results"} / ${r.elapsedMS} ms`
+    : `0 rows / ${r.elapsedMS} ms`;
   $("query-badge").textContent =
     request.sql === "SELECT * FROM data" ? "data" : "SQL result";
   const select = $<HTMLSelectElement>("filter-column");
