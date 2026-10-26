@@ -7,13 +7,20 @@
     "build:web": "tsc --noEmit && vite build --config frontend/vite.config.ts",
     "build": "bash scripts/build.sh",
     "fixtures": "go run ./cmd/fixtures",
-    "test": "go test ./..."
+    "test": "go test ./...",
+    "test:web": "vitest run",
+    "coverage:web": "vitest run --coverage",
+    "coverage": "python3 scripts/coverage.py",
+    "coverage:unit": "python3 scripts/coverage.py --unit"
   },
   "dependencies": {
     "mygo-runtime": "0.6.4"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "5.0.5",
+    "jsdom": "27.4.0",
     "typescript": "~5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "5.0.5"
   }
 }

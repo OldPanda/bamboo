@@ -6,3 +6,8 @@ build/
 artifacts/*.png
 artifacts/*.log
 .DS_Store
+__pycache__/
+artifacts/coverage/frontend/*.png
+artifacts/coverage/frontend/*.css
+artifacts/coverage/frontend/*.js
+artifacts/coverage/frontend/*.html

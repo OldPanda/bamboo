@@ -77,6 +77,36 @@ Resource limits: 500 rows/page, 256 columns, 64 KiB per cell, 4 MiB of raw cell 
 
 ## Verification
 
+### Coverage
+
+The coverage expansion retains every Go production/tool file and every frontend
+TypeScript source file, including generated IPC bindings. Ordinary Go tests and
+instrumented real-desktop coverage are reported separately. See the
+[coverage summary](artifacts/coverage/SUMMARY.md) and the self-contained,
+phone-friendly [HTML report](artifacts/coverage/report.html) for exact counts,
+baseline comparison, raw evidence and remaining gaps.
+
+```sh
+npm ci
+npm run coverage       # macOS GUI: tests, native desktop, reports, scans, 95% gates
+npm run coverage:unit  # no desktop: core/frontend 95% gates; no full-Go 95% claim
+npm run coverage:web  # V8 statements, branches, functions and lines; each >=95%
+```
+
+The full command uses Go 1.27.3 locally, generates its own deterministic Parquet
+fixtures, rebuilds `build/Bamboo.app`, and verifies both an instrumented executable
+and the signed app. It requires Python 3, Node 22.12+ and a logged-in macOS GUI
+session. It does not change global toolchain or signing settings. On restricted
+hosts the existing Go/npm caches and desktop access must be permitted. Raw Go
+profiles, native counters, compressed V8 data and scanner logs are retained under
+`artifacts/coverage/`. The HTML has all resources inline and makes no network
+requests. The native picker, save dialog and actual Finder drop still require
+manual acceptance; dialog doubles are only service tests.
+The coverage runner builds/tests Go packages serially (`-p=1`) to limit temporary
+disk use from DuckDB-linked binaries; this does not change the measured files.
+
+### Other verification commands
+
 ```sh
 GOTOOLCHAIN=go1.27.3 go test -ldflags='-s -w' ./...
 BAMBOO_LARGE_TEST=1 GOTOOLCHAIN=go1.27.3 go test -ldflags='-s -w' -count=1 -v ./internal/engine
