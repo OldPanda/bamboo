@@ -2,7 +2,7 @@
 
 A standalone, local Parquet desktop workbench built with **MyGo + DuckDB**. Open a file, browse bounded pages, inspect its schema, filter and sort, and run read-only SQL against `data`. No account, telemetry, upload, server, or runtime network connection is required.
 
-![Bamboo desktop](artifacts/bamboo-light.png)
+![Bamboo desktop](artifacts/bamboo-light.png)\n\nThe analyst-focused interface puts the typed table first. See the [redesign decisions and verification](REDESIGN.md), [offline before/after report](artifacts/redesign/comparison.html), and [PNG comparison](artifacts/redesign/comparison.png).
 
 ## Run the delivered app
 

@@ -62,3 +62,7 @@ Native UI automation via System Events did not complete on this host and was sto
 4. Confirm keyboard shortcuts, text selection/copy, screen-reader output, and normal quit behavior with the native desktop UI.
 
 Further untested scope: multi-GB real-world files, compressed pathological/hostile files, encrypted Parquet, full process memory-pressure behavior, Intel Macs, Windows/Linux, signing/notarization for distribution. No claim is made that this first version handles all of those.
+
+## Analyst UI redesign — 2026-10-26
+
+The newer analyst workbench and its actual native captures are documented in [REDESIGN.md](REDESIGN.md). Its final full coverage run passes all 95% gates: Go all-repository tests plus desktop 95.71%, core 97.69%, frontend statements/functions/lines 100%, branches 98.64%. All 16 desktop checks pass in the signed app. Picker/save/Finder acceptance remains outstanding. Earlier measurements in this document describe the original implementation.
