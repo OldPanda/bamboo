@@ -36,6 +36,8 @@ beforeEach(() => {
     "Workbench.InitialFile": () => "",
     "Workbench.RestoreWorkspaces": () => ({workspaces:[],warning:""}),
     "Workbench.ClearPreview": () => undefined,
+    "Workbench.OpenWorkspaceQuery": () => ({draft:"",applied:""}),
+    "Workbench.QueryWorkspace": (_root:string,r:Request) => page(r.offset,r.offset<200),
     "Workbench.CloseWorkspaceFile": () => undefined,
     "Workbench.Open": () => dataFile(),
     "Workbench.OpenPath": () => dataFile(),
@@ -183,7 +185,7 @@ describe("folder workspaces", () => {
   it("browses lazy directories, renames safely and restores per-file SQL", async () => {
     folderResponses(); await boot(); await click("open-folder");
     expect($("folder-name").textContent).toBe("Research <img>"); expect($("folder-panel").querySelector("img")).toBeNull();
-    expect($("workspace").hidden).toBe(true); expect($("folder-panel").hidden).toBe(false);
+    expect($("workspace").hidden).toBe(false); expect($("folder-panel").hidden).toBe(false);
     const directory = document.querySelector<HTMLButtonElement>(".tree-folder")!;
     directory.click(); await settled(); expect(directory.getAttribute("aria-expanded")).toBe("true");
     expect(document.querySelector(".tree-children")!.textContent).toContain("No visible");
@@ -217,7 +219,7 @@ describe("folder workspaces", () => {
   it("handles missing folders/files and keeps previous data on failed file selection", async () => {
     folderResponses(); responses["Workbench.RestoreWorkspaces"] = () => ({workspaces:[{...workspaceInfo,active:"gone.parquet"}],warning:""});
     responses["Workbench.OpenWorkspaceFile"] = () => { throw new Error("file removed"); };
-    await boot(); expect($("notification").textContent).toContain("Last file is unavailable"); expect($("workspace").hidden).toBe(true);
+    await boot(); expect($("notification").textContent).toContain("Last file is unavailable"); expect($("workspace").hidden).toBe(false);
     await click("folder-close"); expect($("breadcrumb").textContent).toBe("Welcome");
     responses["Workbench.OpenWorkspace"] = () => null; await click("welcome-folder"); expect($("folder-panel").hidden).toBe(true);
     responses["Workbench.OpenWorkspace"] = () => { throw new Error("folder access denied"); }; await click("open-folder"); expect($("notification").textContent).toBe("folder access denied");
@@ -267,7 +269,7 @@ describe("multiple open files and workspaces",()=>{
  it("keeps several roots, classifies boundary paths, deduplicates folders, and closes workspace files while keeping outside files",async()=>{
   folderResponses();await boot();await click("open-folder");await treeFile();
   responses["Workbench.OpenWorkspace"]=()=>({root:"/second",name:"Second",active:""});await click("open-folder");
-  expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);expect($("file-name").textContent).toBe("orders.parquet");
+  expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);expect($("file-name").textContent).toBe("Second");expect(openedRows()).toHaveLength(1);
   await click("open-folder");expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);
   const external={...dataFile(),name:"outside.parquet",path:"/analysis-other/outside.parquet"};
   responses["Workbench.Open"]=()=>external;await click("open");
@@ -284,10 +286,11 @@ describe("multiple open files and workspaces",()=>{
   await open();expect($("scope-name").textContent).toBe("File");
   await click("open-folder");expect(document.querySelector(".external-files")).toBeNull();
   responses["Workbench.OpenWorkspace"]=()=>({root:"/analysis/nested",name:"Nested",active:""});await click("open-folder");expect($("scope-name").textContent).toBe("Nested");
-  responses["Workbench.OpenWorkspace"]=()=>({root:"/",name:"Root",active:""});await click("open-folder");expect($("scope-name").textContent).toBe("Nested");
+  responses["Workbench.OpenWorkspace"]=()=>({root:"/",name:"Root",active:""});await click("open-folder");expect($("scope-name").textContent).toBe("Root");
+  await click("open");expect($("scope-name").textContent).toBe("Nested");
   const nestedPanel=[...document.querySelectorAll<HTMLElement>(".workspace-group")].find(p=>p.dataset.root==="/analysis/nested")!;
   nestedPanel.querySelector<HTMLButtonElement>('[data-control="folder-close"]')!.click();await settled();
-  expect($("welcome").hidden).toBe(false);expect($("open-files-panel").hidden).toBe(true);expect(openedRows()).toHaveLength(0);
+  expect($("welcome").hidden).toBe(true);expect($("workspace").hidden).toBe(false);expect($("open-files-panel").hidden).toBe(true);expect(openedRows()).toHaveLength(0);
   expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);
 
  });
@@ -298,7 +301,7 @@ describe("multiple open files and workspaces",()=>{
   await click("folder-refresh");expect(document.querySelectorAll(".tree-file-row .close-file")).toHaveLength(1);
   await openedAction("/analysis/orders.parquet","close-file");
   expect(document.querySelectorAll(".tree-file-row .close-file")).toHaveLength(0);
-  expect(document.querySelector(".tree-file")).not.toBeNull();expect($("welcome").hidden).toBe(false);
+  expect(document.querySelector(".tree-file")).not.toBeNull();expect($("welcome").hidden).toBe(true);expect($("workspace").hidden).toBe(false);
   await treeFile();expect($("workspace").hidden).toBe(false);expect($("open-files-panel").hidden).toBe(true);
   responses["Workbench.Open"]=()=>({...dataFile(),name:"outside.parquet",path:"/outside.parquet"});await click("open");
   expect($("open-files-panel").hidden).toBe(false);expect($("open-files").querySelectorAll(".opened-file")).toHaveLength(1);
@@ -357,4 +360,49 @@ it("offers safely quoted workspace tables and inserts at the cursor without runn
  expect(bridge.call.mock.calls.filter(([name])=>name==='Workbench.Query')).toHaveLength(before);
  await click('run');expect(lastRequest().sql).toBe(editor.value);
  responses['Workbench.Open']=()=>dataFile();await click('open');expect($('workspace-tables').hidden).toBe(true);
+});
+
+it("queries without opening a file, keeps independent drafts, and returns to the editor on last-file close",async()=>{
+ folderResponses();await boot();await click('open-folder');
+ expect($('welcome').hidden).toBe(true);expect($('workspace').hidden).toBe(false);expect($('file-name').textContent).toBe(workspaceInfo.name);
+ expect($<HTMLButtonElement>('run').disabled).toBe(true);
+ expect(bridge.call.mock.calls.some(([name])=>name==='Workbench.OpenWorkspaceFile')).toBe(false);
+ value('sql','SELECT * FROM workspace."orders.parquet"');$('sql').dispatchEvent(new Event('input'));
+ key('Enter',{metaKey:true});await settled();
+ expect(bridge.call).toHaveBeenCalledWith('Workbench.QueryWorkspace','/analysis',expect.objectContaining({sql:'SELECT * FROM workspace."orders.parquet"'}));
+ expect(bridge.call).toHaveBeenCalledWith('Workbench.SaveWorkspaceQuery','/analysis','.',expect.any(String),expect.any(String));
+ expect($<HTMLButtonElement>('export').disabled).toBe(false);
+ await click('next');expect(bridge.call).toHaveBeenLastCalledWith('Workbench.QueryWorkspace','/analysis',expect.objectContaining({offset:100}));
+ value('sql','SELECT draft');$('sql').dispatchEvent(new Event('input'));
+ await treeFile();expect($('breadcrumb').textContent).toBe('orders.parquet');
+ await click('folder-name');expect($<HTMLTextAreaElement>('sql').value).toBe('SELECT draft');expect($('page-label').textContent).toBe('Page 2');
+ await treeFile();document.querySelector<HTMLButtonElement>('.close-file')!.click();await settled();
+ expect($('welcome').hidden).toBe(true);expect($<HTMLTextAreaElement>('sql').value).toBe('SELECT draft');
+ await click('reset-sql');expect($<HTMLTextAreaElement>('sql').value).toBe('');
+ responses['Workbench.QueryWorkspace']=()=>null;value('sql','SELECT 1');$('sql').dispatchEvent(new Event('input'));await click('run');expect($('notification').textContent).toBe('No query result returned');
+ responses['Workbench.QueryWorkspace']=()=>{throw new Error('table removed')};await click('folder-name');expect($('notification').textContent).toContain('Draft preserved');expect($<HTMLButtonElement>('export').disabled).toBe(true);
+ await click('folder-close');expect($('welcome').hidden).toBe(false);
+});
+
+it("restores a workspace-level query directly and keeps multiple workspace drafts separate",async()=>{
+ folderResponses();responses['Workbench.RestoreWorkspaces']=()=>({workspaces:[{...workspaceInfo,active:'.'}],warning:''});
+ responses['Workbench.OpenWorkspaceQuery']=()=>({draft:'SELECT 42',applied:'SELECT 42'});
+ await boot();expect(bridge.call).toHaveBeenCalledWith('Workbench.QueryWorkspace','/analysis',expect.objectContaining({sql:'SELECT 42'}));
+ responses['Workbench.OpenWorkspace']=()=>({root:'/second',name:'Second',active:''});
+ responses['Workbench.OpenWorkspaceQuery']=()=>({draft:'',applied:''});await click('open-folder');expect($<HTMLTextAreaElement>('sql').value).toBe('');
+ value('sql','SELECT 7');$('sql').dispatchEvent(new Event('input'));await click('run');
+ await click('folder-name');expect($<HTMLTextAreaElement>('sql').value).toBe('SELECT 42');
+ expect(document.querySelectorAll('.opened-file')).toHaveLength(0);
+});
+
+it("keeps the last file's workspace selected and distinguishes an empty query result from an unrun editor",async()=>{
+ folderResponses();await boot();await click('open-folder');
+ responses['Workbench.OpenWorkspace']=()=>({root:'/second',name:'Second',active:''});await click('open-folder');
+ responses['Workbench.OpenWorkspaceFile']=(root:string,path:string)=>({file:{...dataFile(),name:path,path:root+'/'+path},query:{draft:'SELECT * FROM data',applied:'SELECT * FROM data'},warning:''});
+ document.querySelector<HTMLButtonElement>('.tree-file[data-root="/second"]')!.click();await settled();
+ document.querySelector<HTMLButtonElement>('.close-file')!.click();await settled();
+ expect($('scope-name').textContent).toBe('Second');expect($('breadcrumb').textContent).toBe('Explore Data');
+ responses['Workbench.QueryWorkspace']=()=>({...page(),rows:[],more:false});
+ value('sql','SELECT * FROM workspace."empty.parquet"');$('sql').dispatchEvent(new Event('input'));await click('run');
+ expect($('empty-result').hidden).toBe(false);expect($('empty-result').textContent).toContain('No matching rows.');expect($('empty-result').textContent).not.toContain('Write a query');
 });

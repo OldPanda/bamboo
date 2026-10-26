@@ -36,7 +36,7 @@ app.innerHTML = `
   <section id="workspace" hidden>
     <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
     <nav class="tabs" aria-label="Views"><button id="tab-explore" class="active" aria-selected="true">Explore Data</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
-    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p>Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ + Enter to run / 15 second timeout <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
+    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span id="query-scope">Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p id="workspace-table-help">Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ + Enter to run / 15 second timeout <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
     <div id="data-panel" class="data-panel">
       <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
@@ -63,6 +63,8 @@ let request: Request = {
 };
 let folder: Info | null = null;
 let relativeFile = "";
+let workspaceRoot = "";
+const workspaceQueries = new Map<string, {draft:string;applied:string;request:Request}>();
 const folders = new Map<string, Info>();
 type DocumentState = { file: DataFile; draft: string; applied: string; request: Request; view: string };
 const documents = new Map<string, DocumentState>();
@@ -73,17 +75,22 @@ function owner(path: string) {
   return [...folders.values()].filter(f => path.startsWith(prefix(f.root))).sort((a,b) => b.root.length-a.root.length)[0] || null;
 }
 function rememberCurrent() {
+  if (!file && folder) workspaceQueries.set(folder.root, {draft:$<HTMLTextAreaElement>("sql").value,applied:appliedSQL,request:{...request}});
   if (file) documents.set(file.path, { file, draft: $<HTMLTextAreaElement>("sql").value, applied: appliedSQL, request:{...request}, view });
 }
 function updateFolder() {
-  folder = file ? owner(file.path) : null;
-  relativeFile = folder && file ? file.path.slice(prefix(folder.root).length) : "";
+  folder = file ? owner(file.path) : folders.get(workspaceRoot) || null;
+  relativeFile = folder && file ? file.path.slice(prefix(folder.root).length) : folder ? "." : "";
   document.body.classList.toggle("folder-mode", folders.size > 0);
   document.body.classList.toggle("files-mode", documents.size > 0);
   $("folder-panel").hidden = folders.size === 0;
   $("scope-name").textContent = folder ? folder.name : "File";
   $("scope-name").title = folder ? folder.root : "Single file";
-  $("query-save").hidden = !file;
+  $("query-save").hidden = !file && !folder;
+  document.body.classList.toggle("workspace-query-mode", !file && !!folder);
+  $("query-scope").textContent = file ? "Read-only / table: data" : "Read-only / workspace";
+  if (!file && folder) { $("breadcrumb").textContent="Explore Data"; $("file-name").textContent=folder.name; $("file-path").textContent=folder.root; $("file-path").title=folder.root; }
+  document.querySelectorAll<HTMLElement>(".workspace-group").forEach(p=>p.querySelector('[data-control="folder-name"]')!.setAttribute("aria-current",String(!file && p.dataset.root===workspaceRoot)));
   if (file) $("breadcrumb").textContent = folder ? relativeFile : file.name;
   document.querySelectorAll<HTMLButtonElement>(".tree-file").forEach(b => {
     const path = b.dataset.fullPath!, row = b.parentElement!;
@@ -116,7 +123,8 @@ function updateQueryTables() {
   $("workspace-tables").hidden = !folder;
   const list = $("workspace-table-list"); list.replaceChildren();
   if (!folder) return;
-  const paths = new Set([relativeFile]);
+  $("workspace-table-help").textContent = file ? "Use data for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables." : "Insert a table name below, or type workspace.\"relative/path.parquet\". JOIN and UNION files without opening them. Expand folders in the sidebar to see more tables.";
+  const paths = new Set(file ? [relativeFile] : []);
   document.querySelectorAll<HTMLButtonElement>(".tree-file").forEach(b => {
     if (b.dataset.root === folder!.root) paths.add(b.dataset.path!);
   });
@@ -155,6 +163,7 @@ function saveQuery() {
   return pendingSave;
 }
 function queryEdited() {
+  controls();
   rememberCurrent();
   if (!folder || !relativeFile) { if (file) $("query-save").textContent="Kept for this session"; return; }
   $("query-save").textContent="Unsaved changes"; clearTimeout(saveTimer);
@@ -224,14 +233,39 @@ async function switchFile(path:string){
   else {const f=await Workbench.openPath(path);if(!f)throw new Error("No file returned");await activate(f);}
 }
 function showWelcome(){
-  file=null;result=null;folder=null;relativeFile="";
+  file=null;result=null;folder=null;relativeFile="";workspaceRoot="";
   $("workspace").hidden=true;$("welcome").hidden=false;$("breadcrumb").textContent="Welcome";
   $("column-list").replaceChildren();$("column-count").textContent="—";
   updateFolder();
 }
+async function showWorkspace(info: Info) {
+  const saved=await Workbench.openWorkspaceQuery(info.root);
+  const cached=workspaceQueries.get(info.root);
+  const draft=cached?.draft ?? saved.draft;
+  const applied=cached?.applied ?? saved.applied;
+  const next:Request=cached ? {...cached.request} : {sql:applied,offset:0,limit:100,sort:"",desc:false,filterColumn:"",filterValue:""};
+  await Workbench.clearPreview();
+  let loaded:Result|null=null, warning="";
+  if(applied){try{loaded=await Workbench.queryWorkspace(info.root,next);}catch(e){warning=`Saved workspace query could not run. Draft preserved. ${String(e)}`;}}
+  file=null;folder=info;workspaceRoot=info.root;relativeFile=".";result=null;
+  appliedSQL=loaded ? applied : "";request=loaded ? next : {...next,sql:"",offset:0,filterColumn:"",filterValue:"",sort:""};
+  $("welcome").hidden=true;$("workspace").hidden=false;
+  $("grid").querySelector("thead")!.replaceChildren();$("grid").querySelector("tbody")!.replaceChildren();
+  $("column-list").replaceChildren();$("column-count").textContent="—";
+  $("schema-body").replaceChildren();
+  $("empty-result").textContent="Write a query to preview workspace data.";$("empty-result").hidden=false;
+  $("result-summary").textContent="Ready to query";$("page-label").textContent="Page 1";$("query-badge").textContent="Workspace query";
+  $<HTMLSelectElement>("filter-column").replaceChildren(new Option("Choose a column",""));
+  $<HTMLInputElement>("filter-value").value=request.filterValue;
+  $<HTMLSelectElement>("page-size").value=String(request.limit);
+  const editor=$<HTMLTextAreaElement>("sql");editor.value=draft;editor.placeholder='SELECT * FROM workspace."filename.parquet"';
+  if(loaded){render(loaded);$("empty-result").textContent="No matching rows.";}
+  setView("explore");updateFolder();rememberCurrent();$("query-save").textContent="Saved locally";
+  if(warning)notify(warning,true);
+}
 async function previewAfterClose(next?: string) {
   if(next){try{await switchFile(next);}catch(e){await Workbench.clearPreview();showWelcome();notify(`File closed. Choose another file to continue. ${String(e)}`,true);}}
-  else{await Workbench.clearPreview();showWelcome();}
+  else{const info=folders.get(workspaceRoot) || (folder && folders.get(folder.root)) || folders.values().next().value;if(info)await showWorkspace(info);else{await Workbench.clearPreview();showWelcome();}}
 }
 async function closeDocument(path:string){
   await saveQuery();
@@ -245,12 +279,12 @@ async function closeDocument(path:string){
   updateFolder();
 }
 async function showFolder(info:Info,restore=false){
-  if(folders.has(info.root))return;
-  const previousOwner=file ? owner(file.path)?.root : undefined;
+  if(folders.has(info.root)){if(!restore)await showWorkspace(info);return;}
   folders.set(info.root,info);
   const panel=el("section","","workspace-group");panel.dataset.root=info.root;
-  panel.innerHTML=`<div class="folder-heading"><strong data-control="folder-name"></strong><button data-control="folder-rename" class="quiet" title="Rename workspace" aria-label="Rename workspace">✎</button><button data-control="folder-close" class="quiet" title="Close workspace" aria-label="Close workspace">×</button></div><p class="folder-path"></p><form data-control="folder-rename-form" hidden><input data-control="folder-name-input" aria-label="Workspace name" maxlength="200" required><button type="submit">Save</button><button data-control="folder-rename-cancel" type="button">Cancel</button></form><div class="folder-actions"><button data-control="folder-refresh" class="quiet">Refresh</button></div><div class="folder-tree" aria-label="Workspace files"></div>`;
+  panel.innerHTML=`<div class="folder-heading"><button class="workspace-name quiet" data-control="folder-name" title="Query this workspace"></button><button data-control="folder-rename" class="quiet" title="Rename workspace" aria-label="Rename workspace">✎</button><button data-control="folder-close" class="quiet" title="Close workspace" aria-label="Close workspace">×</button></div><p class="folder-path"></p><form data-control="folder-rename-form" hidden><input data-control="folder-name-input" aria-label="Workspace name" maxlength="200" required><button type="submit">Save</button><button data-control="folder-rename-cancel" type="button">Cancel</button></form><div class="folder-actions"><button data-control="folder-refresh" class="quiet">Refresh</button></div><div class="folder-tree" aria-label="Workspace files"></div>`;
   const control=<T extends HTMLElement=HTMLElement>(name:string)=>panel.querySelector<T>(`[data-control="${name}"]`)!;
+  control("folder-name").onclick=()=>void task("Opening workspace query…",async()=>{await saveQuery();await showWorkspace(info);});
   const heading=()=>{control("folder-name").textContent=info.name;control<HTMLInputElement>("folder-name-input").value=info.name;};heading();
   const path=panel.querySelector<HTMLElement>(".folder-path")!;path.textContent=info.root;path.title=info.root;
   const tree=panel.querySelector<HTMLElement>(".folder-tree")!;
@@ -265,18 +299,18 @@ async function showFolder(info:Info,restore=false){
   control("folder-close").onclick=()=>void task("Closing workspace…",async()=>{
     await saveQuery();
     const closing=[...documents.keys()].filter(path=>owner(path)?.root===info.root);
-    const closesActive=!!file && closing.includes(file.path);
+    const closesActive=(!!file && closing.includes(file.path)) || (!file && workspaceRoot===info.root);
     await Workbench.closeWorkspace(info.root);
     for(const path of closing)documents.delete(path);
-    folders.delete(info.root);panel.remove();
+    folders.delete(info.root);workspaceQueries.delete(info.root);panel.remove();
     if(closesActive)await previewAfterClose(documents.keys().next().value);
     updateFolder();
     if(file)$("query-save").textContent=folder ? "Saved locally" : "Kept for this session";
   });
   $("workspace-roots").append(panel);updateFolder();
   await directory(tree,info,".");
-  if(!restore && file && owner(file.path)?.root!==previousOwner)await switchFile(file.path);
-  if(restore && info.active){try{await openFolderFile(info,info.active);}catch(e){notify(`Last file is unavailable. Choose another file. ${String(e)}`,true);}}
+  if(restore && info.active && info.active!=="."){try{await openFolderFile(info,info.active);}catch(e){await showWorkspace(info);notify(`Last file is unavailable. Choose another file. ${String(e)}`,true);}}
+  else await showWorkspace(info);
 }
 async function openFolder(){await task("Opening workspace…",async()=>{await saveQuery();const info=await Workbench.openWorkspace();if(info)await showFolder(info);});}
 $("open-folder").onclick=()=>void openFolder();$("welcome-folder").onclick=()=>void openFolder();
@@ -318,6 +352,8 @@ function controls() {
   );
   $("next").toggleAttribute("disabled", busy || !result?.more);
   $("export").toggleAttribute("disabled", busy || !result);
+  $("run").toggleAttribute("disabled",busy || (!file && (!folder || !$<HTMLTextAreaElement>("sql").value.trim())));
+  for(const id of ["apply-filter","clear-filter","page-size"])$(id).toggleAttribute("disabled",busy || !result);
 }
 async function task(label: string, fn: () => Promise<void>) {
   if (busy) return;
@@ -341,6 +377,7 @@ async function task(label: string, fn: () => Promise<void>) {
   }
 }
 function setView(next: string) {
+  if(next === "schema" && !file)return;
   view = next;
   for (const name of ["explore", "schema"]) {
     const b = $(`tab-${name}`);
@@ -352,7 +389,9 @@ function setView(next: string) {
   $("schema-panel").hidden = view !== "schema";
 }
 function showFile(f: DataFile) {
+  workspaceRoot="";
   file = f;
+  $("empty-result").innerHTML="No matching rows.<small>Try another filter or query.</small>";
   result = null;
   $("grid").querySelector("thead")!.replaceChildren();
   $("grid").querySelector("tbody")!.replaceChildren();
@@ -418,6 +457,7 @@ function showFile(f: DataFile) {
   setView("explore");
 }
 function render(r: Result) {
+  $("empty-result").innerHTML="No matching rows.<small>Try another filter or query.</small>";
   result = r;
   const head = $("grid").querySelector("thead")!;
   const body = $("grid").querySelector("tbody")!;
@@ -487,7 +527,8 @@ async function queryResult(next: Request) {
   return r;
 }
 async function run(next: Request) {
-  const r = await queryResult(next);
+  const r = !file && folder ? await Workbench.queryWorkspace(folder.root,next) : await queryResult(next);
+  if (!r) throw new Error("No query result returned");
   request = next;
   render(r);
 }
@@ -524,7 +565,7 @@ $("run").onclick = () =>
     $<HTMLInputElement>("filter-value").value = "";
   });
 $("reset-sql").onclick = () => {
-  $<HTMLTextAreaElement>("sql").value = "SELECT * FROM data";
+  $<HTMLTextAreaElement>("sql").value = file ? "SELECT * FROM data" : "";
   queryEdited();
 };
 $("filter-form").onsubmit = (e) => {
@@ -569,7 +610,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     void open();
   }
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && file) {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && (file || folder)) {
     e.preventDefault();
     $("run").click();
   }

@@ -29,7 +29,7 @@ if(workspacePhase==='multi-restore'){
   let released=false;try{await mygo.call('Workbench.Query',{sql:'SELECT * FROM data',offset:0,limit:100,sort:'',desc:false,filterColumn:'',filterValue:''});}catch{released=true;}
   assert(released,'closing the active workspace releases its last file engine');
 }else{
-  assert(!$('welcome').hidden && opened().length===0,'empty workspace set does not load file data');
+  assert($('welcome').hidden && !$('sql-panel').hidden && opened().length===0,'workspace query editor opens without loading file data');
   await click(tree(first));assert(rows()===100,'first workspace file opens a bounded page');
   $('sql').value='SELECT city, count(*) AS orders FROM data GROUP BY city';$('sql').dispatchEvent(new Event('input'));await click($('run'));
   assert(rows()===4,'first file aggregation runs through real DuckDB');
@@ -54,7 +54,7 @@ if(workspacePhase==='multi-restore'){
   await click(row(external).querySelector('.activate-file'));await click(row(external).querySelector('.close-file'));
   assert(opened().length===1 && selected(first),'closing active file selects a remaining file');
   await click(row(first).querySelector('.close-file'));
-  assert(opened().length===0 && !$('welcome').hidden && $('export').disabled,'closing last file clears preview and disables export');
+  assert(opened().length===0 && $('welcome').hidden && !$('sql-panel').hidden && $('export').disabled,'closing last file retains workspace editor and disables export');
   let closed=false;try{await mygo.call('Workbench.Query',{sql:'SELECT * FROM data',offset:0,limit:100,sort:'',desc:false,filterColumn:'',filterValue:''});}catch{closed=true;}
   assert(closed,'last-file close releases the engine session');
   assert(groups().length===2,'closing files keeps both workspace trees available');

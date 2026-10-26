@@ -122,7 +122,7 @@ def main():
         for binary, target, covered in [(ROOT / "build/bamboo-covered", desktop, True),
                                         (ROOT / "build/Bamboo.app/Contents/MacOS/Bamboo", OUT / "app-desktop", False)]:
             with tempfile.TemporaryDirectory(prefix="bamboo-cross-config-") as config:
-                for phase, args, count in [("cross", ["--workspace", str(fixture.parent)], 10), ("cross-restore", [], 3)]:
+                for phase, args, count in [("cross", ["--workspace", str(fixture.parent)], 10), ("cross-restore", [], 3), ("root-query", [], 8), ("root-query-restore", [], 4)]:
                     smoke(binary, fixture, ROOT, target / phase, covered=covered, launch_args=args,
                           extra_env={"BAMBOO_WORKSPACE_SMOKE": phase, "BAMBOO_CONFIG_DIR": config}, expected_checks=count)
         for name, expected in [("missing-script", "no such file"), ("script-error", "expected smoke failure")]:

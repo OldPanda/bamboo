@@ -45,6 +45,9 @@ func smoke(win *mygo.Window) {
 		if workspacePhase == "cross" || workspacePhase == "cross-restore" {
 			scriptPath = "scripts/cross-smoke.js"
 		}
+		if workspacePhase == "root-query" || workspacePhase == "root-query-restore" {
+			scriptPath = "scripts/root-query-smoke.js"
+		}
 		if workspacePhase == "stable-narrow" {
 			win.SetSize(700, 640)
 			time.Sleep(100 * time.Millisecond)

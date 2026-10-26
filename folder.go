@@ -87,3 +87,28 @@ func (w *Workbench) ClearPreview() error {
 	w.mu.Unlock()
 	return nil
 }
+
+// OpenWorkspaceQuery restores the independent folder query and remembers this view.
+func (w *Workbench) OpenWorkspaceQuery(root string) (workspace.Query, error) {
+	q, err := w.folders.Saved(root, ".")
+	if err != nil {
+		return q, err
+	}
+	return q, w.folders.Select(root, ".")
+}
+func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Request) (*engine.Result, error) {
+	if !w.opMu.TryLock() {
+		return nil, errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	if _, err := w.folders.Resolve(root, "."); err != nil {
+		return nil, err
+	}
+	result, err := w.engine.QueryWorkspace(ctx, r, func(relative string) (string, error) { return w.folders.Resolve(root, relative) })
+	if err == nil {
+		w.mu.Lock()
+		w.last = result
+		w.mu.Unlock()
+	}
+	return result, err
+}

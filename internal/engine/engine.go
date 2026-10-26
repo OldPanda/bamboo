@@ -88,6 +88,8 @@ func (e *Engine) Close() {
 		e.db.Close()
 		e.db = nil
 	}
+	e.file = nil
+	e.resolve = nil
 }
 func literal(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 func ident(s string) string   { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
@@ -211,8 +213,19 @@ func (e *Engine) Query(parent context.Context, r Request) (*Result, error) {
 	defer done()
 	return e.run(ctx, r)
 }
+
+// QueryWorkspace queries an explicitly selected folder without opening a document.
+func (e *Engine) QueryWorkspace(parent context.Context, r Request, resolve func(string) (string, error)) (*Result, error) {
+	ctx, done, err := e.start(parent)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
+	scoped := &Engine{resolve: resolve}
+	return scoped.run(ctx, r)
+}
 func (e *Engine) run(ctx context.Context, r Request) (*Result, error) {
-	if e.db == nil {
+	if e.db == nil && e.resolve == nil {
 		return nil, errors.New("open a Parquet file first")
 	}
 	started := time.Now()

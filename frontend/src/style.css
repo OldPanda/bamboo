@@ -237,3 +237,8 @@ body.is-busy select:disabled, body.is-busy textarea:disabled { opacity: 1; }
 .workspace-tables p { margin: 8px 0; max-width: 72ch; }
 #workspace-table-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow: auto; margin-bottom: 8px; }
 .table-reference { font-family: monospace; font-size: var(--text-xs); max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+
+.workspace-name { font-weight: 600; text-align: left; padding-left: 0; overflow-wrap: anywhere; }
+.workspace-name[aria-current="true"] { color: var(--color-accent); }
+.workspace-query-mode .metrics, .workspace-query-mode #tab-schema,
+.workspace-query-mode .columns-label, .workspace-query-mode #column-list { display: none; }

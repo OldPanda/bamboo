@@ -112,8 +112,15 @@ export const Workbench = {
   openWorkspaceFile(root: string, relative: string): Promise<WorkspaceFile | null> {
     return call("Workbench.OpenWorkspaceFile", root, relative);
   },
+  /** OpenWorkspaceQuery restores the independent folder query and remembers this view. */
+  openWorkspaceQuery(root: string): Promise<Query> {
+    return call("Workbench.OpenWorkspaceQuery", root);
+  },
   query(r: Request): Promise<Result | null> {
     return call("Workbench.Query", r);
+  },
+  queryWorkspace(root: string, r: Request): Promise<Result | null> {
+    return call("Workbench.QueryWorkspace", root, r);
   },
   renameWorkspace(root: string, name: string): Promise<Info | null> {
     return call("Workbench.RenameWorkspace", root, name);

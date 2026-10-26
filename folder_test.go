@@ -139,3 +139,67 @@ func TestWorkspaceCrossFileService(t *testing.T) {
 		t.Fatal("standalone retained workspace")
 	}
 }
+
+func TestIndependentWorkspaceQuery(t *testing.T) {
+	w, _, root := workbench(t)
+	root, _ = filepath.EvalSymlinks(root)
+	w.folders = workspace.New(t.TempDir())
+	if _, err := w.useWorkspace(root); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	q, err := w.OpenWorkspaceQuery(root)
+	if err != nil || q.Draft != "" || q.Applied != "" {
+		t.Fatal(q, err)
+	}
+	// No document has been opened, but direct cross-file SQL and constant queries work.
+	sql := `SELECT count(*) FROM workspace."orders.parquet" a CROSS JOIN workspace."special.parquet" b`
+	r, err := w.QueryWorkspace(ctx, root, engine.Request{SQL: sql, Limit: 100})
+	if err != nil || *r.Rows[0][0] != "240" || w.last != r {
+		t.Fatal(r, err)
+	}
+	if err = w.SaveWorkspaceQuery(root, ".", sql+" -- draft", sql); err != nil {
+		t.Fatal(err)
+	}
+	q, err = w.OpenWorkspaceQuery(root)
+	if err != nil || q.Draft != sql+" -- draft" || q.Applied != sql {
+		t.Fatal(q, err)
+	}
+	restored, err := w.RestoreWorkspaces()
+	if err != nil || restored.Workspaces[0].Active != "." {
+		t.Fatal(restored, err)
+	}
+	if _, err = w.QueryWorkspace(ctx, root, engine.Request{SQL: "SELECT 1", Limit: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.OpenWorkspaceFile(ctx, root, "orders.parquet"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.QueryWorkspace(ctx, root, engine.Request{SQL: "SELECT * FROM data", Limit: 1}); err == nil {
+		t.Fatal("workspace-only query inherited a file alias")
+	}
+	if _, err = w.QueryWorkspace(ctx, root, engine.Request{SQL: `SELECT * FROM workspace."../outside.parquet"`, Limit: 1}); err == nil {
+		t.Fatal("traversal")
+	}
+	w.opMu.Lock()
+	_, err = w.QueryWorkspace(ctx, root, engine.Request{SQL: sql, Limit: 1})
+	w.opMu.Unlock()
+	if err == nil {
+		t.Fatal("busy query accepted")
+	}
+	if err = w.ClearPreview(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.Query(ctx, engine.Request{SQL: "SELECT * FROM data", Limit: 1}); err == nil {
+		t.Fatal("closed file scope reused")
+	}
+	if err = w.CloseWorkspace(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.QueryWorkspace(ctx, root, engine.Request{SQL: sql, Limit: 1}); err == nil {
+		t.Fatal("closed workspace query")
+	}
+	if _, err = w.OpenWorkspaceQuery(root); err == nil {
+		t.Fatal("closed workspace restored")
+	}
+}

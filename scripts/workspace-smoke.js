@@ -12,7 +12,7 @@ if (phase === 'restore') {
  assert($('sql').value === 'SELECT city, count(*) AS orders FROM data GROUP BY city', 'SQL restored across process launches');
  assert(document.querySelectorAll('#grid tbody tr').length === 4, 'saved SQL executed against restored file');
 } else {
- assert($('welcome').hidden === false, 'folder starts without loading all files');
+ assert($('welcome').hidden && !$('sql-panel').hidden && !document.querySelector('#grid tbody tr'), 'folder opens query editor without loading files');
  assert(document.querySelectorAll('.tree-file').length >= 3, 'Parquet files listed without scanning their data');
  const nested = [...document.querySelectorAll('.tree-folder')].find(b=>b.dataset.path==='nested');
  nested.click(); await wait();

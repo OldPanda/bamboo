@@ -314,6 +314,9 @@ func (s *Store) Saved(root, rel string) (Query, error) {
 	}
 	q, ok := p.Queries[rel]
 	if !ok {
+		if rel == "." {
+			return Query{}, nil
+		}
 		return Query{Draft: DefaultSQL, Applied: DefaultSQL}, nil
 	}
 	return q, nil

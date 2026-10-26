@@ -131,13 +131,17 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*sql.DB, func
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(refs) == 0 {
+	if len(refs) == 0 && e.db != nil {
 		return e.db, func() {}, nil
 	}
 	if e.resolve == nil {
 		return nil, nil, errors.New("open a file in a workspace to query workspace tables")
 	}
-	paths := []string{e.file.Path}
+	paths := []string{}
+	if e.file != nil {
+		paths = append(paths, e.file.Path)
+	}
+	start := len(paths)
 	for _, ref := range refs {
 		if !strings.EqualFold(filepath.Ext(ref), ".parquet") || strings.ContainsAny(ref, "*?[]\x00") {
 			return nil, nil, errors.New("workspace tables must name a .parquet file without wildcards")
@@ -163,12 +167,15 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*sql.DB, func
 		return nil, nil, err
 	}
 	closeDB := func() { db.Close() }
-	if err = createView(ctx, db, "data", e.file.Path); err == nil {
+	if e.file != nil {
+		err = createView(ctx, db, "data", e.file.Path)
+	}
+	if err == nil {
 		_, err = db.ExecContext(ctx, "CREATE SCHEMA workspace")
 	}
 	if err == nil {
 		for i, ref := range refs {
-			if err = createView(ctx, db, "workspace."+ident(ref), paths[i+1]); err != nil {
+			if err = createView(ctx, db, "workspace."+ident(ref), paths[i+start]); err != nil {
 				break
 			}
 		}
