@@ -11,9 +11,10 @@ import "./style.css";
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const app = $("app");
+const brandIcon = new URL("./assets/bamboo.png", import.meta.url).href;
 app.innerHTML = `
 <aside class="sidebar">
-  <div class="brand"><span class="brand-mark">竹</span><div>Bamboo<span class="edition">Local data workbench</span></div></div>
+  <div class="brand"><img class="brand-mark" src="${brandIcon}" width="36" height="36" alt="" /><div>Bamboo</div></div>
   <button id="open-folder" class="open-button" title="Open workspace folder" aria-label="Open workspace folder"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg> Open Folder</button>
   <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘ + O)"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg> Open Parquet <kbd>⌘ + O</kbd></button>
   <section id="open-files-panel" hidden><div class="section-label">Open files</div><div id="open-files"></div></section>
@@ -26,7 +27,7 @@ app.innerHTML = `
 <main>
   <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge">Local session</span><button id="export" title="Export the visible result page as JSON">Export page</button></div></header>
   <section id="welcome" class="welcome">
-    <div class="welcome-mark" aria-hidden="true">竹</div>
+    <img class="welcome-mark" src="${brandIcon}" width="72" height="72" alt="" />
     <h1 id="welcome-title">Explore your local data</h1>
     <p id="welcome-description">Open a folder as a workspace, or explore a single Parquet file.</p>
     <div class="welcome-actions"><button id="welcome-folder" class="primary">Open a folder</button><button id="welcome-open">Open a Parquet file</button></div>

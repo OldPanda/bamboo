@@ -77,7 +77,8 @@ describe("the shipped page through its generated IPC binding", () => {
     await open();
     expect($("row-count").textContent).toBe("1,000,000"); expect($("file-size").textContent).toBe("2.0 KB");
     expect($("file-name").textContent).toBe(dataFile().name); expect($("file-path").title).toBe(dataFile().path);
-    expect(document.querySelector("#app img, #app script")).toBeNull();
+    expect(document.querySelector("#app script")).toBeNull();
+    expect([...document.querySelectorAll("#app img")].map(n => n.className)).toEqual(["brand-mark", "welcome-mark"]);
     expect([...document.querySelectorAll(".type-icon")].map(n => n.textContent)).toEqual(["#", "T", "◷"]);
     const cells = document.querySelectorAll<HTMLTableCellElement>("#grid tbody td");
     expect(cells[1].textContent).toBe("9223372036854775807"); expect(cells[1].className).toBe("numeric");

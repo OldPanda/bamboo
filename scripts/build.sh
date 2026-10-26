@@ -12,6 +12,14 @@ go build -trimpath -ldflags='-s -w' -o build/bamboo .
 if [ "$(uname -s)" = Darwin ]; then
   mkdir -p build/Bamboo.app/Contents/MacOS build/Bamboo.app/Contents/Resources
   cp build/bamboo build/Bamboo.app/Contents/MacOS/Bamboo
+  # Generate the full macOS icon family from the approved artwork.
+  mkdir -p build/Bamboo.iconset
+  for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" assets/bamboo.png --out "build/Bamboo.iconset/icon_${size}x${size}.png" >/dev/null
+    double=$((size * 2))
+    sips -z "$double" "$double" assets/bamboo.png --out "build/Bamboo.iconset/icon_${size}x${size}@2x.png" >/dev/null
+  done
+  iconutil -c icns build/Bamboo.iconset -o build/Bamboo.app/Contents/Resources/Bamboo.icns
   cat > build/Bamboo.app/Contents/Info.plist <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -20,6 +28,7 @@ if [ "$(uname -s)" = Darwin ]; then
 <key>CFBundleDisplayName</key><string>Bamboo</string>
 <key>CFBundleIdentifier</key><string>local.bamboo.workbench</string>
 <key>CFBundleExecutable</key><string>Bamboo</string>
+<key>CFBundleIconFile</key><string>Bamboo.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>CFBundleVersion</key><string>1</string>

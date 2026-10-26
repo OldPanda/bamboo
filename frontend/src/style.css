@@ -27,8 +27,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 #app { display: flex; height: 100dvh; overflow: hidden; }
 .sidebar { width: 224px; flex-shrink: 0; background: var(--side); color: var(--ink); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 0 var(--space-md) var(--space-md); }
 .brand { height: 72px; display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-xl); font-weight: 600; flex-shrink: 0; }
-.brand-mark { font-size: 28px; font-weight: 400; color: var(--green); }
-.edition { display: block; font-size: var(--text-xs); font-weight: 400; color: var(--muted); margin-top: var(--space-3xs); }
+.brand-mark { display: block; width: 36px; height: 36px; flex-shrink: 0; object-fit: contain; }
 .open-button { display: flex; align-items: center; gap: var(--space-xs); }
 .open-button > .button-icon { width: 20px; height: 20px; flex: 0 0 20px; }
 kbd { font: inherit; font-size: var(--text-xs); margin-left: auto; color: var(--muted); }
@@ -54,7 +53,7 @@ header { min-height: 48px; flex-shrink: 0; display: flex; justify-content: space
 .breadcrumb strong { font-weight: 500; color: var(--ink); }
 .local-badge { color: var(--muted); white-space: nowrap; }
 .welcome { padding: var(--space-2xl) var(--space-xl); overflow: auto; width: 100%; max-width: 760px; margin: auto; }
-.welcome-mark { font-size: 40px; color: var(--green); margin-bottom: var(--space-lg); }
+.welcome-mark { display: block; width: 72px; height: 72px; object-fit: contain; margin-bottom: var(--space-lg); }
 .welcome h1 { font-size: var(--text-display); margin-bottom: var(--space-md); }
 .welcome p { color: var(--muted); font-size: var(--text-lg); line-height: 1.65; max-width: 56ch; margin-bottom: var(--space-lg); }
 .welcome button { min-height: 44px; }
@@ -190,7 +189,6 @@ textarea { resize: vertical; display: block; width: calc(100% - 32px); margin: 0
 @media (max-width: 960px) {
  .folder-mode .sidebar { width: 216px; }
  .folder-mode .brand > div { display: block; font-size: var(--text-lg); }
- .folder-mode .edition { display: none; }
  .folder-mode .open-button { font-size: var(--text-sm); }
 }
 @media (max-width: 600px) {
