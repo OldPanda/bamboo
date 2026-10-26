@@ -70,7 +70,7 @@ func smoke(win *mygo.Window) {
 	capture("bamboo-schema-dark")
 	mygo.Theme.SetSource(mygo.ThemeLight)
 	time.Sleep(200 * time.Millisecond)
-	win.Page().Eval(`document.getElementById('tab-sql').click(); document.getElementById('sql').value='SELECT city, count(*) AS orders, sum(amount) AS revenue FROM data GROUP BY city ORDER BY revenue DESC'; document.getElementById('run').click()`)
+	win.Page().Eval(`document.getElementById('tab-explore').click(); document.getElementById('sql').value='SELECT city, count(*) AS orders, sum(amount) AS revenue FROM data GROUP BY city ORDER BY revenue DESC'; document.getElementById('run').click()`)
 	for i := 0; i < 100; i++ {
 		v, _ := win.Page().Eval(`document.getElementById('busy').hidden`)
 		if v == true {

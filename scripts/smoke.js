@@ -20,6 +20,13 @@ assert(
   "first page: 100 real rows",
 );
 assert($("row-count").textContent === "240", "footer metadata: 240 rows");
+assert(
+  $("tab-explore").textContent === "Explore Data" &&
+    !$("sql-panel").hidden && !$("data-panel").hidden &&
+    $("sql").getBoundingClientRect().bottom <= $("grid-scroll").getBoundingClientRect().top &&
+    !document.querySelector("#tab-data, #tab-sql"),
+  "Explore Data shows query editor above preview on file open",
+);
 await click("next");
 assert(
   document.querySelector("#grid tbody tr td").textContent === "101",
@@ -49,7 +56,7 @@ assert(
     "1240",
   "descending sort: highest order first",
 );
-await click("tab-sql");
+await click("tab-explore");
 $("sql").value =
   "SELECT city, count(*) AS orders, sum(amount) AS revenue FROM data GROUP BY city ORDER BY city";
 await click("run");
@@ -58,11 +65,13 @@ assert(
   "SQL aggregation: four cities",
 );
 await click("tab-schema");
+assert($("sql-panel").hidden && $("data-panel").hidden, "Schema hides editor and preview together");
 assert(
   document.querySelectorAll("#schema-body tr").length === 7,
   "schema: seven typed columns",
 );
-await click("tab-sql");
+await click("tab-explore");
+assert(!$("sql-panel").hidden && !$("data-panel").hidden && document.querySelectorAll("#grid tbody tr").length === 4, "Explore Data restores query results after Schema");
 const path = await mygo.call("Workbench.InitialFile");
 const special = path.replace(/orders\.parquet$/, "special.parquet");
 const specialMeta = await mygo.call("Workbench.OpenPath", special);
@@ -102,7 +111,7 @@ assert(rejected, "IPC rejects multiple SQL statements");
 await mygo.call("Workbench.OpenPath", path);
 $("sql").value = "SELECT * FROM data";
 await click("run");
-await click("tab-data");
+await click("tab-explore");
 const plainCell = document.querySelectorAll("#grid tbody tr:first-child td")[1];
 plainCell.click();
 const cellRange = document.createRange();
@@ -117,7 +126,7 @@ assert(
   "cell click stays in table; exact text remains selectable",
 );
 cellSelection.removeAllRanges();
-await click("tab-sql");
+await click("tab-explore");
 $("sql").value =
   "SELECT '<img src=x onerror=alert(1)>' AS html, NULL AS missing, '' AS empty_text, 9223372036854775807::BIGINT AS exact_id";
 await click("run");
@@ -134,7 +143,7 @@ assert(
 );
 $("sql").value = "SELECT * FROM data";
 await click("run");
-await click("tab-data");
+await click("tab-explore");
 assert($("notification").hidden, "no frontend error");
 return {
   checks,

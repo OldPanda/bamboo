@@ -32,8 +32,8 @@ app.innerHTML = `
   </section>
   <section id="workspace" hidden>
     <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
-    <nav class="tabs" aria-label="Views"><button id="tab-data" class="active" aria-selected="true">Data</button><button id="tab-sql" aria-selected="false">SQL</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
-    <div id="sql-panel" class="sql-panel" hidden><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ Enter to run / 15 second timeout</span><button id="run" class="primary">Run query</button></div></div>
+    <nav class="tabs" aria-label="Views"><button id="tab-explore" class="active" aria-selected="true">Explore Data</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
+    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ Enter to run / 15 second timeout</span><button id="run" class="primary">Run query</button></div></div>
     <div id="data-panel" class="data-panel">
       <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
@@ -47,7 +47,7 @@ app.innerHTML = `
 let file: DataFile | null = null;
 let result: Result | null = null;
 let busy = false;
-let view = "data";
+let view = "explore";
 let appliedSQL = "SELECT * FROM data";
 let request: Request = {
   sql: appliedSQL,
@@ -114,12 +114,12 @@ async function task(label: string, fn: () => Promise<void>) {
 }
 function setView(next: string) {
   view = next;
-  for (const name of ["data", "sql", "schema"]) {
+  for (const name of ["explore", "schema"]) {
     const b = $(`tab-${name}`);
     b.classList.toggle("active", name === view);
     b.setAttribute("aria-selected", String(name === view));
   }
-  $("sql-panel").hidden = view !== "sql";
+  $("sql-panel").hidden = view === "schema";
   $("data-panel").hidden = view === "schema";
   $("schema-panel").hidden = view !== "schema";
 }
@@ -185,7 +185,7 @@ function showFile(f: DataFile) {
   });
   $<HTMLTextAreaElement>("sql").value = appliedSQL;
   $<HTMLInputElement>("filter-value").value = "";
-  setView("data");
+  setView("explore");
 }
 function render(r: Result) {
   result = r;
@@ -269,7 +269,7 @@ async function open(path?: string) {
 $("open").onclick = () => void open();
 $("welcome-open").onclick = () => void open();
 $("cancel").onclick = () => void Workbench.cancel();
-for (const name of ["data", "sql", "schema"])
+for (const name of ["explore", "schema"])
   $(`tab-${name}`).onclick = () => setView(name);
 $("run").onclick = () =>
   void task("Running query…", async () => {

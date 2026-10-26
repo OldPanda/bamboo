@@ -88,7 +88,12 @@ describe("the shipped page through its generated IPC binding", () => {
     expect(cells[2].textContent).toBe("<img src=x onerror=alert(1)>");
     await click("tab-schema"); expect($("data-panel").hidden).toBe(true); expect($("schema-panel").hidden).toBe(false);
     expect(document.querySelectorAll("#schema-body tr")).toHaveLength(3); expect($("tab-schema").getAttribute("aria-selected")).toBe("true");
-    await click("tab-sql"); expect($("sql-panel").hidden).toBe(false); await click("tab-data"); expect($("sql-panel").hidden).toBe(true);
+    expect($("sql-panel").hidden).toBe(true);
+    await click("tab-explore");
+    expect($("tab-explore").textContent).toBe("Explore Data");
+    expect($("sql-panel").hidden).toBe(false); expect($("data-panel").hidden).toBe(false);
+    expect($("schema-panel").hidden).toBe(true);
+    expect(document.querySelector("#tab-data, #tab-sql")).toBeNull();
   });
 
   it("paginates, changes page size, toggles sorting and binds literal filters", async () => {
@@ -107,7 +112,7 @@ describe("the shipped page through its generated IPC binding", () => {
   });
 
   it("commits successful SQL only, preserves the previous page on failure and recovers", async () => {
-    await open(); await click("next"); const previous = $("grid").textContent;
+    await open(); expect($("sql-panel").hidden).toBe(false); expect($("data-panel").hidden).toBe(false); await click("next"); const previous = $("grid").textContent;
     responses["Workbench.Query"] = () => { throw new Error("Binder error: <img>"); };
     value("sql", "SELECT bad"); await click("run"); expect($("grid").textContent).toBe(previous); expect($("page-label").textContent).toBe("Page 2");
     expect($("notification").textContent).toBe("Binder error: <img>"); expect($("notification").querySelector("img")).toBeNull();

@@ -122,6 +122,10 @@ cat artifacts/desktop-smoke.json
 
 The smoke runner writes an `error` field if it fails; inspect the report rather than relying only on the process exit status. [VALIDATION.md](VALIDATION.md) contains actual test results, fixture sizes, measurements, screenshots, and remaining manual checks.
 
+## Explore Data
+
+Explore Data combines the query editor and data preview in one view. Open a file to see both, run read-only SQL above the results, or switch to Schema to inspect column types.
+
 ## Table text selection
 
 Clicking a cell stays in the table without opening a dialog. Drag over text to select and copy it. Full values remain in the cell text even when visually shortened to fit the column.
