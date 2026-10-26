@@ -39,6 +39,10 @@ if [ "$(uname -s)" = Darwin ]; then
 PLIST
   mkdir -p build/Bamboo.app/Contents/Resources/extensions
   cp build/extensions/httpfs.duckdb_extension build/Bamboo.app/Contents/Resources/extensions/
+  # Module-cache license copies may retain read-only modes from a previous build.
+  if [ -d build/Bamboo.app/Contents/Resources/licenses ]; then
+    chmod -R u+w build/Bamboo.app/Contents/Resources/licenses
+  fi
   cp -R licenses build/Bamboo.app/Contents/Resources/
   cp LICENSE THIRD_PARTY.md build/Bamboo.app/Contents/Resources/
   codesign --force --sign - build/Bamboo.app

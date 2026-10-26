@@ -66,7 +66,7 @@ describe("the shipped page through its generated IPC binding", () => {
   it("starts empty and honors canceled and failed pickers without opening a session", async () => {
     await boot(); expect($("welcome").hidden).toBe(false); expect($<HTMLButtonElement>("export").disabled).toBe(true);
     expect(key("Enter", { ctrlKey: true }).defaultPrevented).toBe(false);
-    responses["Workbench.Open"] = () => null; await click("welcome-open");
+    responses["Workbench.Open"] = () => null; await click("open");
     expect(bridge.call.mock.calls.some(([name]) => name === "Workbench.Query")).toBe(false);
     responses["Workbench.Open"] = () => { throw new Error("picker unavailable"); }; await click("open");
     expect($("notification").textContent).toBe("picker unavailable"); expect($("notification").classList.contains("error")).toBe(true);
@@ -222,7 +222,7 @@ describe("folder workspaces", () => {
     responses["Workbench.OpenWorkspaceFile"] = () => { throw new Error("file removed"); };
     await boot(); expect($("notification").textContent).toContain("Last file is unavailable"); expect($("workspace").hidden).toBe(false);
     await click("folder-close"); expect($("breadcrumb").textContent).toBe("Welcome");
-    responses["Workbench.OpenWorkspace"] = () => null; await click("welcome-folder"); expect($("folder-panel").hidden).toBe(true);
+    responses["Workbench.OpenWorkspace"] = () => null; await click("open-folder"); expect($("folder-panel").hidden).toBe(true);
     responses["Workbench.OpenWorkspace"] = () => { throw new Error("folder access denied"); }; await click("open-folder"); expect($("notification").textContent).toBe("folder access denied");
     responses["Workbench.OpenWorkspace"] = () => workspaceInfo; await click("open-folder");
     responses["Workbench.OpenWorkspaceFile"] = () => null; await treeFile(); expect($("notification").textContent).toBe("No file returned");
@@ -413,6 +413,36 @@ describe("R2 connection workspaces",()=>{
   Object.defineProperty(HTMLDialogElement.prototype,"showModal",{configurable:true,value:function(this:HTMLDialogElement){this.open=true;}});
   Object.defineProperty(HTMLDialogElement.prototype,"close",{configurable:true,value:function(this:HTMLDialogElement){this.open=false;this.dispatchEvent(new Event("close"));}});
  });
+ it("offers one launcher with keyboard-accessible local/cloud choices and returns focus",async()=>{
+  await boot();expect(document.querySelectorAll('.sidebar > button')).toHaveLength(1);
+  await click('open-data');expect($<HTMLDialogElement>('source-dialog').open).toBe(true);
+  expect(document.activeElement).toBe($('source-local'));expect($('sources-cloud').hidden).toBe(true);
+  const tabKey=(id:string,k:string)=>$(id).dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true,cancelable:true}));
+  tabKey('source-local','ArrowRight');expect(document.activeElement).toBe($('source-cloud'));expect($('sources-local').hidden).toBe(true);
+  tabKey('source-cloud','ArrowLeft');expect($('source-local').getAttribute('aria-selected')).toBe('true');
+  tabKey('source-local','End');expect($('source-cloud').tabIndex).toBe(0);
+  tabKey('source-cloud','Home');expect($('source-local').tabIndex).toBe(0);
+  tabKey('source-local','Tab');await click('source-cloud');await click('source-local');
+  await click('source-dismiss');expect(document.activeElement).toBe($('open-data'));
+  await click('welcome-data');expect($<HTMLDialogElement>('source-dialog').open).toBe(true);
+  $<HTMLDialogElement>('source-dialog').close();expect(document.activeElement).toBe($('welcome-data'));
+ });
+ it("closes the chooser before native local actions and keeps keyboard and drop shortcuts",async()=>{
+  await boot();responses['Workbench.Open']=()=>null;responses['Workbench.OpenWorkspace']=()=>null;
+  await click('open-data');await click('open');expect($<HTMLDialogElement>('source-dialog').open).toBe(false);
+  await click('open-data');await click('open-folder');expect($<HTMLDialogElement>('source-dialog').open).toBe(false);
+  await click('open-data');expect(key('o',{metaKey:true}).defaultPrevented).toBe(true);await settled();expect($<HTMLDialogElement>('source-dialog').open).toBe(false);
+  await click('open-data');bridge.drop!({paths:['/local/drop.parquet']});await settled();expect($<HTMLDialogElement>('source-dialog').open).toBe(false);expect($('workspace').hidden).toBe(false);
+  await click('open-data');const calls=bridge.call.mock.calls.length;key('Enter',{metaKey:true});expect(bridge.call.mock.calls.length).toBe(calls);
+ });
+ it("moves from cloud choice to R2 and back without exposing credentials or blocking paste",async()=>{
+  await boot();await click('open-data');await click('source-cloud');await click('open-r2');
+  expect($<HTMLDialogElement>('source-dialog').open).toBe(false);expect(document.activeElement).toBe($('r2-endpoint'));
+  value('r2-secret','temporary-secret');expect(key('v',{metaKey:true}).defaultPrevented).toBe(false);
+  const calls=bridge.call.mock.calls.length;bridge.drop!({paths:['/local/drop.parquet']});expect(bridge.call.mock.calls.length).toBe(calls);
+  await click('r2-back');expect($<HTMLInputElement>('r2-secret').value).toBe('');expect($<HTMLDialogElement>('r2-dialog').open).toBe(false);
+  expect($<HTMLDialogElement>('source-dialog').open).toBe(true);expect($('source-cloud').getAttribute('aria-selected')).toBe('true');expect(document.activeElement).toBe($('source-cloud'));
+ });
  const root="r2://analytics/test-connection";
  function setup(){
   responses["Workbench.ConnectR2"]=()=>({root,name:"Cloud analytics",active:"."});
@@ -425,7 +455,7 @@ describe("R2 connection workspaces",()=>{
  async function submit(){ $("r2-form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));await settled(); }
  it("connects to R2, clears credential inputs, shows the workspace editor, and closes its files with the root",async()=>{
   setup();await boot();await click("open-r2");expect($<HTMLDialogElement>("r2-dialog").open).toBe(true);fill();
-  expect(key("o",{metaKey:true}).defaultPrevented).toBe(true);
+  expect(key("o",{metaKey:true}).defaultPrevented).toBe(true);expect(key("O",{metaKey:true,shiftKey:true}).defaultPrevented).toBe(true);
   await submit();expect($<HTMLDialogElement>("r2-dialog").open).toBe(false);
   expect($<HTMLInputElement>("r2-secret").value).toBe("");expect($<HTMLInputElement>("r2-access").value).toBe("");
   expect($("workspace").hidden).toBe(false);expect($("file-name").textContent).toBe("Cloud analytics");expect(document.querySelector(".local-badge")!.textContent).toBe("R2 / read-only");

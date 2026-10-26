@@ -3,7 +3,7 @@
 ## Connect
 
 1. In Cloudflare, create R2 **Object Read only** credentials scoped to the intended bucket. Copy its S3 endpoint; jurisdiction-specific endpoints must match the bucket.
-2. In Bamboo, choose **Connect R2**. Enter a name (optional), HTTPS S3 endpoint, bucket, optional folder prefix, Access Key ID and Secret Access Key.
+2. In Bamboo, choose **Open data → Cloud storage → Cloudflare R2**. Enter a name (optional), HTTPS S3 endpoint, bucket, optional folder prefix, Access Key ID and Secret Access Key.
 3. Choose **Test & connect**. The connection appears in Workspaces and its independent SQL editor opens immediately. Use the table-name helper or type a query. Expand folders to browse lazily; pages contain up to 200 raw S3 entries.
 
 ```sql

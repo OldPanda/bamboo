@@ -16,7 +16,7 @@ binary=ROOT/'build/bamboo-r2-validation'
 subprocess.run(['go','build','-tags=r2smoke','-ldflags=-s -w','-o',str(binary),'.'],cwd=ROOT,env=ENV,check=True)
 reports={}
 with tempfile.TemporaryDirectory(prefix='bamboo-r2-validation-') as config:
- for phase,count in [('r2',13),('r2-restore',4)]:
+ for phase,count in [('r2',15),('r2-restore',4)]:
   destination=OUT/phase
   destination.mkdir(parents=True,exist_ok=True)
   report_file=destination/'desktop-smoke.json'
@@ -35,4 +35,4 @@ images=[]
 for name,label in [('bamboo-light','R2 工作区查询'),('bamboo-desktop','深色界面'),('bamboo-r2-connection','连接表单')]:
  p=OUT/'r2'/(name+'.png')
  images.append(f'<figure><img alt="{label}" src="data:image/png;base64,{base64.b64encode(p.read_bytes()).decode()}"><figcaption>{label}</figcaption></figure>')
-(OUT/'R2-validation.html').write_text('<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bamboo R2 验证</title><style>body{font:16px/1.6 system-ui;max-width:1000px;margin:32px auto;padding:0 20px;color:#17212e;background:#f9fafb}h1{font-size:28px}img{width:100%;height:auto;border:1px solid #ddd;border-radius:8px}figure{margin:24px 0}figcaption{color:#556;margin-top:8px}strong{color:#1e73ba}</style><h1>Bamboo · R2 工作区</h1><p><strong>17 项真实桌面检查通过</strong>：连接、工作区查询、跨文件 JOIN、分页、精确数值、重启恢复和关闭行为。</p><p>截图来自真实桌面窗口。远程读写协议使用本机 S3 测试服务和合成凭据；实际 Cloudflare 存储桶仍需在应用内配置后验收。</p>'+''.join(images)+'</html>')
+(OUT/'R2-validation.html').write_text('<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bamboo R2 验证</title><style>body{font:16px/1.6 system-ui;max-width:1000px;margin:32px auto;padding:0 20px;color:#17212e;background:#f9fafb}h1{font-size:28px}img{width:100%;height:auto;border:1px solid #ddd;border-radius:8px}figure{margin:24px 0}figcaption{color:#556;margin-top:8px}strong{color:#1e73ba}</style><h1>Bamboo · R2 工作区</h1><p><strong>19 项真实桌面检查通过</strong>：连接、工作区查询、跨文件 JOIN、分页、精确数值、重启恢复和关闭行为。</p><p>截图来自真实桌面窗口。远程读写协议使用本机 S3 测试服务和合成凭据；实际 Cloudflare 存储桶仍需在应用内配置后验收。</p>'+''.join(images)+'</html>')

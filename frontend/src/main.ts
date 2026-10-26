@@ -15,9 +15,7 @@ const brandIcon = new URL("./assets/bamboo.png", import.meta.url).href;
 app.innerHTML = `
 <aside class="sidebar">
   <div class="brand"><img class="brand-mark" src="${brandIcon}" width="36" height="36" alt="" /><div>Bamboo</div></div>
-  <button id="open-folder" class="open-button" title="Open workspace folder" aria-label="Open workspace folder"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg> Open Folder</button>
-  <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘ + O)"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg> Open Parquet <kbd>⌘ + O</kbd></button>
-  <button id="open-r2" class="open-button" title="Connect a read-only R2 workspace"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg> Connect R2</button>
+  <button id="open-data" class="open-button primary" aria-haspopup="dialog" aria-controls="source-dialog" title="Open data"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Open data</button>
   <section id="open-files-panel" hidden><div class="section-label">Open files</div><div id="open-files"></div></section>
   <section id="folder-panel" hidden><div class="section-label">Workspaces</div><div id="workspace-roots"></div></section>
   <div id="file-card" hidden></div>
@@ -26,12 +24,12 @@ app.innerHTML = `
   <div class="privacy"><div>Queries run on this Mac<small>Read-only. No uploads.</small></div></div>
 </aside>
 <main>
-  <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge">Local session</span><button id="export" title="Export the visible result page as JSON">Export page</button></div></header>
+  <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge" hidden></span><button id="export" title="Export the visible result page as JSON">Export</button></div></header>
   <section id="welcome" class="welcome">
     <img class="welcome-mark" src="${brandIcon}" width="72" height="72" alt="" />
     <h1 id="welcome-title">Explore your data</h1>
-    <p id="welcome-description">Open a folder, connect an R2 bucket, or explore a Parquet file.</p>
-    <div class="welcome-actions"><button id="welcome-folder" class="primary">Open a folder</button><button id="welcome-open">Open a Parquet file</button></div>
+    <p id="welcome-description">Explore a local file, a folder, or a cloud workspace.</p>
+    <div class="welcome-actions"><button id="welcome-data" class="primary" aria-haspopup="dialog" aria-controls="source-dialog">Open data</button></div>
     <span class="drop-note">or drop a .parquet file anywhere</span>
     <div class="welcome-features"><div><strong>Browse rows</strong><span>Small pages, precise values.</span></div><div><strong>Query with SQL</strong><span>Filter, sort, and query.</span></div><div><strong>Keep it local</strong><span>Your files stay yours.</span></div></div>
   </section>
@@ -49,6 +47,19 @@ app.innerHTML = `
   <div id="notification" role="status" aria-live="polite" hidden></div>
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Reading your file…</span><button id="cancel">Cancel</button></div>
 </main>
+<dialog id="source-dialog" class="connection-dialog source-dialog" aria-labelledby="source-title">
+ <div class="connection-heading"><div><h2 id="source-title">Open data</h2><p>Choose where your data lives.</p></div><button id="source-dismiss" class="quiet" aria-label="Close data source chooser">×</button></div>
+ <div class="source-tabs" role="tablist" aria-label="Data location"><button id="source-local" role="tab" aria-selected="true" aria-controls="sources-local">This Mac</button><button id="source-cloud" role="tab" aria-selected="false" aria-controls="sources-cloud" tabindex="-1">Cloud storage</button></div>
+ <div id="sources-local" role="tabpanel" aria-labelledby="source-local">
+  <button id="open" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg><span><strong>Open file</strong><small>Browse a Parquet file</small></span><kbd>⌘ + O</kbd></button>
+  <button id="open-folder" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg><span><strong>Open folder</strong><small>Query files together as a workspace</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
+ </div>
+ <div id="sources-cloud" role="tabpanel" aria-labelledby="source-cloud" hidden>
+  <button id="open-r2" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg><span><strong>Cloudflare R2</strong><small>Connect a bucket or folder prefix</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
+  <p class="source-note">Read-only connections. Credentials stay in macOS Keychain.</p>
+ </div>
+ <div class="source-footer">You can also drop a Parquet file into the window.</div>
+</dialog>
 <dialog id="r2-dialog" class="connection-dialog" aria-labelledby="r2-title">
  <form id="r2-form" autocomplete="off">
  <div class="connection-heading"><div><h2 id="r2-title">Connect Cloudflare R2</h2><p>Browse and query Parquet files in a read-only workspace.</p></div><button id="r2-dismiss" type="button" class="quiet" aria-label="Close R2 connection">×</button></div>
@@ -59,7 +70,7 @@ app.innerHTML = `
  <label>Secret Access Key<input id="r2-secret" type="password" required maxlength="512" autocomplete="new-password" spellcheck="false"></label>
  <p class="connection-note">Use R2 Object Read only credentials scoped to this bucket. Keys are stored in macOS Keychain. Files are read from R2 as needed; queries run on this Mac.</p>
  <p id="r2-error" role="alert" hidden></p>
- <div class="connection-actions"><button id="r2-cancel" type="button">Cancel</button><button id="r2-submit" type="submit" class="primary">Test &amp; connect</button></div>
+ <div class="connection-actions"><button id="r2-back" type="button" class="quiet">Back</button><button id="r2-cancel" type="button">Cancel</button><button id="r2-submit" type="submit" class="primary">Test &amp; connect</button></div>
  </form>
 </dialog>`;
 let file: DataFile | null = null;
@@ -104,7 +115,9 @@ function updateFolder() {
   $("scope-name").title = folder ? displayRoot(folder) : "Single file";
   $("query-save").hidden = !file && !folder;
   document.body.classList.toggle("workspace-query-mode", !file && !!folder);
-  document.querySelector(".local-badge")!.textContent = folder?.root.startsWith("r2://") ? "R2 / read-only" : "Local session";
+  const sourceBadge = document.querySelector<HTMLElement>(".local-badge")!;
+  sourceBadge.hidden = !folder?.root.startsWith("r2://");
+  sourceBadge.textContent = sourceBadge.hidden ? "" : "R2 / read-only";
   $("query-scope").textContent = file ? "Read-only / table: data" : "Read-only / workspace";
   if (!file && folder) { $("breadcrumb").textContent="Explore Data"; $("file-name").textContent=folder.name; $("file-path").textContent=displayRoot(folder); $("file-path").title=displayRoot(folder); }
   document.querySelectorAll<HTMLElement>(".workspace-group").forEach(p=>p.querySelector('[data-control="folder-name"]')!.setAttribute("aria-current",String(!file && p.dataset.root===workspaceRoot)));
@@ -330,11 +343,40 @@ async function showFolder(info:Info,restore=false){
   else await showWorkspace(info);
 }
 async function openFolder(){await task("Opening workspace…",async()=>{await saveQuery();const info=await Workbench.openWorkspace();if(info)await showFolder(info);});}
-$("open-folder").onclick=()=>void openFolder();$("welcome-folder").onclick=()=>void openFolder();
+const sourceDialog=$<HTMLDialogElement>("source-dialog");
+let sourceReturn: HTMLElement;
+function selectSource(kind: string) {
+ for(const name of ["local","cloud"]) {
+  const selected=name===kind;
+  $("source-"+name).setAttribute("aria-selected",String(selected));
+  $("source-"+name).tabIndex=selected?0:-1;
+  $("sources-"+name).hidden=!selected;
+ }
+}
+function showSources(trigger: HTMLElement) {
+ sourceReturn=trigger;selectSource("local");sourceDialog.classList.add("initial-focus");sourceDialog.showModal();$("source-local").focus();
+}
+$("open-data").onclick=()=>showSources($("open-data"));
+$("welcome-data").onclick=()=>showSources($("welcome-data"));
+$("source-dismiss").onclick=()=>sourceDialog.close();
+sourceDialog.onclose=()=>sourceReturn?.focus();
+sourceDialog.addEventListener("keydown",()=>sourceDialog.classList.remove("initial-focus"));
+for(const kind of ["local","cloud"]) {
+ $("source-"+kind).onclick=()=>selectSource(kind);
+ $("source-"+kind).onkeydown=e=>{
+  if(["ArrowLeft","ArrowRight","Home","End"].includes(e.key)) {
+   e.preventDefault();const next=e.key==="Home"?"local":e.key==="End"?"cloud":kind==="local"?"cloud":"local";
+   selectSource(next);$("source-"+next).focus();
+  }
+ };
+}
+const closeSources=()=>{if(sourceDialog.open)sourceDialog.close();};
+$("open-folder").onclick=()=>{closeSources();void openFolder();};
 const r2Dialog=$<HTMLDialogElement>("r2-dialog");
 const clearR2Keys=()=>{ $<HTMLInputElement>("r2-access").value="";$<HTMLInputElement>("r2-secret").value=""; };
-$("open-r2").onclick=()=>{ $("r2-error").hidden=true;r2Dialog.showModal();$<HTMLInputElement>("r2-endpoint").focus(); };
-r2Dialog.onclose=clearR2Keys;
+$("open-r2").onclick=()=>{ closeSources();$("r2-error").hidden=true;r2Dialog.showModal();$<HTMLInputElement>("r2-endpoint").focus(); };
+r2Dialog.onclose=()=>{clearR2Keys();$("open-data").focus();};
+$("r2-back").onclick=()=>{r2Dialog.close();showSources($("open-data"));selectSource("cloud");$("source-cloud").focus();};
 r2Dialog.oncancel=e=>{if(busy){e.preventDefault();void Workbench.cancel();}};
 $("r2-dismiss").onclick=()=>r2Dialog.close();
 $("r2-cancel").onclick=()=>{if(busy)void Workbench.cancel();else r2Dialog.close();};
@@ -577,8 +619,7 @@ async function open(path?: string) {
     }
   });
 }
-$("open").onclick = () => void open();
-$("welcome-open").onclick = () => void open();
+$("open").onclick = () => {closeSources();void open();};
 $("cancel").onclick = () => void Workbench.cancel();
 for (const name of ["explore", "schema"])
   $(`tab-${name}`).onclick = () => setView(name);
@@ -640,18 +681,18 @@ $("export").onclick = () =>
     if (path) notify(`Exported visible page to ${path}`);
   });
 document.addEventListener("keydown", (e) => {
-  if(r2Dialog.open && (e.metaKey || e.ctrlKey)){e.preventDefault();return;}
+  if(r2Dialog.open && (e.metaKey || e.ctrlKey) && ["o","enter"].includes(e.key.toLowerCase())){e.preventDefault();return;}
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") {
     e.preventDefault();
-    void open();
+    closeSources();void open();
   }
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && (file || folder)) {
+  if (!sourceDialog.open && (e.metaKey || e.ctrlKey) && e.key === "Enter" && (file || folder)) {
     e.preventDefault();
     $("run").click();
   }
 });
 onFileDrop(({ paths }) => {
-  if (paths[0]) void open(paths[0]);
+  if (paths[0] && !r2Dialog.open) {closeSources();void open(paths[0]);}
 });
 async function boot() {
   try {

@@ -4,6 +4,8 @@ const $=id=>document.getElementById(id);
 const wait=async()=>{for(let i=0;i<300;i++){if($('busy').hidden)return;await new Promise(r=>setTimeout(r,50))}throw new Error('R2 UI busy timeout')};
 const click=async id=>{$(id).click();await wait()};
 if(workspacePhase==='r2'){
+ await click('open-data');assert($('source-dialog').open && !$('sources-local').hidden && document.querySelectorAll('.sidebar > button').length===1,'one launcher opens local source choices');
+ await click('source-cloud');await click('open-r2');await click('r2-back');assert($('source-dialog').open && !$('sources-cloud').hidden && !$('r2-dialog').open,'R2 back returns to cloud choices');
  await click('open-r2');assert($('r2-dialog').open,'native connection dialog opens');
  $('r2-name').value='R2 analytics';$('r2-endpoint').value='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com';$('r2-bucket').value='fixture-bucket';$('r2-prefix').value='data';$('r2-access').value='fixture-access';$('r2-secret').value='fixture-secret';
  $('r2-form').requestSubmit();await wait();
