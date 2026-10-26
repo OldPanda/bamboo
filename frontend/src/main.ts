@@ -14,8 +14,8 @@ const app = $("app");
 app.innerHTML = `
 <aside class="sidebar">
   <div class="brand"><span class="brand-mark">竹</span><div>Bamboo<span class="edition">Local data workbench</span></div></div>
-  <button id="open-folder" class="open-button" title="Open workspace folder" aria-label="Open workspace folder"><span>▱</span> Open Folder</button>
-  <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘O)"><span>＋</span> Open Parquet <kbd>⌘ O</kbd></button>
+  <button id="open-folder" class="open-button" title="Open workspace folder" aria-label="Open workspace folder"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg> Open Folder</button>
+  <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘ + O)"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg> Open Parquet <kbd>⌘ + O</kbd></button>
   <section id="open-files-panel" hidden><div class="section-label">Open files</div><div id="open-files"></div></section>
   <section id="folder-panel" hidden><div class="section-label">Workspaces</div><div id="workspace-roots"></div></section>
   <div id="file-card" hidden></div>
@@ -36,7 +36,7 @@ app.innerHTML = `
   <section id="workspace" hidden>
     <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
     <nav class="tabs" aria-label="Views"><button id="tab-explore" class="active" aria-selected="true">Explore Data</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
-    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ Enter to run / 15 second timeout <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
+    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span>Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p>Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea><div class="editor-footer"><span>⌘ + Enter to run / 15 second timeout <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
     <div id="data-panel" class="data-panel">
       <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
@@ -93,6 +93,7 @@ function updateFolder() {
     row.querySelector(".close-file")?.remove();
     if (doc) row.append(closeFileButton(path, doc.file.name));
   });
+  updateQueryTables();
   const list = $("open-files"); list.replaceChildren();
   const external = [...documents.values()].filter(doc => !owner(doc.file.path));
   $("open-files-panel").hidden = external.length === 0;
@@ -108,6 +109,27 @@ function updateFolder() {
       row.append(button, closeFileButton(doc.file.path, doc.file.name)); group.append(row);
     }
     list.append(group);
+  }
+}
+function tableReference(path: string) { return `workspace."${path.replaceAll('"', '""')}"`; }
+function updateQueryTables() {
+  $("workspace-tables").hidden = !folder;
+  const list = $("workspace-table-list"); list.replaceChildren();
+  if (!folder) return;
+  const paths = new Set([relativeFile]);
+  document.querySelectorAll<HTMLButtonElement>(".tree-file").forEach(b => {
+    if (b.dataset.root === folder!.root) paths.add(b.dataset.path!);
+  });
+  for (const path of paths) {
+    const ref = tableReference(path);
+    const button = el("button", ref, "table-reference") as HTMLButtonElement;
+    button.title = `Insert ${ref} at cursor`;
+    button.onclick = () => {
+      const editor = $<HTMLTextAreaElement>("sql");
+      editor.setRangeText(ref, editor.selectionStart, editor.selectionEnd, "end");
+      editor.focus(); queryEdited();
+    };
+    list.append(button);
   }
 }
 function closeFileButton(path: string, name: string) {
@@ -147,7 +169,7 @@ async function directory(container: HTMLElement, info: Info, rel: string, offset
     const row=el("div","",entry.directory ? "tree-entry" : "tree-entry tree-file-row");
     row.dataset.path=prefix(info.root)+entry.path;
     const button=el("button",`${entry.directory ? "▸" : "▧"} ${entry.name}`,entry.directory ? "tree-folder" : "tree-file activate-file") as HTMLButtonElement;
-    button.title=entry.path; button.dataset.path=entry.path; button.dataset.root=info.root; button.dataset.fullPath=prefix(info.root)+entry.path;
+    button.title=entry.directory ? entry.path : `${entry.path} — SQL: ${tableReference(entry.path)}`; button.dataset.path=entry.path; button.dataset.root=info.root; button.dataset.fullPath=prefix(info.root)+entry.path;
     row.append(button);container.append(row);
     if (entry.directory) {
       const children=el("div","","tree-children");children.hidden=true;row.append(children);button.setAttribute("aria-expanded","false");
@@ -224,6 +246,7 @@ async function closeDocument(path:string){
 }
 async function showFolder(info:Info,restore=false){
   if(folders.has(info.root))return;
+  const previousOwner=file ? owner(file.path)?.root : undefined;
   folders.set(info.root,info);
   const panel=el("section","","workspace-group");panel.dataset.root=info.root;
   panel.innerHTML=`<div class="folder-heading"><strong data-control="folder-name"></strong><button data-control="folder-rename" class="quiet" title="Rename workspace" aria-label="Rename workspace">✎</button><button data-control="folder-close" class="quiet" title="Close workspace" aria-label="Close workspace">×</button></div><p class="folder-path"></p><form data-control="folder-rename-form" hidden><input data-control="folder-name-input" aria-label="Workspace name" maxlength="200" required><button type="submit">Save</button><button data-control="folder-rename-cancel" type="button">Cancel</button></form><div class="folder-actions"><button data-control="folder-refresh" class="quiet">Refresh</button></div><div class="folder-tree" aria-label="Workspace files"></div>`;
@@ -252,6 +275,7 @@ async function showFolder(info:Info,restore=false){
   });
   $("workspace-roots").append(panel);updateFolder();
   await directory(tree,info,".");
+  if(!restore && file && owner(file.path)?.root!==previousOwner)await switchFile(file.path);
   if(restore && info.active){try{await openFolderFile(info,info.active);}catch(e){notify(`Last file is unavailable. Choose another file. ${String(e)}`,true);}}
 }
 async function openFolder(){await task("Opening workspace…",async()=>{await saveQuery();const info=await Workbench.openWorkspace();if(info)await showFolder(info);});}

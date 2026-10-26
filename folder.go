@@ -55,7 +55,7 @@ func (w *Workbench) OpenWorkspaceFile(ctx context.Context, root, relative string
 	if err != nil {
 		return nil, err
 	}
-	f, err := w.engine.Open(ctx, path)
+	f, err := w.engine.OpenScoped(ctx, path, func(relative string) (string, error) { return w.folders.Resolve(root, relative) })
 	if err != nil {
 		return nil, err
 	}

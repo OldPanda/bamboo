@@ -110,3 +110,32 @@ func TestMultiWorkspaceService(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestWorkspaceCrossFileService(t *testing.T) {
+	w, _, root := workbench(t)
+	root, _ = filepath.EvalSymlinks(root)
+	w.folders = workspace.New(t.TempDir())
+	if _, err := w.useWorkspace(root); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if _, err := w.OpenWorkspaceFile(ctx, root, "orders.parquet"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := w.Query(ctx, engine.Request{SQL: `SELECT a.order_id, b.big_id FROM data a CROSS JOIN workspace."special.parquet" b ORDER BY a.order_id`, Limit: 2})
+	if err != nil || len(r.Rows) != 2 || *r.Rows[0][1] != "9223372036854775807" || w.last != r {
+		t.Fatal(r, err)
+	}
+	if err = w.CloseWorkspace(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.Query(ctx, engine.Request{SQL: `SELECT * FROM workspace."special.parquet"`, Limit: 1}); err == nil {
+		t.Fatal("closed scope accessible")
+	}
+	if _, err = w.OpenPath(ctx, filepath.Join(root, "orders.parquet")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.Query(ctx, engine.Request{SQL: `SELECT * FROM workspace."special.parquet"`, Limit: 1}); err == nil {
+		t.Fatal("standalone retained workspace")
+	}
+}

@@ -280,6 +280,7 @@ describe("multiple open files and workspaces",()=>{
  it("groups previously external files when a matching folder opens, chooses deepest nested root and reports restore warnings",async()=>{
   folderResponses();responses["Workbench.RestoreWorkspaces"]=()=>({workspaces:[],warning:"One folder is unavailable"});
   responses["Workbench.Open"]=()=>({...dataFile(),name:"nested.parquet",path:"/analysis/nested/nested.parquet"});
+  responses["Workbench.OpenWorkspaceFile"]=(root:string,relative:string)=>({file:{...dataFile(),name:"nested.parquet",path:root+"/"+relative},query:{draft:"SELECT * FROM data",applied:"SELECT * FROM data"},warning:""});
   await open();expect($("scope-name").textContent).toBe("File");
   await click("open-folder");expect(document.querySelector(".external-files")).toBeNull();
   responses["Workbench.OpenWorkspace"]=()=>({root:"/analysis/nested",name:"Nested",active:""});await click("open-folder");expect($("scope-name").textContent).toBe("Nested");
@@ -337,4 +338,23 @@ describe("multiple open files and workspaces",()=>{
   responses["Workbench.OpenPath"]=()=>null;await openedAction(a.path);expect($("notification").textContent).toBe("No file returned");
   responses["Workbench.OpenPath"]=()=>a;await openedAction(a.path);expect($("workspace").hidden).toBe(false);
  });
+});
+
+it("offers safely quoted workspace tables and inserts at the cursor without running SQL",async()=>{
+ const name='竹 " <img>.parquet';
+ const f={...dataFile(),path:'/root/'+name,name};
+ responses['Workbench.RestoreWorkspaces']=()=>({workspaces:[{root:'/root',name:'Root',active:name}],warning:''});
+ responses['Workbench.ListDirectory']=()=>({entries:[{name,path:name,directory:false},{name:'other.parquet',path:'other.parquet',directory:false}],more:false,next:2});
+ responses['Workbench.OpenWorkspaceFile']=()=>({file:f,query:{draft:'SELECT * FROM data',applied:'SELECT * FROM data'},warning:''});
+ responses['Workbench.SaveWorkspaceQuery']=()=>undefined;
+ await boot();
+ expect($('workspace-tables').hidden).toBe(false);
+ const editor=$<HTMLTextAreaElement>('sql');editor.value='SELECT * FROM data';editor.setSelectionRange(14,18);
+ const before=bridge.call.mock.calls.filter(([name])=>name==='Workbench.Query').length;
+ document.querySelector<HTMLButtonElement>('.table-reference')!.click();
+ expect(editor.value).toBe('SELECT * FROM workspace."竹 "" <img>.parquet"');
+ expect(document.querySelector('#workspace-table-list img')).toBeNull();
+ expect(bridge.call.mock.calls.filter(([name])=>name==='Workbench.Query')).toHaveLength(before);
+ await click('run');expect(lastRequest().sql).toBe(editor.value);
+ responses['Workbench.Open']=()=>dataFile();await click('open');expect($('workspace-tables').hidden).toBe(true);
 });

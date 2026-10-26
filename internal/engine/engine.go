@@ -1,4 +1,4 @@
-// Package engine provides bounded, local-only exploration of one Parquet file.
+// Package engine provides bounded, local-only exploration of local Parquet files.
 package engine
 
 import (
@@ -52,11 +52,12 @@ type Result struct {
 
 // Engine has one active operation and a separately cancellable context.
 type Engine struct {
-	gate   chan struct{}
-	mu     sync.Mutex
-	cancel context.CancelFunc
-	db     *sql.DB
-	file   *File
+	gate    chan struct{}
+	mu      sync.Mutex
+	cancel  context.CancelFunc
+	db      *sql.DB
+	file    *File
+	resolve func(string) (string, error)
 }
 
 func New() *Engine { return &Engine{gate: make(chan struct{}, 1)} }
@@ -92,6 +93,12 @@ func literal(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + 
 func ident(s string) string   { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
 func (e *Engine) Open(parent context.Context, path string) (*File, error) {
+	return e.OpenScoped(parent, path, nil)
+}
+
+// OpenScoped installs a resolver tied to an explicitly opened workspace.
+// It is called for every referenced file on every query, including pagination.
+func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(string) (string, error)) (*File, error) {
 	ctx, done, err := e.start(parent)
 	if err != nil {
 		return nil, err
@@ -117,29 +124,18 @@ func (e *Engine) Open(parent context.Context, path string) (*File, error) {
 	if !st.Mode().IsRegular() {
 		return nil, errors.New("choose a regular Parquet file")
 	}
-	db, err := sql.Open("duckdb", "?threads=2&memory_limit=256MB&max_temp_directory_size=0B&autoload_known_extensions=false&autoinstall_known_extensions=false")
+	db, err := openDatabase(ctx, []string{path})
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 	ok := false
 	defer func() {
 		if !ok {
 			db.Close()
 		}
 	}()
-	// The only external resource allowed is the canonical file selected by the user.
-	for _, q := range []string{
-		"SET TimeZone = 'UTC'",
-		"SET allowed_paths = [" + literal(path) + "]",
-		"SET enable_external_access = false",
-		"SET lock_configuration = true",
-		"CREATE VIEW data AS SELECT * FROM read_parquet(" + literal(path) + ", hive_partitioning=false)",
-	} {
-		if _, err = db.ExecContext(ctx, q); err != nil {
-			return nil, err
-		}
+	if err = createView(ctx, db, "data", path); err != nil {
+		return nil, err
 	}
 	cols, err := describe(ctx, db, "SELECT * FROM data")
 	if err != nil {
@@ -155,6 +151,7 @@ func (e *Engine) Open(parent context.Context, path string) (*File, error) {
 	}
 	e.db = db
 	e.file = f
+	e.resolve = resolve
 	ok = true
 	return f, nil
 }
@@ -223,12 +220,17 @@ func (e *Engine) run(ctx context.Context, r Request) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	db, cleanup, err := e.queryDatabase(ctx, r.SQL)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
 	// Describe the unfiltered source to avoid binding filter values twice.
 	base := r
 	base.FilterColumn = ""
 	base.Sort = ""
 	bq, _, _ := query(base)
-	cols, err := describe(ctx, e.db, bq)
+	cols, err := describe(ctx, db, bq)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +243,7 @@ func (e *Engine) run(ctx context.Context, r Request) (*Result, error) {
 	}
 	// DuckDB formats values before IPC: decimals, nested types and nanosecond
 	// timestamps never round-trip through float64 or JavaScript numbers.
-	rows, err := e.db.QueryContext(ctx, fmt.Sprintf("SELECT CAST(COLUMNS(*) AS VARCHAR) FROM (%s\n) AS bamboo_page LIMIT %d OFFSET %d", q, r.Limit+1, r.Offset), args...)
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("SELECT CAST(COLUMNS(*) AS VARCHAR) FROM (%s\n) AS bamboo_page LIMIT %d OFFSET %d", q, r.Limit+1, r.Offset), args...)
 	if err != nil {
 		return nil, err
 	}

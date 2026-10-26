@@ -42,6 +42,9 @@ func smoke(win *mygo.Window) {
 		if workspacePhase == "stable" || workspacePhase == "stable-narrow" {
 			scriptPath = "scripts/switch-smoke.js"
 		}
+		if workspacePhase == "cross" || workspacePhase == "cross-restore" {
+			scriptPath = "scripts/cross-smoke.js"
+		}
 		if workspacePhase == "stable-narrow" {
 			win.SetSize(700, 640)
 			time.Sleep(100 * time.Millisecond)
@@ -82,6 +85,11 @@ func smoke(win *mygo.Window) {
 	}
 	report["lightButtonStyle"], _ = win.Page().Eval(`({background:getComputedStyle(document.getElementById("export")).backgroundColor,color:getComputedStyle(document.getElementById("export")).color,surface:getComputedStyle(document.documentElement).getPropertyValue("--surface"),appearance:getComputedStyle(document.getElementById("export")).appearance,dark:matchMedia("(prefers-color-scheme: dark)").matches})`)
 	capture("bamboo-light")
+	if workspacePhase == "cross" {
+		win.Page().Eval(`document.getElementById('workspace-tables').open=true`)
+		capture("bamboo-workspace-tables")
+		win.Page().Eval(`document.getElementById('workspace-tables').open=false`)
+	}
 	win.Page().Eval(`document.getElementById('tab-schema').click()`)
 	capture("bamboo-schema")
 	mygo.Theme.SetSource(mygo.ThemeDark)
