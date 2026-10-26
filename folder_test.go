@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bamboo/internal/engine"
 	"bamboo/internal/workspace"
 	"context"
 	"errors"
@@ -14,7 +15,7 @@ func TestFolderWorkbench(t *testing.T) {
 	root, _ = filepath.EvalSymlinks(root)
 	w.folders = workspace.New(t.TempDir())
 	ctx := context.Background()
-	if i, e := w.RestoreWorkspace(); e != nil || i != nil {
+	if i, e := w.folders.Restore(); e != nil || i != nil {
 		t.Fatal(i, e)
 	}
 	if i, e := w.OpenWorkspace(ctx); e != nil || i != nil {
@@ -43,7 +44,7 @@ func TestFolderWorkbench(t *testing.T) {
 	if e != nil || f.File.Rows != "240" || f.Query.Draft != "SELECT draft" {
 		t.Fatal(f, e)
 	}
-	if i, e = w.RestoreWorkspace(); e != nil || i.Active != "orders.parquet" {
+	if i, e = w.folders.Restore(); e != nil || i.Active != "orders.parquet" {
 		t.Fatal(i, e)
 	}
 	for _, rel := range []string{"../escape", "malformed.parquet", "missing.parquet", "."} {
@@ -59,7 +60,7 @@ func TestFolderWorkbench(t *testing.T) {
 		t.Fatal("busy open")
 	}
 	w.opMu.Unlock()
-	if e = w.LeaveWorkspace(); e != nil {
+	if e = w.folders.Leave(); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = w.OpenWorkspaceFile(ctx, root, "orders.parquet"); e == nil {
@@ -75,5 +76,37 @@ func TestFolderWorkbench(t *testing.T) {
 	f, e = w.OpenWorkspaceFile(ctx, root, "orders.parquet")
 	if e != nil || f.Warning == "" || f.File == nil {
 		t.Fatal(f, e)
+	}
+}
+
+func TestMultiWorkspaceService(t *testing.T) {
+	w, _, root := workbench(t)
+	root, _ = filepath.EvalSymlinks(root)
+	w.folders = workspace.New(t.TempDir())
+	w.useWorkspace(root)
+	r, e := w.RestoreWorkspaces()
+	if e != nil || len(r.Workspaces) != 1 {
+		t.Fatal(r, e)
+	}
+	if _, e = w.OpenWorkspaceFile(context.Background(), root, "orders.parquet"); e != nil {
+		t.Fatal(e)
+	}
+	readPage(t, w, "SELECT * FROM data")
+	w.opMu.Lock()
+	if e = w.ClearPreview(); e == nil {
+		t.Fatal("cleared busy engine")
+	}
+	w.opMu.Unlock()
+	if e = w.ClearPreview(); e != nil || w.last != nil {
+		t.Fatal(e)
+	}
+	if _, e = w.Query(context.Background(), engine.Request{SQL: "SELECT * FROM data", Limit: 1}); e == nil {
+		t.Fatal("query after close")
+	}
+	if e = w.CloseWorkspaceFile(root, "orders.parquet"); e != nil {
+		t.Fatal(e)
+	}
+	if e = w.CloseWorkspace(root); e != nil {
+		t.Fatal(e)
 	}
 }

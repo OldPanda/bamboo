@@ -30,8 +30,6 @@ func (w *Workbench) useWorkspace(path string) (*workspace.Info, error) {
 	defer w.opMu.Unlock()
 	return w.folders.Use(path)
 }
-func (w *Workbench) RestoreWorkspace() (*workspace.Info, error) { return w.folders.Restore() }
-func (w *Workbench) LeaveWorkspace() error                      { return w.folders.Leave() }
 func (w *Workbench) RenameWorkspace(root, name string) (*workspace.Info, error) {
 	return w.folders.Rename(root, name)
 }
@@ -69,4 +67,23 @@ func (w *Workbench) OpenWorkspaceFile(ctx context.Context, root, relative string
 		r.Warning = "File opened, but its recent-file state could not be saved: " + err.Error()
 	}
 	return r, nil
+}
+
+func (w *Workbench) RestoreWorkspaces() (*workspace.Restored, error) { return w.folders.RestoreAll() }
+func (w *Workbench) CloseWorkspace(root string) error                { return w.folders.Close(root) }
+func (w *Workbench) CloseWorkspaceFile(root, relative string) error {
+	return w.folders.CloseFile(root, relative)
+}
+
+// ClearPreview releases the active engine after the last open file is closed.
+func (w *Workbench) ClearPreview() error {
+	if !w.opMu.TryLock() {
+		return errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	w.engine.Close()
+	w.mu.Lock()
+	w.last = nil
+	w.mu.Unlock()
+	return nil
 }

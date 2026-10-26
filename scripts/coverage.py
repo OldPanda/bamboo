@@ -19,8 +19,9 @@ ENV = {**os.environ, "GOTOOLCHAIN": "go1.27.3", "BAMBOO_LARGE_TEST": "1"}
 def sources():
     paths = list(ROOT.glob("*.go"))
     for folder, pattern in [("internal", "*.go"), ("cmd", "*.go"),
-                            ("frontend", "*.ts"), ("scripts", "*.py"), ("scripts", "*.mjs")]:
+                            ("frontend", "*.ts"), ("scripts", "*.py"), ("scripts", "*.mjs"), ("scripts", "*.js")]:
         paths += list((ROOT / folder).rglob(pattern))
+    paths += list((ROOT / "frontend/src").rglob("*.css"))
     paths += [ROOT / name for name in ["go.mod", "go.sum", "package.json", "package-lock.json", "vitest.config.ts"]]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}
 
@@ -93,6 +94,25 @@ def main():
             for phase, args, count in [("create", ["--workspace", str(fixture.parent)], 15), ("restore", [], 9)]:
                 smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop / ("workspace-" + phase),
                       launch_args=args, extra_env={"BAMBOO_CONFIG_DIR": config, "BAMBOO_WORKSPACE_SMOKE": phase}, expected_checks=count)
+        # Two independent real folders and a real outside file; all are throwaway fixtures.
+        with tempfile.TemporaryDirectory(prefix="bamboo-multiple-") as temp:
+            base = Path(temp).resolve()
+            roots = [base / "Sales", base / "Inventory"]
+            profiles = {}
+            for root in roots:
+                root.mkdir()
+                shutil.copyfile(fixture, root / "orders.parquet")
+                profiles[str(root)] = {"root": str(root), "name": root.name, "active": "", "queries": {}}
+            shutil.copyfile(fixture, base / "external.parquet")
+            config = base / "settings"
+            config.mkdir()
+            seed = {"version": 1, "open": list(profiles), "last": str(roots[0]), "profiles": profiles}
+            for binary, target, covered in [(ROOT / "build/bamboo-covered", desktop, True),
+                                            (ROOT / "build/Bamboo.app/Contents/MacOS/Bamboo", OUT / "app-desktop", False)]:
+                (config / "workspaces.json").write_text(json.dumps(seed))
+                for phase, count in [("multi", 24), ("multi-restore", 8)]:
+                    smoke(binary, fixture, ROOT, target / phase, covered=covered, launch_args=[],
+                          extra_env={"BAMBOO_CONFIG_DIR": str(config), "BAMBOO_WORKSPACE_SMOKE": phase}, expected_checks=count)
         for name, expected in [("missing-script", "no such file"), ("script-error", "expected smoke failure")]:
             with tempfile.TemporaryDirectory(prefix="bamboo-smoke-") as d:
                 if name == "script-error":

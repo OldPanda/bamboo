@@ -175,17 +175,17 @@ textarea { resize: vertical; display: block; width: calc(100% - 32px); margin: 0
 #folder-panel { min-height: 160px; display: flex; flex-direction: column; flex: 1; overflow: hidden; margin-top: var(--space-md); }
 .folder-heading { display: flex; align-items: center; gap: var(--space-xs); }
 .folder-heading strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#folder-path { color: var(--muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: var(--space-xs); }
+.folder-path { color: var(--muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: var(--space-xs); }
 .folder-actions { display: flex; justify-content: space-between; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
 .folder-actions button { font-size: var(--text-xs); padding: var(--space-2xs); }
-#folder-tree { overflow: auto; flex: 1; padding-block: var(--space-xs); }
+.folder-tree { overflow: auto; flex: 1; padding-block: var(--space-xs); }
 .tree-children { padding-left: var(--space-sm); }
 .tree-entry button { display: block; width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; border: 0; background: transparent; padding: var(--space-2xs) var(--space-xs); min-height: 32px; font-size: var(--text-sm); }
 .tree-entry button.selected { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
 .tree-more { margin: var(--space-xs); font-size: var(--text-xs); }
 .folder-mode .column-list, .folder-mode .columns-label, .folder-mode .privacy { display: none; }
-#folder-rename-form { display: flex; flex-wrap: wrap; gap: var(--space-2xs); padding-block: var(--space-xs); }
-#folder-name-input { min-width: 0; width: 100%; }
+[data-control="folder-rename-form"] { display: flex; flex-wrap: wrap; gap: var(--space-2xs); padding-block: var(--space-xs); }
+[data-control="folder-name-input"] { min-width: 0; width: 100%; }
 #query-save { display: inline-block; margin-left: var(--space-xs); color: var(--muted); }
 @media (max-width: 960px) {
  .folder-mode .sidebar { width: 216px; }
@@ -198,3 +198,27 @@ textarea { resize: vertical; display: block; width: calc(100% - 32px); margin: 0
  .folder-mode .brand > div { display: none; }
  .folder-mode .open-button { font-size: var(--text-xs); }
 }
+
+/* Open documents remain independent from the directory browsers. */
+.files-mode .sidebar { width: 260px; flex-shrink: 0; }
+#open-files-panel { flex: 0 1 auto; min-height: 80px; max-height: 38vh; overflow: auto; }
+.opened-group-name { color: var(--muted); font-size: var(--text-xs); padding: var(--space-xs) var(--space-2xs) var(--space-2xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opened-file { display: flex; align-items: center; border-radius: var(--radius-input); }
+.opened-file button { border: 0; background: transparent; padding: var(--space-2xs) var(--space-xs); min-height: 32px; font-size: var(--text-sm); }
+.opened-file .activate-file { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.opened-file .close-file { flex: 0 0 28px; padding-inline: var(--space-2xs); }
+.opened-file.selected { background: var(--color-accent-soft); }
+.opened-file.selected .activate-file { color: var(--color-accent); font-weight: 600; }
+#workspace-roots { overflow: auto; min-height: 0; }
+.workspace-group { border-bottom: 1px solid var(--line); padding-block: var(--space-xs); }
+.folder-heading button { padding: var(--space-2xs); min-width: 26px; }
+.folder-tree { overflow: visible; }
+#folder-panel { min-height: 120px; }
+@media(max-width:960px){ .files-mode .sidebar { width:216px; } .files-mode .open-button {font-size:var(--text-sm);} }
+@media(max-width:600px){ .files-mode .sidebar {width:160px;} .files-mode .open-button {font-size:var(--text-xs);} }
+
+#open-files-panel > .section-label, #folder-panel > .section-label { display: flex; }
+
+.tree-file-row { display: flex; align-items: center; border-radius: var(--radius-input); }
+.tree-file-row > .tree-file { flex: 1; min-width: 0; width: auto; }
+.tree-file-row > .close-file { width: 28px; flex: 0 0 28px; text-align: center; }

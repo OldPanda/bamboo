@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -39,6 +40,7 @@ type profile struct {
 }
 type state struct {
 	Version  int                 `json:"version"`
+	Open     []string            `json:"open,omitempty"`
 	Last     string              `json:"last"`
 	Profiles map[string]*profile `json:"profiles"`
 }
@@ -47,11 +49,12 @@ type Store struct {
 	path    string
 	data    state
 	current string
+	opened  map[string]bool
 	loadErr error
 }
 
 func New(dir string) *Store {
-	s := &Store{path: filepath.Join(dir, "workspaces.json"), data: state{Version: 1, Profiles: map[string]*profile{}}}
+	s := &Store{path: filepath.Join(dir, "workspaces.json"), opened: map[string]bool{}, data: state{Version: 1, Profiles: map[string]*profile{}}}
 	f, err := os.Open(s.path)
 	if os.IsNotExist(err) {
 		return s
@@ -63,7 +66,7 @@ func New(dir string) *Store {
 	defer f.Close()
 	b, err := io.ReadAll(io.LimitReader(f, stateLimit+1))
 	var d state
-	if err != nil || len(b) > stateLimit || json.Unmarshal(b, &d) != nil || d.Version != 1 || d.Profiles == nil || len(d.Profiles) > 32 {
+	if err != nil || len(b) > stateLimit || json.Unmarshal(b, &d) != nil || d.Version != 1 || d.Profiles == nil || len(d.Profiles) > 32 || len(d.Open) > 32 {
 		s.loadErr = errors.New("saved workspace settings are unreadable; open a folder to start again")
 		return s
 	}
@@ -80,6 +83,12 @@ func New(dir string) *Store {
 		}
 		if p.Active != "" && !relative(p.Active) {
 			s.loadErr = errors.New("invalid last file")
+			return s
+		}
+	}
+	for _, root := range d.Open {
+		if d.Profiles[root] == nil {
+			s.loadErr = errors.New("invalid open workspace")
 			return s
 		}
 	}
@@ -126,7 +135,7 @@ func (s *Store) commit(d state) error {
 	return nil
 }
 func (s *Store) copy() state {
-	d := state{Version: 1, Last: s.data.Last, Profiles: map[string]*profile{}}
+	d := state{Version: 1, Last: s.data.Last, Open: slices.Clone(s.data.Open), Profiles: map[string]*profile{}}
 	for k, p := range s.data.Profiles {
 		c := *p
 		c.Queries = map[string]Query{}
@@ -160,7 +169,7 @@ func (s *Store) Use(path string) (*Info, error) {
 	if !st.IsDir() {
 		return nil, errors.New("choose a folder")
 	}
-	// Check read access before replacing the current workspace.
+	// Check read access before adding this workspace to the open set.
 	if _, err = f.ReadDir(1); err != nil && err != io.EOF {
 		return nil, err
 	}
@@ -172,10 +181,14 @@ func (s *Store) Use(path string) (*Info, error) {
 		d.Profiles[root] = &profile{Info: Info{Root: root, Name: filepath.Base(root)}, Queries: map[string]Query{}}
 	}
 	d.Last = root
+	if !slices.Contains(d.Open, root) {
+		d.Open = append(d.Open, root)
+	}
 	if err = s.commit(d); err != nil {
 		return nil, err
 	}
 	s.current = root
+	s.opened[root] = true
 	s.loadErr = nil
 	v := d.Profiles[root].Info
 	return &v, nil
@@ -198,14 +211,16 @@ func (s *Store) Leave() error {
 	defer s.mu.Unlock()
 	d := s.copy()
 	d.Last = ""
+	d.Open = nil
 	if err := s.commit(d); err != nil {
 		return err
 	}
 	s.current = ""
+	s.opened = map[string]bool{}
 	return nil
 }
 func (s *Store) currentProfile(root string) (*profile, error) {
-	if root == "" || root != s.current || s.data.Profiles[root] == nil {
+	if root == "" || !s.opened[root] || s.data.Profiles[root] == nil {
 		return nil, errors.New("workspace changed; reopen the folder")
 	}
 	return s.data.Profiles[root], nil
@@ -331,5 +346,73 @@ func (s *Store) Select(root, rel string) error {
 	}
 	d := s.copy()
 	d.Profiles[root].Active = rel
+	d.Last = root
+	return s.commit(d)
+}
+
+// RestoreAll migrates the previous single-workspace setting and restores each
+// accessible root independently, with the last active root ordered last.
+type Restored struct {
+	Workspaces []Info `json:"workspaces"`
+	Warning    string `json:"warning"`
+}
+
+func (s *Store) RestoreAll() (*Restored, error) {
+	s.mu.Lock()
+	err := s.loadErr
+	roots := slices.Clone(s.data.Open)
+	last := s.data.Last
+	s.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	if last != "" {
+		roots = slices.DeleteFunc(roots, func(r string) bool { return r == last })
+		roots = append(roots, last)
+	}
+	r := &Restored{Workspaces: []Info{}}
+	for _, root := range roots {
+		info, e := s.Use(root)
+		if e != nil {
+			r.Warning += "Could not reopen " + root + ": " + e.Error() + "\n"
+			continue
+		}
+		r.Workspaces = append(r.Workspaces, *info)
+	}
+	return r, nil
+}
+func (s *Store) Close(root string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.currentProfile(root); err != nil {
+		return err
+	}
+	d := s.copy()
+	d.Open = slices.DeleteFunc(d.Open, func(r string) bool { return r == root })
+	if d.Last == root {
+		d.Last = ""
+		if len(d.Open) > 0 {
+			d.Last = d.Open[len(d.Open)-1]
+		}
+	}
+	if err := s.commit(d); err != nil {
+		return err
+	}
+	delete(s.opened, root)
+	s.current = d.Last
+	return nil
+}
+func (s *Store) CloseFile(root, rel string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, err := s.currentProfile(root)
+	if err != nil {
+		return err
+	}
+	if p.Active != rel {
+		return nil
+	}
+	d := s.copy()
+	d.Profiles[root].Active = ""
 	return s.commit(d)
 }

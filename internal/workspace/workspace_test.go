@@ -254,3 +254,82 @@ func TestSettingsRecoveryAndLimits(t *testing.T) {
 		t.Fatal("loaded too many queries")
 	}
 }
+
+func TestMultipleRootsAndClosing(t *testing.T) {
+	s, one, config := fixture(t)
+	two, _ := filepath.EvalSymlinks(t.TempDir())
+	if _, e := s.Use(two); e != nil {
+		t.Fatal(e)
+	}
+	for _, root := range []string{one, two} {
+		if _, e := s.List(root, ".", 0); e != nil {
+			t.Fatal(e)
+		}
+		if e := s.Select(root, "sample.parquet"); e != nil {
+			t.Fatal(e)
+		}
+	}
+	s.Use(one)
+	if len(s.data.Open) != 2 {
+		t.Fatal("duplicate root")
+	}
+	r, e := New(config).RestoreAll()
+	if e != nil || len(r.Workspaces) != 2 || r.Workspaces[1].Root != one {
+		t.Fatal(r, e)
+	}
+	if e = s.CloseFile(one, "different.parquet"); e != nil {
+		t.Fatal(e)
+	}
+	if e = s.CloseFile(one, "sample.parquet"); e != nil || s.data.Profiles[one].Active != "" {
+		t.Fatal(e)
+	}
+	if e = s.CloseFile("unknown", "file"); e == nil {
+		t.Fatal("unknown root")
+	}
+	if e = s.Close("unknown"); e == nil {
+		t.Fatal("unknown root")
+	}
+	// Failure cannot forget a root or its recent file.
+	original := s.path
+	s.path = filepath.Join(t.TempDir(), "blocked", "state")
+	os.WriteFile(filepath.Dir(s.path), nil, 0600)
+	if e = s.Close(one); e == nil || !s.opened[one] {
+		t.Fatal("failed close committed")
+	}
+	s.path = original
+	if e = s.Close(one); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.List(one, ".", 0); e == nil {
+		t.Fatal("closed root remained authorized")
+	}
+	if _, e = s.List(two, ".", 0); e != nil {
+		t.Fatal("other workspace closed", e)
+	}
+	if e = s.Close(two); e != nil {
+		t.Fatal(e)
+	}
+	r, e = New(config).RestoreAll()
+	if e != nil || len(r.Workspaces) != 0 {
+		t.Fatal(r, e)
+	}
+	// Migrate pre-multiple-root settings; missing roots do not block valid roots.
+	s.Use(one)
+	s.Use(two)
+	os.Remove(two)
+	r, e = New(config).RestoreAll()
+	if e != nil || len(r.Workspaces) != 1 || r.Warning == "" {
+		t.Fatal(r, e)
+	}
+	s.data.Open = nil
+	s.data.Last = one
+	s.write(s.data)
+	r, e = New(config).RestoreAll()
+	if e != nil || len(r.Workspaces) != 1 {
+		t.Fatal(r, e)
+	}
+	os.WriteFile(s.path, []byte(`{"version":1,"profiles":{},"open":["/unknown"]}`), 0600)
+	if _, e = New(config).RestoreAll(); e == nil {
+		t.Fatal("bad settings")
+	}
+}

@@ -23,7 +23,7 @@ const page = (offset = 0, more = true): Result => ({
   columns, rows: [["9223372036854775807", "<img src=x onerror=alert(1)>", "2026-01-02 03:04:05.123456789"], [null, "", "UTC"]],
   more, offset, elapsedMS: 3,
 });
-const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+const $ = <T extends HTMLElement = HTMLElement>(id: string) => (document.getElementById(id) || document.querySelector(`[data-control="${id}"]`)) as T;
 const value = (id: string, v: string) => { $<HTMLInputElement>(id).value = v; };
 const lastRequest = (): Request => bridge.call.mock.calls.filter(([name]) => name === "Workbench.Query").at(-1)![1];
 let responses: Record<string, (...args: any[]) => unknown>;
@@ -34,7 +34,9 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="app"></div>'; delete document.body.dataset.ready;
   responses = {
     "Workbench.InitialFile": () => "",
-    "Workbench.RestoreWorkspace": () => null,
+    "Workbench.RestoreWorkspaces": () => ({workspaces:[],warning:""}),
+    "Workbench.ClearPreview": () => undefined,
+    "Workbench.CloseWorkspaceFile": () => undefined,
     "Workbench.Open": () => dataFile(),
     "Workbench.OpenPath": () => dataFile(),
     "Workbench.Query": (r: Request) => page(r.offset, r.offset < 200),
@@ -170,10 +172,10 @@ function folderResponses() {
       {name:"orders.parquet",path:"orders.parquet",directory:false},
     ] : [], next:200, more:rel === "." && offset === 0,
   });
-  responses["Workbench.OpenWorkspaceFile"] = () => ({file:dataFile(), query:{draft:"SELECT draft", applied:"SELECT 7"}, warning:""});
+  responses["Workbench.OpenWorkspaceFile"] = () => ({file:{...dataFile(),name:"orders.parquet",path:"/analysis/orders.parquet"}, query:{draft:"SELECT draft", applied:"SELECT 7"}, warning:""});
   responses["Workbench.SaveWorkspaceQuery"] = () => undefined;
   responses["Workbench.RenameWorkspace"] = (root: string, name: string) => ({...workspaceInfo,root,name});
-  responses["Workbench.LeaveWorkspace"] = () => undefined;
+  responses["Workbench.CloseWorkspace"] = () => undefined;
 }
 async function treeFile() { document.querySelector<HTMLButtonElement>(".tree-file")!.click(); await settled(); }
 
@@ -196,25 +198,24 @@ describe("folder workspaces", () => {
     expect(bridge.call).toHaveBeenCalledWith("Workbench.SaveWorkspaceQuery","/analysis","orders.parquet","SELECT 9","SELECT 7");
     await click("run"); expect(bridge.call).toHaveBeenCalledWith("Workbench.SaveWorkspaceQuery","/analysis","orders.parquet","SELECT 9","SELECT 9");
     await click("reset-sql"); $("sql").dispatchEvent(new Event("blur")); await vi.waitFor(() => expect($("query-save").textContent).toBe("Saved locally"));
-    await click("folder-rename"); expect(document.activeElement!.id).toBe("folder-name-input");
+    await click("folder-rename"); expect(document.activeElement!.getAttribute("data-control")).toBe("folder-name-input");
     await click("folder-rename-cancel"); expect($("folder-rename-form").hidden).toBe(true);
     await click("folder-rename"); value("folder-name-input","My analysis"); $("folder-rename-form").dispatchEvent(new Event("submit",{cancelable:true})); await settled();
     expect($("scope-name").textContent).toBe("My analysis");
-    await click("folder-close"); expect($("folder-panel").hidden).toBe(true); expect($("scope-name").textContent).toBe("File"); expect($("breadcrumb").textContent).toBe(dataFile().name);
+    await click("folder-close"); expect($("folder-panel").hidden).toBe(true); expect($("scope-name").textContent).toBe("File"); expect($("breadcrumb").textContent).toBe("Welcome");
   });
   it("restores a workspace on startup and preserves a draft if the saved query fails", async () => {
-    folderResponses(); responses["Workbench.RestoreWorkspace"] = () => ({...workspaceInfo,active:"orders.parquet"});
+    folderResponses(); responses["Workbench.RestoreWorkspaces"] = () => ({workspaces:[{...workspaceInfo,active:"orders.parquet"}],warning:""});
     responses["Workbench.Query"] = (r: Request) => { if (r.sql === "SELECT 7") throw new Error("missing column"); return page(); };
     await boot(); expect(lastRequest().sql).toBe("SELECT * FROM data"); expect($<HTMLTextAreaElement>("sql").value).toBe("SELECT draft"); expect($("notification").textContent).toContain("Draft preserved");
-    responses["Workbench.OpenWorkspaceFile"] = () => ({file:dataFile(),query:{draft:"",applied:""},warning:"Recent-file state not saved"});
+    responses["Workbench.OpenWorkspaceFile"] = () => ({file:{...dataFile(),name:"orders.parquet",path:"/analysis/orders.parquet"},query:{draft:"",applied:""},warning:"Recent-file state not saved"});
     await treeFile(); expect($("notification").textContent).toBe("Recent-file state not saved");
     responses["Workbench.Open"] = () => null; await click("open"); expect($("folder-panel").hidden).toBe(false);
-    responses["Workbench.LeaveWorkspace"] = () => { throw new Error("state write failed"); };
-    responses["Workbench.Open"] = () => dataFile(); await click("open"); expect($("notification").textContent).toContain("File opened, but workspace state could not be saved"); expect($("folder-panel").hidden).toBe(true); expect($("scope-name").textContent).toBe("File");
+    responses["Workbench.Open"] = () => dataFile(); await click("open"); expect($("folder-panel").hidden).toBe(false); expect($("scope-name").textContent).toBe("File");
     $("sql").dispatchEvent(new Event("input"));
   });
   it("handles missing folders/files and keeps previous data on failed file selection", async () => {
-    folderResponses(); responses["Workbench.RestoreWorkspace"] = () => ({...workspaceInfo,active:"gone.parquet"});
+    folderResponses(); responses["Workbench.RestoreWorkspaces"] = () => ({workspaces:[{...workspaceInfo,active:"gone.parquet"}],warning:""});
     responses["Workbench.OpenWorkspaceFile"] = () => { throw new Error("file removed"); };
     await boot(); expect($("notification").textContent).toContain("Last file is unavailable"); expect($("workspace").hidden).toBe(true);
     await click("folder-close"); expect($("breadcrumb").textContent).toBe("Welcome");
@@ -222,7 +223,7 @@ describe("folder workspaces", () => {
     responses["Workbench.OpenWorkspace"] = () => { throw new Error("folder access denied"); }; await click("open-folder"); expect($("notification").textContent).toBe("folder access denied");
     responses["Workbench.OpenWorkspace"] = () => workspaceInfo; await click("open-folder");
     responses["Workbench.OpenWorkspaceFile"] = () => null; await treeFile(); expect($("notification").textContent).toBe("No file returned");
-    responses["Workbench.OpenWorkspaceFile"] = () => ({file:dataFile(),query:{draft:"",applied:""},warning:""}); await treeFile();
+    responses["Workbench.OpenWorkspaceFile"] = () => ({file:{...dataFile(),name:"orders.parquet",path:"/analysis/orders.parquet"},query:{draft:"",applied:""},warning:""}); await treeFile();
     const previous = $("grid").textContent; responses["Workbench.OpenWorkspaceFile"] = () => { throw new Error("bad parquet"); }; await treeFile(); expect($("grid").textContent).toBe(previous);
     responses["Workbench.ListDirectory"] = () => null; await click("folder-refresh"); expect($("notification").textContent).toBe("No directory listing returned");
     responses["Workbench.RenameWorkspace"] = () => null; await click("folder-rename"); $("folder-rename-form").dispatchEvent(new Event("submit",{cancelable:true})); await settled(); expect($("notification").textContent).toBe("No workspace returned");
@@ -238,4 +239,90 @@ describe("folder workspaces", () => {
     responses["Workbench.SaveWorkspaceQuery"] = () => undefined;
     await treeFile(); expect($("query-save").textContent).toBe("Saved locally");
   });
+});
+
+const openedRows = () => [...document.querySelectorAll<HTMLElement>(".opened-file")];
+async function openedAction(path:string,action="activate-file") {
+  const row=openedRows().find(r=>r.dataset.path===path)!;
+  row.querySelector<HTMLButtonElement>(`.${action}`)!.click();await settled();
+}
+describe("multiple open files and workspaces",()=>{
+ it("retains independent drafts, paging and schema while switching; closes inactive, active and last files",async()=>{
+  const a={...dataFile(),name:"a.parquet",path:"/outside/a.parquet"};
+  const b={...dataFile(),name:"b.parquet",path:"/outside/b.parquet"};
+  const c={...dataFile(),name:"c.parquet",path:"/outside/c.parquet"};
+  responses["Workbench.Open"]=()=>a;responses["Workbench.OpenPath"]=(path:string)=>[a,b,c].find(f=>f.path===path);
+  await open();value("sql","SELECT draft_a");$("sql").dispatchEvent(new Event("input"));await click("next");await click("tab-schema");
+  responses["Workbench.Open"]=()=>b;await click("open");expect(openedRows()).toHaveLength(2);expect($("schema-panel").hidden).toBe(true);
+  value("sql","SELECT draft_b");$("sql").dispatchEvent(new Event("input"));
+  await openedAction(a.path);expect($<HTMLTextAreaElement>("sql").value).toBe("SELECT draft_a");expect(lastRequest().offset).toBe(100);expect($("schema-panel").hidden).toBe(false);
+  await openedAction(b.path);expect($<HTMLTextAreaElement>("sql").value).toBe("SELECT draft_b");expect(lastRequest().offset).toBe(0);
+  await click("open");expect(openedRows()).toHaveLength(2); // no duplicate on repeated opening
+  responses["Workbench.Open"]=()=>c;await click("open");
+  const queries=bridge.call.mock.calls.filter(([n])=>n==="Workbench.Query").length;
+  await openedAction(b.path,"close-file");expect(openedRows()).toHaveLength(2);expect(bridge.call.mock.calls.filter(([n])=>n==="Workbench.Query")).toHaveLength(queries);
+  await openedAction(a.path);await openedAction(a.path,"close-file");expect($("file-name").textContent).toBe("c.parquet");
+  await openedAction(c.path,"close-file");expect(openedRows()).toHaveLength(0);expect($("welcome").hidden).toBe(false);expect($<HTMLButtonElement>("export").disabled).toBe(true);expect(bridge.call).toHaveBeenCalledWith("Workbench.ClearPreview");
+ });
+ it("keeps several roots, classifies boundary paths, deduplicates folders, and closes workspace files while keeping outside files",async()=>{
+  folderResponses();await boot();await click("open-folder");await treeFile();
+  responses["Workbench.OpenWorkspace"]=()=>({root:"/second",name:"Second",active:""});await click("open-folder");
+  expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);expect($("file-name").textContent).toBe("orders.parquet");
+  await click("open-folder");expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);
+  const external={...dataFile(),name:"outside.parquet",path:"/analysis-other/outside.parquet"};
+  responses["Workbench.Open"]=()=>external;await click("open");
+  expect(document.querySelector(".external-files")!.textContent).toContain("outside.parquet");expect(openedRows()).toHaveLength(2);expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);
+  responses["Workbench.Open"]=()=>({...dataFile(),name:"orders.parquet",path:"/analysis/orders.parquet"});await click("open");expect(openedRows()).toHaveLength(2);expect($("scope-name").textContent).toBe(workspaceInfo.name);
+  responses["Workbench.OpenPath"]=()=>external;
+  await click("folder-close");expect(document.querySelectorAll(".workspace-group")).toHaveLength(1);expect(openedRows()).toHaveLength(1);expect(document.querySelectorAll(".external-files .opened-file")).toHaveLength(1);
+  expect($("scope-name").textContent).toBe("File");expect($("file-name").textContent).toBe("outside.parquet");
+ });
+ it("groups previously external files when a matching folder opens, chooses deepest nested root and reports restore warnings",async()=>{
+  folderResponses();responses["Workbench.RestoreWorkspaces"]=()=>({workspaces:[],warning:"One folder is unavailable"});
+  responses["Workbench.Open"]=()=>({...dataFile(),name:"nested.parquet",path:"/analysis/nested/nested.parquet"});
+  await open();expect($("scope-name").textContent).toBe("File");
+  await click("open-folder");expect(document.querySelector(".external-files")).toBeNull();
+  responses["Workbench.OpenWorkspace"]=()=>({root:"/analysis/nested",name:"Nested",active:""});await click("open-folder");expect($("scope-name").textContent).toBe("Nested");
+  responses["Workbench.OpenWorkspace"]=()=>({root:"/",name:"Root",active:""});await click("open-folder");expect($("scope-name").textContent).toBe("Nested");
+  const nestedPanel=[...document.querySelectorAll<HTMLElement>(".workspace-group")].find(p=>p.dataset.root==="/analysis/nested")!;
+  nestedPanel.querySelector<HTMLButtonElement>('[data-control="folder-close"]')!.click();await settled();
+  expect($("welcome").hidden).toBe(false);expect($("open-files-panel").hidden).toBe(true);expect(openedRows()).toHaveLength(0);
+  expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);
+
+ });
+ it("shows workspace files only in the tree, retains tree close controls after refresh, and hides an empty outside list",async()=>{
+  folderResponses();await boot();await click("open-folder");await treeFile();
+  expect($("open-files-panel").hidden).toBe(true);expect($("open-files").children).toHaveLength(0);
+  expect(document.querySelectorAll(".tree-file-row .close-file")).toHaveLength(1);
+  await click("folder-refresh");expect(document.querySelectorAll(".tree-file-row .close-file")).toHaveLength(1);
+  await openedAction("/analysis/orders.parquet","close-file");
+  expect(document.querySelectorAll(".tree-file-row .close-file")).toHaveLength(0);
+  expect(document.querySelector(".tree-file")).not.toBeNull();expect($("welcome").hidden).toBe(false);
+  await treeFile();expect($("workspace").hidden).toBe(false);expect($("open-files-panel").hidden).toBe(true);
+  responses["Workbench.Open"]=()=>({...dataFile(),name:"outside.parquet",path:"/outside.parquet"});await click("open");
+  expect($("open-files-panel").hidden).toBe(false);expect($("open-files").querySelectorAll(".opened-file")).toHaveLength(1);
+  await openedAction("/outside.parquet","close-file");expect($("open-files-panel").hidden).toBe(true);
+  expect($("file-name").textContent).toBe("orders.parquet");
+ });
+ it("closes all files owned by a workspace atomically and preserves unrelated active files",async()=>{
+  folderResponses();await boot();await click("open-folder");await treeFile();
+  responses["Workbench.Open"]=()=>({...dataFile(),name:"second.parquet",path:"/analysis/second.parquet"});
+  responses["Workbench.OpenWorkspaceFile"]=(_root:string,path:string)=>({file:{...dataFile(),name:path,path:"/analysis/"+path},query:{draft:"SELECT * FROM data",applied:"SELECT * FROM data"},warning:""});
+  await click("open");
+  const outside={...dataFile(),name:"outside.parquet",path:"/outside.parquet"};responses["Workbench.Open"]=()=>outside;await click("open");
+  const count=bridge.call.mock.calls.filter(([n])=>n==="Workbench.Query").length;
+  responses["Workbench.CloseWorkspace"]=()=>{throw new Error("settings write failed")};await click("folder-close");
+  expect(document.querySelectorAll(".workspace-group")).toHaveLength(1);expect($("notification").textContent).toBe("settings write failed");
+  responses["Workbench.CloseWorkspace"]=()=>undefined;await click("folder-close");
+  expect(openedRows()).toHaveLength(1);expect(openedRows()[0].dataset.path).toBe(outside.path);expect($("file-name").textContent).toBe("outside.parquet");
+  expect(bridge.call.mock.calls.filter(([n])=>n==="Workbench.Query")).toHaveLength(count);
+  await openedAction(outside.path,"close-file");expect($("welcome").hidden).toBe(false);expect(openedRows()).toHaveLength(0);
+ });
+ it("keeps surviving files available if a neighbor disappears during close",async()=>{
+  const a={...dataFile(),name:"a",path:"/a.parquet"},b={...dataFile(),name:"b",path:"/b.parquet"};
+  responses["Workbench.Open"]=()=>a;await open();responses["Workbench.Open"]=()=>b;await click("open");
+  responses["Workbench.OpenPath"]=()=>{throw new Error("missing file")};await openedAction(b.path,"close-file");expect($("notification").textContent).toContain("File closed. Choose another file");expect(openedRows()).toHaveLength(1);expect($("welcome").hidden).toBe(false);
+  responses["Workbench.OpenPath"]=()=>null;await openedAction(a.path);expect($("notification").textContent).toBe("No file returned");
+  responses["Workbench.OpenPath"]=()=>a;await openedAction(a.path);expect($("workspace").hidden).toBe(false);
+ });
 });

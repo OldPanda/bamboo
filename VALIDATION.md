@@ -1,3 +1,5 @@
+> Latest multiple-file/workspace verification: [MULTIPLE_FILES.md](MULTIPLE_FILES.md). Earlier measurements below describe their respective deliveries.
+
 # Bamboo 0.1 validation — 2026-10-26
 
 Environment: macOS 26.5.2, arm64, Go 1.27.3, Node 22.23.3, npm 10.9.9. MyGo v0.6.4 and DuckDB Go v2.20000.0 / DuckDB 2.0.0. CPU model was not collected. The first debug-symbol link ran out of disk space; removing only this task's unused non-arm64/non-macOS DuckDB downloads and using stripped builds resolved it. No user shell/global configuration was changed.

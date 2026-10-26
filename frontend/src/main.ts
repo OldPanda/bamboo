@@ -16,15 +16,9 @@ app.innerHTML = `
   <div class="brand"><span class="brand-mark">竹</span><div>Bamboo<span class="edition">Local data workbench</span></div></div>
   <button id="open-folder" class="open-button" title="Open workspace folder" aria-label="Open workspace folder"><span>▱</span> Open Folder</button>
   <button id="open" class="open-button" aria-label="Open Parquet file" title="Open Parquet file (⌘O)"><span>＋</span> Open Parquet <kbd>⌘ O</kbd></button>
-  <section id="folder-panel" hidden>
-    <div class="folder-heading"><strong id="folder-name"></strong><button id="folder-rename" class="quiet" title="Rename workspace" aria-label="Rename workspace">✎</button></div>
-    <p id="folder-path"></p>
-    <form id="folder-rename-form" hidden><input id="folder-name-input" aria-label="Workspace name" maxlength="200" required><button type="submit">Save</button><button id="folder-rename-cancel" type="button">Cancel</button></form>
-    <div class="folder-actions"><button id="folder-refresh" class="quiet">Refresh</button><button id="folder-close" class="quiet">Close workspace</button></div>
-    <div id="folder-tree" aria-label="Workspace files"></div>
-  </section>
-  <div class="section-label">Active file</div>
-  <div id="file-card" class="file-card muted">No file open</div>
+  <section id="open-files-panel" hidden><div class="section-label">Open files</div><div id="open-files"></div></section>
+  <section id="folder-panel" hidden><div class="section-label">Workspaces</div><div id="workspace-roots"></div></section>
+  <div id="file-card" hidden></div>
   <div class="section-label columns-label">Columns <span id="column-count">—</span></div>
   <div id="column-list" class="column-list"><p class="aside-hint">Your file’s structure,<br>at a glance.</p></div>
   <div class="privacy"><div>Only on your machine<small>No accounts. No uploads.</small></div></div>
@@ -69,136 +63,187 @@ let request: Request = {
 };
 let folder: Info | null = null;
 let relativeFile = "";
+const folders = new Map<string, Info>();
+type DocumentState = { file: DataFile; draft: string; applied: string; request: Request; view: string };
+const documents = new Map<string, DocumentState>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSave = Promise.resolve();
+const prefix = (root: string) => root.endsWith("/") ? root : root + "/";
+function owner(path: string) {
+  return [...folders.values()].filter(f => path.startsWith(prefix(f.root))).sort((a,b) => b.root.length-a.root.length)[0] || null;
+}
+function rememberCurrent() {
+  if (file) documents.set(file.path, { file, draft: $<HTMLTextAreaElement>("sql").value, applied: appliedSQL, request:{...request}, view });
+}
 function updateFolder() {
-  document.body.classList.toggle("folder-mode", !!folder);
-  $("folder-panel").hidden = !folder;
+  folder = file ? owner(file.path) : null;
+  relativeFile = folder && file ? file.path.slice(prefix(folder.root).length) : "";
+  document.body.classList.toggle("folder-mode", folders.size > 0);
+  document.body.classList.toggle("files-mode", documents.size > 0);
+  $("folder-panel").hidden = folders.size === 0;
   $("scope-name").textContent = folder ? folder.name : "File";
   $("scope-name").title = folder ? folder.root : "Single file";
-  $("query-save").hidden = !folder;
-  if (folder) {
-    $("folder-name").textContent = folder.name;
-    $("folder-path").textContent = folder.root;
-    $("folder-path").title = folder.root;
-    $<HTMLInputElement>("folder-name-input").value = folder.name;
-  }
+  $("query-save").hidden = !file;
+  if (file) $("breadcrumb").textContent = folder ? relativeFile : file.name;
   document.querySelectorAll<HTMLButtonElement>(".tree-file").forEach(b => {
-    b.classList.toggle("selected", b.dataset.path === relativeFile);
-    b.setAttribute("aria-current", String(b.dataset.path === relativeFile));
+    const path = b.dataset.fullPath!, row = b.parentElement!;
+    const doc = documents.get(path), active = file?.path === path;
+    b.classList.toggle("selected", active); b.setAttribute("aria-current", String(active));
+    row.classList.toggle("opened-file", !!doc); row.classList.toggle("selected", active);
+    row.querySelector(".close-file")?.remove();
+    if (doc) row.append(closeFileButton(path, doc.file.name));
   });
+  const list = $("open-files"); list.replaceChildren();
+  const external = [...documents.values()].filter(doc => !owner(doc.file.path));
+  $("open-files-panel").hidden = external.length === 0;
+  if (external.length) {
+    const group = el("div", "", "opened-group external-files");
+    group.append(el("div", "Other files", "opened-group-name"));
+    for (const doc of external) {
+      const row = el("div", "", "opened-file"); row.dataset.path = doc.file.path;
+      const button = el("button", doc.file.name, "activate-file") as HTMLButtonElement;
+      button.title = doc.file.path; button.setAttribute("aria-current", String(file?.path === doc.file.path));
+      row.classList.toggle("selected", file?.path === doc.file.path);
+      button.onclick = () => void task("Switching file…", async () => { await saveQuery(); await switchFile(doc.file.path); });
+      row.append(button, closeFileButton(doc.file.path, doc.file.name)); group.append(row);
+    }
+    list.append(group);
+  }
 }
+function closeFileButton(path: string, name: string) {
+  const close = el("button", "×", "close-file") as HTMLButtonElement;
+  close.title = `Close ${name}`; close.setAttribute("aria-label", `Close ${name}`);
+  close.onclick = () => void task("Closing file…", () => closeDocument(path));
+  return close;
+}
+
 function saveQuery() {
-  clearTimeout(saveTimer);
-  if (!folder || !relativeFile) return pendingSave;
-  const root = folder.root, path = relativeFile, draft = $<HTMLTextAreaElement>("sql").value, applied = appliedSQL;
+  clearTimeout(saveTimer); saveTimer = undefined;
+  rememberCurrent();
+  if (!folder || !relativeFile) {
+    if (file) $("query-save").textContent = "Kept for this session";
+    return pendingSave;
+  }
+  const root=folder.root, path=relativeFile, draft=$<HTMLTextAreaElement>("sql").value, applied=appliedSQL;
   $("query-save").textContent = "Saving…";
-  pendingSave = pendingSave.catch(() => {}).then(() => Workbench.saveWorkspaceQuery(root, path, draft, applied));
+  pendingSave = pendingSave.catch(() => {}).then(() => Workbench.saveWorkspaceQuery(root,path,draft,applied));
   void pendingSave.then(() => { $("query-save").textContent = "Saved locally"; }, e => {
-    $("query-save").textContent = "Not saved";
-    notify(`Could not save query: ${String(e)}`, true);
+    $("query-save").textContent = "Not saved"; notify(`Could not save query: ${String(e)}`, true);
   });
   return pendingSave;
 }
 function queryEdited() {
-  if (!folder || !relativeFile) return;
-  $("query-save").textContent = "Unsaved changes";
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { void saveQuery(); }, 350);
+  rememberCurrent();
+  if (!folder || !relativeFile) { if (file) $("query-save").textContent="Kept for this session"; return; }
+  $("query-save").textContent="Unsaved changes"; clearTimeout(saveTimer);
+  saveTimer=setTimeout(() => {void saveQuery();},350);
 }
-async function directory(container: HTMLElement, rel: string, offset = 0) {
-  const page = await Workbench.listDirectory(folder!.root, rel, offset);
+async function directory(container: HTMLElement, info: Info, rel: string, offset=0) {
+  const page=await Workbench.listDirectory(info.root,rel,offset);
   if (!page) throw new Error("No directory listing returned");
-  if (offset === 0) container.replaceChildren();
+  if (offset===0) container.replaceChildren();
   container.querySelector(":scope > .tree-more")?.remove();
   for (const entry of page.entries) {
-    const row = el("div", "", "tree-entry");
-    const button = el("button", `${entry.directory ? "▸" : "▧"} ${entry.name}`, entry.directory ? "tree-folder" : "tree-file") as HTMLButtonElement;
-    button.title = entry.path; button.dataset.path = entry.path;
-    row.append(button); container.append(row);
+    const row=el("div","",entry.directory ? "tree-entry" : "tree-entry tree-file-row");
+    row.dataset.path=prefix(info.root)+entry.path;
+    const button=el("button",`${entry.directory ? "▸" : "▧"} ${entry.name}`,entry.directory ? "tree-folder" : "tree-file activate-file") as HTMLButtonElement;
+    button.title=entry.path; button.dataset.path=entry.path; button.dataset.root=info.root; button.dataset.fullPath=prefix(info.root)+entry.path;
+    row.append(button);container.append(row);
     if (entry.directory) {
-      const children = el("div", "", "tree-children"); children.hidden = true; row.append(children);
-      button.setAttribute("aria-expanded", "false");
-      button.onclick = () => void task("Reading folder…", async () => {
-        if (children.hidden) {
-          await directory(children, entry.path); children.hidden = false;
-          button.textContent = `▾ ${entry.name}`; button.setAttribute("aria-expanded", "true");
-        } else {
-          children.hidden = true; button.textContent = `▸ ${entry.name}`; button.setAttribute("aria-expanded", "false");
-        }
+      const children=el("div","","tree-children");children.hidden=true;row.append(children);button.setAttribute("aria-expanded","false");
+      button.onclick=()=>void task("Reading folder…",async()=>{
+        if(children.hidden){await directory(children,info,entry.path);children.hidden=false;button.textContent=`▾ ${entry.name}`;button.setAttribute("aria-expanded","true");}
+        else{children.hidden=true;button.textContent=`▸ ${entry.name}`;button.setAttribute("aria-expanded","false");}
       });
-    } else {
-      button.onclick = () => void task("Opening file…", async () => { await saveQuery(); await openFolderFile(entry.path); });
-    }
+    } else button.onclick=()=>void task("Opening file…",async()=>{await saveQuery();await openFolderFile(info,entry.path);});
   }
-  if (page.more) {
-    const more = el("button", "Load more entries", "tree-more");
-    more.onclick = () => void task("Reading folder…", () => directory(container, rel, page.next));
-    container.append(more);
-  } else if (!container.children.length) container.append(el("p", "No visible folders or Parquet files", "aside-hint"));
+  if(page.more){const more=el("button","Load more entries","tree-more");more.onclick=()=>void task("Reading folder…",()=>directory(container,info,rel,page.next));container.append(more);}
+  else if(!container.children.length)container.append(el("p","No visible folders or Parquet files","aside-hint"));
   updateFolder();
 }
-async function openFolderFile(path: string) {
-  const opened = await Workbench.openWorkspaceFile(folder!.root, path);
-  if (!opened) throw new Error("No file returned");
-  relativeFile = path;
-  showFile(opened.file!);
-  $("breadcrumb").textContent = path;
-  $<HTMLTextAreaElement>("sql").value = opened.query.draft;
-  appliedSQL = opened.query.applied || "SELECT * FROM data";
-  updateFolder();
-  $("query-save").textContent = "Saved locally";
-  try { await run({ ...request, sql: appliedSQL }); }
-  catch (e) {
-    appliedSQL = "SELECT * FROM data";
-    await run({ ...request, sql: appliedSQL });
-    notify(`Saved query could not run; showing the file preview. Draft preserved. ${String(e)}`, true);
+async function activate(f: DataFile, saved?: {draft:string;applied:string}) {
+  const cached=documents.get(f.path);
+  showFile(f);
+  $<HTMLTextAreaElement>("sql").value=cached ? cached.draft : saved ? saved.draft : appliedSQL;
+  appliedSQL=cached ? cached.applied : saved?.applied || "SELECT * FROM data";
+  const next=cached ? {...cached.request} : {...request,sql:appliedSQL};
+  $<HTMLSelectElement>("page-size").value=String(next.limit);
+  $<HTMLInputElement>("filter-value").value=next.filterValue;
+  rememberCurrent(); updateFolder();
+  $("query-save").textContent=folder ? "Saved locally" : "Kept for this session";
+  try{await run(next);}catch(e){
+    appliedSQL="SELECT * FROM data";await run({...request,sql:appliedSQL});
+    notify(`Saved query could not run; showing the file preview. Draft preserved. ${String(e)}`,true);
   }
-  if (opened.warning) notify(opened.warning, true);
+  setView(cached ? cached.view : "explore");rememberCurrent();updateFolder();
 }
-async function showFolder(info: Info) {
-  folder = info; relativeFile = ""; file = null; result = null;
-  $("workspace").hidden = true; $("welcome").hidden = false;
-  $("welcome-title").textContent = "Choose a file to explore";
-  $("welcome-description").textContent = "Browse your workspace on the left. Open a Parquet file to query and preview its data.";
-  $("breadcrumb").textContent = "Choose a file";
-  $("folder-rename-form").hidden = true;
-  $("file-card").textContent = "No file open"; $("column-list").replaceChildren(); $("column-count").textContent = "—";
+async function openFolderFile(info: Info,path:string){
+  const opened=await Workbench.openWorkspaceFile(info.root,path);
+  if(!opened?.file)throw new Error("No file returned");
+  await activate(opened.file,opened.query);
+  if(opened.warning)notify(opened.warning,true);
+}
+async function switchFile(path:string){
+  const info=owner(path);
+  if(info)await openFolderFile(info,path.slice(prefix(info.root).length));
+  else {const f=await Workbench.openPath(path);if(!f)throw new Error("No file returned");await activate(f);}
+}
+function showWelcome(){
+  file=null;result=null;folder=null;relativeFile="";
+  $("workspace").hidden=true;$("welcome").hidden=false;$("breadcrumb").textContent="Welcome";
+  $("column-list").replaceChildren();$("column-count").textContent="—";
   updateFolder();
-  await directory($("folder-tree"), ".");
-  if (info.active) {
-    try { await openFolderFile(info.active); }
-    catch (e) { notify(`Last file is unavailable. Choose another file. ${String(e)}`, true); }
-  }
 }
-async function openFolder() {
-  await task("Opening workspace…", async () => {
+async function previewAfterClose(next?: string) {
+  if(next){try{await switchFile(next);}catch(e){await Workbench.clearPreview();showWelcome();notify(`File closed. Choose another file to continue. ${String(e)}`,true);}}
+  else{await Workbench.clearPreview();showWelcome();}
+}
+async function closeDocument(path:string){
+  await saveQuery();
+  const info=owner(path);
+  if(info)await Workbench.closeWorkspaceFile(info.root,path.slice(prefix(info.root).length));
+  const paths=[...documents.keys()],index=paths.indexOf(path),wasActive=file?.path===path;
+  documents.delete(path);
+  if(wasActive){
+    await previewAfterClose(paths[index+1] || paths[index-1]);
+  }
+  updateFolder();
+}
+async function showFolder(info:Info,restore=false){
+  if(folders.has(info.root))return;
+  folders.set(info.root,info);
+  const panel=el("section","","workspace-group");panel.dataset.root=info.root;
+  panel.innerHTML=`<div class="folder-heading"><strong data-control="folder-name"></strong><button data-control="folder-rename" class="quiet" title="Rename workspace" aria-label="Rename workspace">✎</button><button data-control="folder-close" class="quiet" title="Close workspace" aria-label="Close workspace">×</button></div><p class="folder-path"></p><form data-control="folder-rename-form" hidden><input data-control="folder-name-input" aria-label="Workspace name" maxlength="200" required><button type="submit">Save</button><button data-control="folder-rename-cancel" type="button">Cancel</button></form><div class="folder-actions"><button data-control="folder-refresh" class="quiet">Refresh</button></div><div class="folder-tree" aria-label="Workspace files"></div>`;
+  const control=<T extends HTMLElement=HTMLElement>(name:string)=>panel.querySelector<T>(`[data-control="${name}"]`)!;
+  const heading=()=>{control("folder-name").textContent=info.name;control<HTMLInputElement>("folder-name-input").value=info.name;};heading();
+  const path=panel.querySelector<HTMLElement>(".folder-path")!;path.textContent=info.root;path.title=info.root;
+  const tree=panel.querySelector<HTMLElement>(".folder-tree")!;
+  control("folder-refresh").onclick=()=>void task("Refreshing folder…",()=>directory(tree,info,"."));
+  control("folder-rename").onclick=()=>{control("folder-rename-form").hidden=false;control("folder-name-input").focus();};
+  control("folder-rename-cancel").onclick=()=>{control("folder-rename-form").hidden=true;heading();};
+  control("folder-rename-form").onsubmit=e=>{e.preventDefault();void task("Renaming workspace…",async()=>{
+    const renamed=await Workbench.renameWorkspace(info.root,control<HTMLInputElement>("folder-name-input").value);
+    if(!renamed)throw new Error("No workspace returned");
+    info.name=renamed.name;heading();control("folder-rename-form").hidden=true;updateFolder();
+  });};
+  control("folder-close").onclick=()=>void task("Closing workspace…",async()=>{
     await saveQuery();
-    const info = await Workbench.openWorkspace();
-    if (info) await showFolder(info);
+    const closing=[...documents.keys()].filter(path=>owner(path)?.root===info.root);
+    const closesActive=!!file && closing.includes(file.path);
+    await Workbench.closeWorkspace(info.root);
+    for(const path of closing)documents.delete(path);
+    folders.delete(info.root);panel.remove();
+    if(closesActive)await previewAfterClose(documents.keys().next().value);
+    updateFolder();
+    if(file)$("query-save").textContent=folder ? "Saved locally" : "Kept for this session";
   });
+  $("workspace-roots").append(panel);updateFolder();
+  await directory(tree,info,".");
+  if(restore && info.active){try{await openFolderFile(info,info.active);}catch(e){notify(`Last file is unavailable. Choose another file. ${String(e)}`,true);}}
 }
-$("open-folder").onclick = () => void openFolder();
-$("welcome-folder").onclick = () => void openFolder();
-$("folder-refresh").onclick = () => void task("Refreshing folder…", () => directory($("folder-tree"), "."));
-$("folder-rename").onclick = () => { $("folder-rename-form").hidden = false; $("folder-name-input").focus(); };
-$("folder-rename-cancel").onclick = () => { $("folder-rename-form").hidden = true; updateFolder(); };
-$("folder-rename-form").onsubmit = e => {
-  e.preventDefault();
-  void task("Renaming workspace…", async () => {
-    const info = await Workbench.renameWorkspace(folder!.root, $<HTMLInputElement>("folder-name-input").value);
-    if (!info) throw new Error("No workspace returned");
-    folder = info; updateFolder(); $("folder-rename-form").hidden = true;
-  });
-};
-$("folder-close").onclick = () => void task("Closing workspace…", async () => {
-  await saveQuery(); await Workbench.leaveWorkspace(); folder = null; relativeFile = ""; updateFolder();
-  $("breadcrumb").textContent = file ? file.name : "Welcome";
-  $("welcome-title").textContent = "Explore your local data";
-  $("welcome-description").textContent = "Open a folder as a workspace, or explore a single Parquet file.";
-});
-$("sql").oninput = queryEdited;
-$("sql").onblur = () => { if (saveTimer) void saveQuery(); };
+async function openFolder(){await task("Opening workspace…",async()=>{await saveQuery();const info=await Workbench.openWorkspace();if(info)await showFolder(info);});}
+$("open-folder").onclick=()=>void openFolder();$("welcome-folder").onclick=()=>void openFolder();
+$("sql").oninput=queryEdited;$("sql").onblur=()=>{if(saveTimer)void saveQuery();};
 
 const fmt = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const size = (s: string) => {
@@ -406,14 +451,9 @@ async function open(path?: string) {
     await saveQuery();
     const f = path ? await Workbench.openPath(path) : await Workbench.open();
     if (f) {
-      let warning = "";
-      if (folder) {
-        try { await Workbench.leaveWorkspace(); } catch (e) { warning = `File opened, but workspace state could not be saved: ${String(e)}`; }
-        folder = null; relativeFile = ""; updateFolder();
-      }
-      showFile(f);
-      await run(request);
-      if (warning) notify(warning, true);
+      const info=owner(f.path);
+      if(info)await openFolderFile(info,f.path.slice(prefix(info.root).length));
+      else await activate(f);
     }
   });
 }
@@ -496,7 +536,13 @@ async function boot() {
   try {
     const path = await Workbench.initialFile();
     if (path) await open(path);
-    else { const info = await Workbench.restoreWorkspace(); if (info) await task("Restoring workspace…", () => showFolder(info)); }
+    else {
+      const restored=await Workbench.restoreWorkspaces();
+      if(restored)await task("Restoring workspaces…",async()=>{
+        for(const info of restored.workspaces)await showFolder(info,true);
+        if(restored.warning)notify(restored.warning,true);
+      });
+    }
   } catch (e) {
     notify(String(e), true);
   }

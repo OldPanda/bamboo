@@ -1,5 +1,7 @@
 # Folder workspaces
 
+> Historical single-workspace delivery record. The current multiple-root/file behavior and fresh validation are documented in [MULTIPLE_FILES.md](MULTIPLE_FILES.md). Coverage links below now point to the latest measurement; figures in this record describe the original folder-workspace release.
+
 Bamboo now opens a directory as a real workspace. Open Folder selects the root, the sidebar lazily lists its directories and Parquet files, and clicking a file opens Explore Data. The pencil edits the workspace display name without renaming the source folder. Single-file mode remains available and uses a File breadcrumb.
 
 Workspace names, recent active file and per-file draft/successful SQL are saved privately in the Bamboo config directory. The app restores the last workspace on restart. File switching flushes pending edits; failed saves stop the switch and show an error. A saved query that no longer runs falls back to the file preview while keeping the draft.

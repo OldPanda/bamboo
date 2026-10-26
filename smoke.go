@@ -36,6 +36,9 @@ func smoke(win *mygo.Window) {
 	workspacePhase := os.Getenv("BAMBOO_WORKSPACE_SMOKE")
 	if workspacePhase != "" {
 		scriptPath = "scripts/workspace-smoke.js"
+		if workspacePhase == "multi" || workspacePhase == "multi-restore" {
+			scriptPath = "scripts/multi-smoke.js"
+		}
 	}
 	script, err := os.ReadFile(scriptPath)
 	if err != nil {

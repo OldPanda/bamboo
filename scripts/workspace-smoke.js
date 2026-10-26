@@ -1,6 +1,6 @@
 const checks = [];
 const assert = (ok, text) => { if (!ok) throw new Error(text); checks.push(text); };
-const $ = id => document.getElementById(id);
+const $ = id => (document.getElementById(id) || document.querySelector(`[data-control="${id}"]`));
 const wait = async () => { for (let i=0;i<200;i++) { if ($('busy').hidden) return; await new Promise(r=>setTimeout(r,30)); } throw new Error('workspace stayed busy'); };
 const click = async id => { $(id).click(); await wait(); };
 assert(!$('folder-panel').hidden, 'workspace restored or opened');

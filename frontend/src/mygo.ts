@@ -51,6 +51,11 @@ export interface Request {
   filterValue: string;
 }
 
+export interface Restored {
+  workspaces: Info[];
+  warning: string;
+}
+
 export interface Result {
   columns: Column[];
   rows: ((string | null)[])[];
@@ -72,6 +77,16 @@ export const Workbench = {
   cancel(): Promise<void> {
     return call("Workbench.Cancel");
   },
+  /** ClearPreview releases the active engine after the last open file is closed. */
+  clearPreview(): Promise<void> {
+    return call("Workbench.ClearPreview");
+  },
+  closeWorkspace(root: string): Promise<void> {
+    return call("Workbench.CloseWorkspace", root);
+  },
+  closeWorkspaceFile(root: string, relative: string): Promise<void> {
+    return call("Workbench.CloseWorkspaceFile", root, relative);
+  },
   /**
    * ExportPage saves the last successful page as typed JSON, keeping null distinct
    * from empty text and preserving numeric precision. It never re-runs the query.
@@ -81,9 +96,6 @@ export const Workbench = {
   },
   initialFile(): Promise<string> {
     return call("Workbench.InitialFile");
-  },
-  leaveWorkspace(): Promise<void> {
-    return call("Workbench.LeaveWorkspace");
   },
   listDirectory(root: string, relative: string, offset: number): Promise<Page | null> {
     return call("Workbench.ListDirectory", root, relative, offset);
@@ -106,8 +118,8 @@ export const Workbench = {
   renameWorkspace(root: string, name: string): Promise<Info | null> {
     return call("Workbench.RenameWorkspace", root, name);
   },
-  restoreWorkspace(): Promise<Info | null> {
-    return call("Workbench.RestoreWorkspace");
+  restoreWorkspaces(): Promise<Restored | null> {
+    return call("Workbench.RestoreWorkspaces");
   },
   saveWorkspaceQuery(root: string, relative: string, draft: string, applied: string): Promise<void> {
     return call("Workbench.SaveWorkspaceQuery", root, relative, draft, applied);
