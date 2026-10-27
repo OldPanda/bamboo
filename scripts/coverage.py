@@ -22,7 +22,8 @@ def sources():
                             ("frontend", "*.ts"), ("scripts", "*.py"), ("scripts", "*.mjs"), ("scripts", "*.js"), ("scripts", "*.sh")]:
         paths += list((ROOT / folder).rglob(pattern))
     paths += list((ROOT / "frontend/src").rglob("*.css"))
-    paths += list((ROOT / "frontend/src/assets").glob("*.png"))
+    for pattern in ["*.png", "*.svg"]:
+        paths += list((ROOT / "frontend/src/assets").glob(pattern))
     paths += [ROOT / "assets/bamboo.png"]
     paths += [ROOT / name for name in ["go.mod", "go.sum", "package.json", "package-lock.json", "vitest.config.ts"]]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}

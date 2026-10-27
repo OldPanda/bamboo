@@ -448,18 +448,22 @@ describe("R2 connection workspaces",()=>{
   setup();const c={root:'r2://analytics/saved',provider:'r2',config:{name:'Saved analytics',endpoint:'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com',bucket:'analytics',prefix:'orders'},open:false};
   let connections=[c];responses['Workbench.ListConnections']=()=>connections;
   responses['Workbench.SaveR2Connection']=(root:string,input:any)=>{expect(root).toBe(c.root);expect(input.accessKey).toBe('');expect(input.secretKey).toBe('');c.config.name=input.name;return {root:c.root,name:input.name,active:'.',location:'r2://analytics/orders'};};
-  responses['Workbench.TestR2Connection']=()=>undefined;
   responses['Workbench.DeleteR2Connection']=()=>{connections=[];};
   await boot();await click('settings');await vi.waitFor(()=>expect(document.querySelectorAll('.connection-item')).toHaveLength(1));
   expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);
   const action=async(name:string)=>{document.querySelector<HTMLButtonElement>('[data-action="'+name+'"]')!.click();await settled();};
-  await action('test');expect($('settings-message').textContent).toBe('Connection successful.');
+  expect([...document.querySelectorAll('.connection-item-actions button')].map(b=>b.getAttribute('data-action'))).toEqual(['open','edit','delete']);
   await action('edit');expect($<HTMLInputElement>('r2-bucket').readOnly).toBe(false);expect($<HTMLInputElement>('r2-secret').value).toBe('');expect($<HTMLInputElement>('r2-secret').required).toBe(false);
   value('r2-name','Renamed');await submit();await vi.waitFor(()=>expect($('connection-list').textContent).toContain('Renamed'));
   expect($('welcome').hidden).toBe(false);expect(bridge.call.mock.calls.some(([method])=>method==='Workbench.ConnectR2')).toBe(false);
+  expect(document.querySelector('.connection-item .provider-logo')!.getAttribute('aria-label')).toBe('Cloudflare');
+  const deletionCalls=()=>bridge.call.mock.calls.filter(([method])=>method==='Workbench.DeleteR2Connection');
   await action('delete');expect(document.querySelector<HTMLElement>('.connection-delete')!.hidden).toBe(false);
+  expect(deletionCalls()).toHaveLength(0);expect(document.activeElement?.textContent).toBe('Cancel');
   document.querySelector<HTMLButtonElement>('.connection-delete button')!.click();expect(document.querySelector<HTMLElement>('.connection-delete')!.hidden).toBe(true);
+  expect(deletionCalls()).toHaveLength(0);expect(document.activeElement?.getAttribute('data-action')).toBe('delete');
   await action('delete');await action('confirm-delete');await vi.waitFor(()=>expect($('connection-list').textContent).toContain('No saved connections'));
+  expect(deletionCalls()).toHaveLength(1);expect(deletionCalls()[0][1]).toBe(c.root);
   await click('settings-dismiss');expect(document.activeElement).toBe($('settings'));
  });
  it("adds a saved connection, reopens it from cloud choices and removes its active documents",async()=>{
@@ -484,22 +488,22 @@ describe("R2 connection workspaces",()=>{
   await click('settings-add');fill();$('r2-dialog').dispatchEvent(new Event('cancel',{cancelable:true}));expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);expect($<HTMLInputElement>('r2-secret').value).toBe('');
   expect(key('o',{metaKey:true}).defaultPrevented).toBe(true);const calls=bridge.call.mock.calls.length;bridge.drop!({paths:['/local/file.parquet']});expect(bridge.call.mock.calls.length).toBe(calls);
  });
- it("preserves saved configuration and documents when testing or deleting fails",async()=>{
+ it("preserves saved configuration and documents when opening or deleting fails",async()=>{
   setup();const c={root,provider:'r2',config:{name:'Saved',endpoint:'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com',bucket:'analytics',prefix:''},open:false};
-  responses['Workbench.ListConnections']=()=>[c];responses['Workbench.TestR2Connection']=()=>{throw Error('Denied')};responses['Workbench.DeleteR2Connection']=()=>{throw Error('Keychain locked')};responses['Workbench.OpenR2Connection']=()=>{throw Error('Offline')};
+  responses['Workbench.ListConnections']=()=>[c];responses['Workbench.DeleteR2Connection']=()=>{throw Error('Keychain locked')};responses['Workbench.OpenR2Connection']=()=>{throw Error('Offline')};
   await boot();await click('settings');await vi.waitFor(()=>expect(document.querySelector('.connection-item')).not.toBeNull());
-  document.querySelector<HTMLButtonElement>('[data-action="test"]')!.click();await settled();expect($('settings-message').textContent).toContain('Denied');
+  document.querySelector<HTMLButtonElement>('[data-action="delete"]')!.click();
   document.querySelector<HTMLButtonElement>('[data-action="confirm-delete"]')!.click();await settled();expect($('settings-message').textContent).toContain('Keychain locked');expect(document.querySelector('.connection-item')).not.toBeNull();
   document.querySelector<HTMLButtonElement>('[data-action="open"]')!.click();await settled();expect($('settings-message').textContent).toContain('Offline');
   await click('settings-dismiss');await click('open-data');await click('source-cloud');await vi.waitFor(()=>expect(document.querySelector('.saved-connection')).not.toBeNull());document.querySelector<HTMLButtonElement>('.saved-connection')!.click();await settled();expect($('connections-error').textContent).toContain('Offline');
  });
- it("cancels an in-flight connection test from Settings",async()=>{
+ it("cancels an in-flight connection opening from Settings",async()=>{
   setup();responses['Workbench.ListConnections']=()=>[{root,provider:'r2',config:{name:'Saved',endpoint:'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com',bucket:'analytics',prefix:''},open:false}];
-  let reject!:(e:Error)=>void;responses['Workbench.TestR2Connection']=()=>new Promise((_resolve,r)=>{reject=r});responses['Workbench.Cancel']=()=>reject(Error('Canceled'));
+  let reject!:(e:Error)=>void;responses['Workbench.OpenR2Connection']=()=>new Promise((_resolve,r)=>{reject=r});responses['Workbench.Cancel']=()=>reject(Error('Canceled'));
   await boot();await click('settings');await vi.waitFor(()=>expect(document.querySelector('.connection-item')).not.toBeNull());
-  document.querySelector<HTMLButtonElement>('[data-action="test"]')!.click();await vi.waitFor(()=>expect($('settings-cancel').hidden).toBe(false));
+  document.querySelector<HTMLButtonElement>('[data-action="open"]')!.click();await vi.waitFor(()=>expect($('settings-cancel').hidden).toBe(false));
   const escape=new Event('cancel',{cancelable:true});$('settings-dialog').dispatchEvent(escape);expect(escape.defaultPrevented).toBe(true);await settled();expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);
-  document.querySelector<HTMLButtonElement>('[data-action="test"]')!.click();await vi.waitFor(()=>expect($('settings-cancel').hidden).toBe(false));await click('settings-cancel');expect($('settings-message').textContent).toContain('Canceled');
+  document.querySelector<HTMLButtonElement>('[data-action="open"]')!.click();await vi.waitFor(()=>expect($('settings-cancel').hidden).toBe(false));await click('settings-cancel');expect($('settings-message').textContent).toContain('Canceled');
  });
  const root="r2://analytics/test-connection";
  function setup(){
@@ -561,6 +565,7 @@ describe("AWS S3 connections",()=>{
   setup();const c={root,provider:'s3',config:{provider:'s3',region:'eu-west-1',name:'Saved S3',endpoint:'https://s3.eu-west-1.amazonaws.com',bucket:'analytics',prefix:'sales'},open:false};
   responses['Workbench.ListConnections']=()=>[c];responses['Workbench.SaveR2Connection']=()=>({root,name:'Renamed S3',active:'.'});
   await boot();await click('settings');await vi.waitFor(()=>expect($('connection-list').textContent).toContain('Amazon S3'));
+  expect(document.querySelector<HTMLImageElement>('.connection-item .provider-logo')!.alt).toBe('AWS');
   expect($('connection-list').textContent).toContain('s3://analytics/sales');document.querySelector<HTMLButtonElement>('[data-action="edit"]')!.click();
   expect($<HTMLSelectElement>('cloud-provider').disabled).toBe(true);expect($<HTMLInputElement>('s3-region').value).toBe('eu-west-1');expect($<HTMLInputElement>('s3-token').value).toBe('');value('r2-name','Renamed S3');await submit();
   expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);await click('settings-add');provider('s3');value('s3-token','temporary');provider('r2');expect($<HTMLInputElement>('s3-token').value).toBe('');expect($('endpoint-field').hidden).toBe(false);expect($<HTMLInputElement>('s3-region').required).toBe(false);

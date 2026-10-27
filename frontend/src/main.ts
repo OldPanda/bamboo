@@ -402,6 +402,24 @@ let connectionOrigin:"source"|"settings"="source";
 const settingsDialog=$<HTMLDialogElement>("settings-dialog");
 let connectionLoad=0;
 function connectionLocation(c:Connection) {return (c.provider || "r2")+"://"+c.config.bucket+(c.config.prefix?"/"+c.config.prefix:"");}
+const awsLogo = new URL("./assets/aws.png", import.meta.url).href;
+function providerLogo(provider:string) {
+ if(provider!=="s3") {
+  const mark=el("span","","provider-logo cloudflare-mark");
+  mark.setAttribute("role","img");mark.setAttribute("aria-label","Cloudflare");
+  return mark;
+ }
+ const logo=document.createElement("img");logo.className="provider-logo";
+ logo.src=awsLogo;
+ logo.alt="AWS";
+ logo.width=72;logo.height=44;
+ return logo;
+}
+const connectionActionPaths = {
+ Open: '<path d="M3 7V5a1 1 0 0 1 1-1h5l2 3h8a1 1 0 0 1 1 1v2M3 20h15l3-10H6L3 20Zm0 0V7"/>',
+ Edit: '<path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15l-1 6 5-2"/>',
+ Delete: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>',
+};
 async function refreshConnections() {
  const ticket=++connectionLoad;
  $("connection-list").replaceChildren(el("p","Loading connections…","settings-empty"));$("saved-connections").replaceChildren();
@@ -412,21 +430,25 @@ async function refreshConnections() {
   if(!list.length)$("connection-list").append(el("p","No saved connections yet. Add a cloud connection to get started.","settings-empty"));
   for(const c of list) {
    const quick=el("button","","source-option saved-connection");quick.dataset.root=c.root;
-   const text=el("span","");text.append(el("strong",c.config.name),el("small",connectionLocation(c)));quick.append(text,el("span",c.open?"Open":"Saved","connection-status"));
+   const text=el("span","");text.append(el("strong",c.config.name),el("small",connectionLocation(c)));quick.append(providerLogo(c.provider),text,el("span",c.open?"Open":"Saved","connection-status"));
    quick.onclick=()=>void openSavedConnection(c);$("saved-connections").append(quick);
    const row=el("section","","connection-item");row.dataset.root=c.root;
    const details=el("div","","connection-detail");details.append(el("strong",c.config.name),el("small",providerName(c.provider)+" / "+(c.open?"Workspace open":"Saved")),el("p",connectionLocation(c)),el("small",c.config.endpoint));
+   const identity=el("div","","connection-identity");identity.append(providerLogo(c.provider),details);
    const actions=el("div","","connection-item-actions");
-   const button=(label:string,action:()=>void)=>{const b=el("button",label);b.onclick=action;actions.append(b);return b;};
+   const button=(label:keyof typeof connectionActionPaths,action:()=>void)=>{
+    const b=el("button","","connection-action");b.title=label+" connection";b.setAttribute("aria-label",label+" connection: "+c.config.name);
+    b.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+connectionActionPaths[label]+'</svg>';
+    b.onclick=action;actions.append(b);return b;
+   };
    button("Open",()=>void openSavedConnection(c)).dataset.action="open";
    button("Edit",()=>editR2(c)).dataset.action="edit";
-   button("Test",()=>void settingsTask("Testing connection…",async()=>{await Workbench.testR2Connection(c.root);$("settings-message").textContent="Connection successful.";$("settings-message").hidden=false;})).dataset.action="test";
-   const remove=button("Delete",()=>{confirm.hidden=false;});remove.dataset.action="delete";
-   const confirm=el("div","","connection-delete");confirm.hidden=true;
-   confirm.append(el("p","Delete this connection and its saved credentials? Its open files will close. Cloud files will stay unchanged."));
-   const cancel=el("button","Cancel");cancel.onclick=()=>{confirm.hidden=true;};
-   const yes=el("button","Delete connection");yes.dataset.action="confirm-delete";yes.onclick=()=>void settingsTask("Deleting connection…",async()=>{await saveQuery();await Workbench.deleteR2Connection(c.root);await removeWorkspaceUI(c.root);await refreshConnections();});
-   confirm.append(cancel,yes);row.append(details,actions,confirm);$("connection-list").append(row);
+   const remove=button("Delete",()=>{confirm.hidden=false;remove.setAttribute("aria-expanded","true");cancel.focus();});remove.dataset.action="delete";remove.classList.add("danger");remove.setAttribute("aria-expanded","false");
+   const confirm=el("div","","connection-delete");confirm.hidden=true;confirm.setAttribute("role","group");confirm.setAttribute("aria-label","Confirm deletion of "+c.config.name);
+   confirm.append(el("strong",'Delete “'+c.config.name+'”?'),el("p","This removes the saved connection and credentials and closes its open files. Cloud files stay unchanged."));
+   const cancel=el("button","Cancel");cancel.onclick=()=>{confirm.hidden=true;remove.setAttribute("aria-expanded","false");remove.focus();};
+   const yes=el("button","Delete connection","danger");yes.dataset.action="confirm-delete";yes.onclick=()=>void settingsTask("Deleting connection…",async()=>{await saveQuery();await Workbench.deleteR2Connection(c.root);await removeWorkspaceUI(c.root);await refreshConnections();});
+   confirm.append(cancel,yes);row.append(identity,actions,confirm);$("connection-list").append(row);
   }
   controls();
  }catch(e){if(ticket!==connectionLoad)return;$("connection-list").replaceChildren();for(const id of ["connections-error","settings-message"]){$(id).textContent=String(e);$(id).hidden=false;}}

@@ -294,7 +294,13 @@ body.is-busy select:disabled, body.is-busy textarea:disabled { opacity: 1; }
 .connection-detail p { margin: var(--space-xs) 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
 .connection-detail small { color: var(--muted); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .connection-item-actions { display: flex; gap: var(--space-2xs); align-items: flex-start; flex-wrap: wrap; }
-.connection-item-actions button { padding: var(--space-2xs) var(--space-xs); }
+ .connection-item-actions .connection-action { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; flex-shrink: 0; }
+.connection-identity { display: flex; align-items: flex-start; gap: var(--space-sm); min-width: 0; }
+.connection-detail { min-width: 0; }
+.provider-logo, .source-option > .provider-logo { width: 72px; height: 44px; box-sizing: border-box; padding: 7px; object-fit: contain; background: #fff; border-radius: 6px; flex: 0 0 72px; }
+.provider-logo.cloudflare-mark { background: transparent url("./assets/cloudflare.svg") center / 58px auto no-repeat; }
+button.danger { color: var(--color-error); border-color: var(--color-error); }
+button.danger:hover:not(:disabled) { color: var(--color-error); background: var(--color-error-soft); border-color: var(--color-error); }
 .connection-delete { grid-column: 1 / -1; border-left: 2px solid var(--color-error); padding-left: var(--space-sm); }
 .connection-delete p { font-size: var(--text-sm); }
 .connection-delete button { margin-right: var(--space-xs); }
@@ -302,4 +308,5 @@ body.is-busy select:disabled, body.is-busy textarea:disabled { opacity: 1; }
 .settings-empty { padding: var(--space-lg) 0; color: var(--muted); }
 #settings-message, #connections-error { font-size: var(--text-sm); overflow-wrap: anywhere; }
 #settings-title:focus { outline: none; }
-@media(max-width:700px) { .connection-item { grid-template-columns: minmax(0,1fr); } .settings-button span { display:none; } }
+@media(max-width:700px) { .settings-button span { display:none; } }
+@media(max-width:500px) { .connection-item { grid-template-columns: minmax(0,1fr); } }

@@ -29,7 +29,7 @@ if(workspacePhase==='s3'){
  const rowsReady=async count=>{for(let i=0;i<100;i++){if(document.querySelectorAll('.connection-item').length===count)return;await new Promise(r=>setTimeout(r,20))}throw Error('settings rows timeout')};
  const action=async name=>{document.querySelector('[data-action="'+name+'"]').click();await wait()};
  await click('settings');await rowsReady(1);assert($('settings-dialog').open && !$('connection-list').textContent.includes('fixture-secret'),'settings lists connection without credentials');
- await action('test');assert($('settings-message').textContent==='Connection successful.','settings tests saved credentials');
+ assert([...document.querySelectorAll('.connection-item-actions button')].map(b=>b.dataset.action).join(',')==='open,edit,delete','connection actions contain only open, edit and delete');
  await action('edit');assert($('r2-access').value==='' && $('r2-secret').value==='' && $('r2-bucket').readOnly,'editing never returns secrets and locks active location');
  $('r2-name').value='Edited analytics';$('r2-form').requestSubmit();await wait();await rowsReady(1);assert($('file-name').textContent==='Edited analytics' && $('sql').value.includes('workspace."orders.parquet"'),'rename preserves active workspace SQL');
  await click('settings-dismiss');document.querySelector('[data-control="folder-close"]').click();await wait();

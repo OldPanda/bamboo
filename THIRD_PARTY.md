@@ -19,3 +19,10 @@ Official references reviewed during implementation:
 R2 support adds AWS SDK for Go v2 **v1.47.4** (SigV4 signing only) and Smithy Go **v1.28.6**, Apache-2.0; license and notice files are included under `licenses/`. No AWS environment credential discovery is used.
 
 The macOS arm64 bundle includes the official **DuckDB 2.0.0 httpfs** extension (MIT), downloaded during explicit builds from `https://extensions.duckdb.org/v2.0.0/osx_arm64/httpfs.duckdb_extension.gz`. Its uncompressed SHA-256 is pinned to `c2d72a98ad081bf4d62c908b8d9f60b70ab1b83faa9141fc7e7d53526658761d`; DuckDB also verifies the embedded extension signature. See `licenses/duckdb-httpfs-LICENSE.txt` and upstream component notices at https://github.com/duckdb/duckdb-httpfs/tree/main/third_party. Native-extension dependency coverage is outside `govulncheck` and npm audit.
+
+## Cloud provider trademarks
+
+Connection logos are bundled locally, unmodified, to identify their providers.
+Cloudflare cloud-only logo: https://www.cloudflare.com/logo.svg (official website SVG, without wordmark).
+AWS logo: https://press.aboutamazon.com/logos ; asset https://assets.aboutamazon.com/ff/9f/c88d0578474381e7ee1b6d337d23/aws-logo-rgb.png .
+These marks belong to their respective owners and are not covered by Bamboo's MIT license. No affiliation or endorsement is implied.
