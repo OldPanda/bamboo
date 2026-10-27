@@ -1,5 +1,8 @@
-# Bamboo application icon
+# Bamboo app artwork
 
-`bamboo.png` is the user-approved generated artwork, preserved at its original 1254 × 1254 resolution with transparency. The UI uses a 256 × 256 copy at `frontend/src/assets/bamboo.png`.
+The approved design has three upright hollow bamboo stalks and two leaves, with bold black outlines and no gradients. Two variants are maintained:
 
-On macOS, `npm run build` generates all standard 16–1024 px icon representations with `sips`, packs `Bamboo.icns` with `iconutil`, sets `CFBundleIconFile`, and signs the resulting bundle. The sidebar and welcome screen use the same artwork.
+- `../frontend/src/assets/bamboo.png`: transparent background, including the interiors of stalks and leaves, for the sidebar and welcome screen.
+- `bamboo.png`: the approved white-background artwork for the macOS Dock/Finder ICNS family.
+
+The Dock artwork is unchanged; the in-app version removes its background. Both are generated PNG assets. Original generated sources are retained by the host. `scripts/build.sh` builds the native icon family and signs the app without launching its window.
