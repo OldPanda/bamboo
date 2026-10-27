@@ -138,3 +138,51 @@ func TestR2KeychainSynthetic(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestConnectionSettingsBridge(t *testing.T) {
+	w, _, dir := workbench(t)
+	w.folders = workspace.New(t.TempDir())
+	server := r2test.New(dir)
+	defer server.Close()
+	w.remote = r2.NewWithTransport(t.TempDir(), &r2test.Vault{}, server.Transport)
+	ctx := context.Background()
+	info, err := w.SaveR2Connection(ctx, "", r2test.Input())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if list, e := w.ListConnections(); e != nil || len(list) != 1 || list[0].Open {
+		t.Fatal(list, e)
+	}
+	if err = w.TestR2Connection(ctx, info.Root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.OpenR2Connection(ctx, info.Root); err != nil {
+		t.Fatal(err)
+	}
+	w.opMu.Lock()
+	if _, err = w.SaveR2Connection(ctx, info.Root, r2test.Input()); err == nil {
+		t.Fatal("busy save")
+	}
+	if err = w.TestR2Connection(ctx, info.Root); err == nil {
+		t.Fatal("busy test")
+	}
+	if _, err = w.OpenR2Connection(ctx, info.Root); err == nil {
+		t.Fatal("busy open")
+	}
+	if err = w.DeleteR2Connection(info.Root); err == nil {
+		t.Fatal("busy delete")
+	}
+	w.opMu.Unlock()
+	if err = w.CloseWorkspace(info.Root); err != nil {
+		t.Fatal(err)
+	}
+	if list, e := w.ListConnections(); e != nil || len(list) != 1 || list[0].Open {
+		t.Fatal(list, e)
+	}
+	if err = w.DeleteR2Connection(info.Root); err != nil {
+		t.Fatal(err)
+	}
+	if list, e := w.ListConnections(); e != nil || len(list) != 0 {
+		t.Fatal(list, e)
+	}
+}

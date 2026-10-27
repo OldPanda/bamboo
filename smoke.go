@@ -139,6 +139,15 @@ func smoke(win *mygo.Window) {
 	capture("bamboo-open-cloud-dark")
 	mygo.Theme.SetSource(mygo.ThemeLight)
 	win.Page().Eval(`document.getElementById("source-dismiss").click()`)
+	win.Page().Eval(`document.getElementById("settings").click()`)
+	time.Sleep(200 * time.Millisecond)
+	capture("bamboo-settings")
+	mygo.Theme.SetSource(mygo.ThemeDark)
+	time.Sleep(100 * time.Millisecond)
+	capture("bamboo-settings-dark")
+	mygo.Theme.SetSource(mygo.ThemeLight)
+	win.Page().Eval(`document.getElementById("settings-dismiss").click()`)
+
 	if workspacePhase == "r2" {
 		win.Page().Eval(`document.getElementById("open-r2").click()`)
 		time.Sleep(100 * time.Millisecond)

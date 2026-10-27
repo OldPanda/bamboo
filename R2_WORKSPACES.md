@@ -13,7 +13,7 @@ JOIN workspace."nested/copy.parquet" b USING (order_id)
 ORDER BY a.order_id
 ```
 
-`data` is available only after opening a file. A query can reference at most 32 workspace files. Local and remote workspaces can coexist, but a query is scoped to its selected workspace. R2 supports preview, schema, filtering, sorting, paging, cancellation and local JSON page export. Drafts and the last successful query are restored separately. Closed workspaces are forgotten, including their credentials; reconnect to open them again.
+`data` is available only after opening a file. A query can reference at most 32 workspace files. Local and remote workspaces can coexist, but a query is scoped to its selected workspace. R2 supports preview, schema, filtering, sorting, paging, cancellation and local JSON page export. Drafts and the last successful query are restored separately. Closed workspaces retain their connection, credentials and saved SQL. Reopen through Open data → Cloud storage or Settings. Explicitly deleting the connection in Settings forgets its metadata, queries and credentials and closes its open files; cloud objects are unchanged.
 
 ## Data and credentials
 
@@ -35,3 +35,15 @@ A selective query over a 1,000,000-row, 5,166,996-byte fixture read 368,813 byte
 Run `npm run coverage` for standard verification. Go tests use repository-wide instrumentation (`-coverpkg=./...`) so cross-package integration hits are counted, including the synthetic fixture server and native Keychain adapter. Prior reports used package-local instrumentation; both are ordinary-test measurements, but the increased scope must be considered when comparing them. No production file is excluded. `BAMBOO_KEYCHAIN_TEST=1` enables the temporary synthetic Keychain test and is set by the full verification script. Credentials should never be placed in repository files or command-line arguments.
 
 Official references: [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api/), [R2 credentials](https://developers.cloudflare.com/r2/api/tokens/), [DuckDB httpfs](https://duckdb.org/docs/2.0/core_extensions/httpfs/overview).
+
+## Connection settings
+
+**Settings → Cloud connections** separates reusable connection profiles from currently open workspaces. Adding a connection here tests and saves it without opening it. Open data shows saved connections alongside the provider entry. Current supported provider: Cloudflare R2; future providers belong in this same management surface, not additional sidebar buttons.
+
+- Edit name or rotate credentials. Existing keys are never returned over IPC or filled into the form. Leave both key fields blank to retain them; provide both to replace them.
+- Close the workspace before changing endpoint, bucket or prefix. Changing location resets its saved SQL to avoid applying queries to a different dataset. Renaming/rotating keys preserves SQL and the stable connection identity.
+- Test performs a read-only directory listing and supports cancellation. Failed tests, invalid settings, vault failures and failed persistence preserve the previous valid state where rollback succeeds.
+- Delete requires an explicit confirmation in the app, removes the saved credentials and closes associated files. Closing a workspace alone is not deletion.
+- Existing saved R2 records migrate without losing state: a missing `closed` flag means the workspace was open. Up to 32 connections may be saved.
+
+Validation includes real DuckDB/S3 fixture queries and actual native Settings interactions, including editing with blank keys, failed updates, close/reopen, delete confirmation, canceled tests, and process restart with one open and one saved-but-closed connection. Real Cloudflare credentials/bucket access remains manual acceptance.

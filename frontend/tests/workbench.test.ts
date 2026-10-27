@@ -36,6 +36,7 @@ beforeEach(() => {
     "Workbench.InitialFile": () => "",
     "Workbench.RestoreWorkspaces": () => ({workspaces:[],warning:""}),
     "Workbench.ClearPreview": () => undefined,
+    "Workbench.ListConnections": () => [],
     "Workbench.OpenWorkspaceQuery": () => ({draft:"",applied:""}),
     "Workbench.QueryWorkspace": (_root:string,r:Request) => page(r.offset,r.offset<200),
     "Workbench.CloseWorkspaceFile": () => undefined,
@@ -414,7 +415,7 @@ describe("R2 connection workspaces",()=>{
   Object.defineProperty(HTMLDialogElement.prototype,"close",{configurable:true,value:function(this:HTMLDialogElement){this.open=false;this.dispatchEvent(new Event("close"));}});
  });
  it("offers one launcher with keyboard-accessible local/cloud choices and returns focus",async()=>{
-  await boot();expect(document.querySelectorAll('.sidebar > button')).toHaveLength(1);
+  await boot();expect(document.querySelectorAll('.sidebar > .open-button')).toHaveLength(1);
   await click('open-data');expect($<HTMLDialogElement>('source-dialog').open).toBe(true);
   expect(document.activeElement).toBe($('source-local'));expect($('sources-cloud').hidden).toBe(true);
   const tabKey=(id:string,k:string)=>$(id).dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true,cancelable:true}));
@@ -442,6 +443,63 @@ describe("R2 connection workspaces",()=>{
   const calls=bridge.call.mock.calls.length;bridge.drop!({paths:['/local/drop.parquet']});expect(bridge.call.mock.calls.length).toBe(calls);
   await click('r2-back');expect($<HTMLInputElement>('r2-secret').value).toBe('');expect($<HTMLDialogElement>('r2-dialog').open).toBe(false);
   expect($<HTMLDialogElement>('source-dialog').open).toBe(true);expect($('source-cloud').getAttribute('aria-selected')).toBe('true');expect(document.activeElement).toBe($('source-cloud'));
+ });
+ it("manages saved cloud connections independently from open workspaces",async()=>{
+  setup();const c={root:'r2://analytics/saved',provider:'r2',config:{name:'Saved analytics',endpoint:'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com',bucket:'analytics',prefix:'orders'},open:false};
+  let connections=[c];responses['Workbench.ListConnections']=()=>connections;
+  responses['Workbench.SaveR2Connection']=(root:string,input:any)=>{expect(root).toBe(c.root);expect(input.accessKey).toBe('');expect(input.secretKey).toBe('');c.config.name=input.name;return {root:c.root,name:input.name,active:'.',location:'r2://analytics/orders'};};
+  responses['Workbench.TestR2Connection']=()=>undefined;
+  responses['Workbench.DeleteR2Connection']=()=>{connections=[];};
+  await boot();await click('settings');await vi.waitFor(()=>expect(document.querySelectorAll('.connection-item')).toHaveLength(1));
+  expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);
+  const action=async(name:string)=>{document.querySelector<HTMLButtonElement>('[data-action="'+name+'"]')!.click();await settled();};
+  await action('test');expect($('settings-message').textContent).toBe('Connection successful.');
+  await action('edit');expect($<HTMLInputElement>('r2-bucket').readOnly).toBe(false);expect($<HTMLInputElement>('r2-secret').value).toBe('');expect($<HTMLInputElement>('r2-secret').required).toBe(false);
+  value('r2-name','Renamed');await submit();await vi.waitFor(()=>expect($('connection-list').textContent).toContain('Renamed'));
+  expect($('welcome').hidden).toBe(false);expect(bridge.call.mock.calls.some(([method])=>method==='Workbench.ConnectR2')).toBe(false);
+  await action('delete');expect(document.querySelector<HTMLElement>('.connection-delete')!.hidden).toBe(false);
+  document.querySelector<HTMLButtonElement>('.connection-delete button')!.click();expect(document.querySelector<HTMLElement>('.connection-delete')!.hidden).toBe(true);
+  await action('delete');await action('confirm-delete');await vi.waitFor(()=>expect($('connection-list').textContent).toContain('No saved connections'));
+  await click('settings-dismiss');expect(document.activeElement).toBe($('settings'));
+ });
+ it("adds a saved connection, reopens it from cloud choices and removes its active documents",async()=>{
+  setup();const c={root,provider:'r2',config:{name:'Cloud analytics',endpoint:'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com',bucket:'analytics',prefix:''},open:false};let connections:any[]=[];
+  responses['Workbench.ListConnections']=()=>connections;
+  responses['Workbench.SaveR2Connection']=()=>{connections=[c];return {root,name:c.config.name,active:'.'};};
+  responses['Workbench.OpenR2Connection']=()=>{c.open=true;return {root,name:c.config.name,active:'.'};};
+  responses['Workbench.DeleteR2Connection']=()=>{connections=[];};
+  await boot();await click('settings');await click('settings-add');fill();await submit();await vi.waitFor(()=>expect(document.querySelectorAll('.connection-item')).toHaveLength(1));
+  await click('settings-dismiss');await click('open-data');await click('source-cloud');await vi.waitFor(()=>expect(document.querySelector('.saved-connection')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('.saved-connection')!.click();await settled();expect($<HTMLDialogElement>('source-dialog').open).toBe(false);expect($('file-name').textContent).toBe(c.config.name);
+  document.querySelector<HTMLButtonElement>('.tree-file')!.click();await settled();
+  await click('settings');await vi.waitFor(()=>expect($('connection-list').textContent).toContain('Workspace open'));
+  document.querySelector<HTMLButtonElement>('[data-action="open"]')!.click();await settled();expect($<HTMLDialogElement>('settings-dialog').open).toBe(false);await click('settings');await vi.waitFor(()=>expect(document.querySelector('.connection-item')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('[data-action="edit"]')!.click();expect($<HTMLInputElement>('r2-bucket').readOnly).toBe(true);value('r2-name','Renamed active');responses['Workbench.SaveR2Connection']=()=>({root,name:'Renamed active',active:'.'});await submit();await vi.waitFor(()=>expect(document.querySelector('.connection-item')).not.toBeNull());expect(document.querySelector('.workspace-name')!.textContent).toBe('Renamed active');
+  document.querySelector<HTMLButtonElement>('[data-action="delete"]')!.click();document.querySelector<HTMLButtonElement>('[data-action="confirm-delete"]')!.click();await settled();expect($('welcome').hidden).toBe(false);expect(document.querySelector('.workspace-group')).toBeNull();
+ });
+ it("keeps settings failures visible and supports cancellation without exposing credentials",async()=>{
+  setup();await boot();responses['Workbench.ListConnections']=()=>{throw Error('Settings unavailable')};await click('settings');await vi.waitFor(()=>expect($('settings-message').textContent).toContain('Settings unavailable'));
+  await click('settings-dismiss');await click('open-data');await click('source-cloud');await vi.waitFor(()=>expect($('connections-error').hidden).toBe(false));
+  responses['Workbench.ListConnections']=()=>[];await click('manage-connections');await click('settings-add');fill();await click('r2-cancel');expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);
+  await click('settings-add');fill();$('r2-dialog').dispatchEvent(new Event('cancel',{cancelable:true}));expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);expect($<HTMLInputElement>('r2-secret').value).toBe('');
+  expect(key('o',{metaKey:true}).defaultPrevented).toBe(true);const calls=bridge.call.mock.calls.length;bridge.drop!({paths:['/local/file.parquet']});expect(bridge.call.mock.calls.length).toBe(calls);
+ });
+ it("preserves saved configuration and documents when testing or deleting fails",async()=>{
+  setup();const c={root,provider:'r2',config:{name:'Saved',endpoint:'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com',bucket:'analytics',prefix:''},open:false};
+  responses['Workbench.ListConnections']=()=>[c];responses['Workbench.TestR2Connection']=()=>{throw Error('Denied')};responses['Workbench.DeleteR2Connection']=()=>{throw Error('Keychain locked')};responses['Workbench.OpenR2Connection']=()=>{throw Error('Offline')};
+  await boot();await click('settings');await vi.waitFor(()=>expect(document.querySelector('.connection-item')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('[data-action="test"]')!.click();await settled();expect($('settings-message').textContent).toContain('Denied');
+  document.querySelector<HTMLButtonElement>('[data-action="confirm-delete"]')!.click();await settled();expect($('settings-message').textContent).toContain('Keychain locked');expect(document.querySelector('.connection-item')).not.toBeNull();
+  document.querySelector<HTMLButtonElement>('[data-action="open"]')!.click();await settled();expect($('settings-message').textContent).toContain('Offline');
+  await click('settings-dismiss');await click('open-data');await click('source-cloud');await vi.waitFor(()=>expect(document.querySelector('.saved-connection')).not.toBeNull());document.querySelector<HTMLButtonElement>('.saved-connection')!.click();await settled();expect($('connections-error').textContent).toContain('Offline');
+ });
+ it("cancels an in-flight connection test from Settings",async()=>{
+  setup();responses['Workbench.ListConnections']=()=>[{root,provider:'r2',config:{name:'Saved',endpoint:'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com',bucket:'analytics',prefix:''},open:false}];
+  let reject!:(e:Error)=>void;responses['Workbench.TestR2Connection']=()=>new Promise((_resolve,r)=>{reject=r});responses['Workbench.Cancel']=()=>reject(Error('Canceled'));
+  await boot();await click('settings');await vi.waitFor(()=>expect(document.querySelector('.connection-item')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('[data-action="test"]')!.click();await vi.waitFor(()=>expect($('settings-cancel').hidden).toBe(false));
+  const escape=new Event('cancel',{cancelable:true});$('settings-dialog').dispatchEvent(escape);expect(escape.defaultPrevented).toBe(true);await settled();expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);
+  document.querySelector<HTMLButtonElement>('[data-action="test"]')!.click();await vi.waitFor(()=>expect($('settings-cancel').hidden).toBe(false));await click('settings-cancel');expect($('settings-message').textContent).toContain('Canceled');
  });
  const root="r2://analytics/test-connection";
  function setup(){

@@ -282,3 +282,24 @@ body.is-busy select:disabled, body.is-busy textarea:disabled { opacity: 1; }
 
 /* Suppress only the automatic entry ring; keyboard navigation restores it. */
 .source-dialog.initial-focus [role="tab"]:focus-visible { outline: none; }
+
+/* Connections remain in Settings independently of open workspaces. */
+.settings-button { display: flex; align-items: center; gap: var(--space-xs); margin-top: auto; text-align: left; flex-shrink: 0; }
+.settings-button svg { flex-shrink: 0; }
+.settings-dialog { width: min(720px, calc(100% - 32px)); }
+.settings-section-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
+.settings-section-heading h3 { font-size: var(--text-md); margin: 0; }
+.connection-item { border-top: 1px solid var(--line); padding: var(--space-md) 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: var(--space-sm); }
+.connection-detail strong, .connection-detail small { display: block; }
+.connection-detail p { margin: var(--space-xs) 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.connection-detail small { color: var(--muted); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.connection-item-actions { display: flex; gap: var(--space-2xs); align-items: flex-start; flex-wrap: wrap; }
+.connection-item-actions button { padding: var(--space-2xs) var(--space-xs); }
+.connection-delete { grid-column: 1 / -1; border-left: 2px solid var(--color-error); padding-left: var(--space-sm); }
+.connection-delete p { font-size: var(--text-sm); }
+.connection-delete button { margin-right: var(--space-xs); }
+.connection-status { color: var(--muted); font-size: var(--text-xs); }
+.settings-empty { padding: var(--space-lg) 0; color: var(--muted); }
+#settings-message, #connections-error { font-size: var(--text-sm); overflow-wrap: anywhere; }
+#settings-title:focus { outline: none; }
+@media(max-width:700px) { .connection-item { grid-template-columns: minmax(0,1fr); } .settings-button span { display:none; } }

@@ -44,3 +44,39 @@ func (w *Workbench) openRemoteFile(ctx context.Context, root, relative string) (
 	}
 	return r, nil
 }
+
+func (w *Workbench) ListConnections() ([]r2.Connection, error) { return w.remote.Connections() }
+func (w *Workbench) SaveR2Connection(ctx context.Context, root string, input r2.ConnectInput) (*workspace.Info, error) {
+	if !w.opMu.TryLock() {
+		return nil, errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	ctx, done := w.remoteOperation(ctx)
+	defer done()
+	return w.remote.SaveConnection(ctx, root, input)
+}
+func (w *Workbench) TestR2Connection(ctx context.Context, root string) error {
+	if !w.opMu.TryLock() {
+		return errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	ctx, done := w.remoteOperation(ctx)
+	defer done()
+	return w.remote.TestConnection(ctx, root)
+}
+func (w *Workbench) OpenR2Connection(ctx context.Context, root string) (*workspace.Info, error) {
+	if !w.opMu.TryLock() {
+		return nil, errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	ctx, done := w.remoteOperation(ctx)
+	defer done()
+	return w.remote.OpenConnection(ctx, root)
+}
+func (w *Workbench) DeleteR2Connection(root string) error {
+	if !w.opMu.TryLock() {
+		return errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	return w.remote.DeleteConnection(root)
+}

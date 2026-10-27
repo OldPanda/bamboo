@@ -4,6 +4,7 @@ import {
   type Result,
   type Request,
   type Info,
+  type Connection,
 } from "./mygo";
 import { onFileDrop } from "mygo-runtime";
 import "./style.css";
@@ -21,6 +22,7 @@ app.innerHTML = `
   <div id="file-card" hidden></div>
   <div class="section-label columns-label">Columns <span id="column-count">—</span></div>
   <div id="column-list" class="column-list"><p class="aside-hint">Your file’s structure,<br>at a glance.</p></div>
+  <button id="settings" class="settings-button quiet" aria-haspopup="dialog" aria-controls="settings-dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--side)"/><circle cx="15" cy="17" r="3" fill="var(--side)"/></svg><span>Settings</span></button>
   <div class="privacy"><div>Queries run on this Mac<small>Read-only. No uploads.</small></div></div>
 </aside>
 <main>
@@ -55,10 +57,18 @@ app.innerHTML = `
   <button id="open-folder" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg><span><strong>Open folder</strong><small>Query files together as a workspace</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
  </div>
  <div id="sources-cloud" role="tabpanel" aria-labelledby="source-cloud" hidden>
+  <div id="saved-connections"></div><p id="connections-error" role="alert" hidden></p>
   <button id="open-r2" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg><span><strong>Cloudflare R2</strong><small>Connect a bucket or folder prefix</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
+  <button id="manage-connections" class="quiet">Manage connections</button>
   <p class="source-note">Read-only connections. Credentials stay in macOS Keychain.</p>
  </div>
  <div class="source-footer">You can also drop a Parquet file into the window.</div>
+</dialog>
+<dialog id="settings-dialog" class="connection-dialog settings-dialog" aria-labelledby="settings-title">
+ <div class="connection-heading"><div><h2 id="settings-title" tabindex="-1">Settings</h2><p>Manage your data connections.</p></div><button id="settings-dismiss" class="quiet" aria-label="Close settings">×</button></div>
+ <div class="settings-section-heading"><h3>Cloud connections</h3><button id="settings-add" class="primary">Add connection</button></div>
+ <p class="connection-note">Saved connections stay here when you close a workspace.</p>
+ <p id="settings-message" role="status" hidden></p><button id="settings-cancel" hidden>Cancel operation</button><div id="connection-list"></div>
 </dialog>
 <dialog id="r2-dialog" class="connection-dialog" aria-labelledby="r2-title">
  <form id="r2-form" autocomplete="off">
@@ -66,6 +76,7 @@ app.innerHTML = `
  <label>Workspace name <span class="optional">optional</span><input id="r2-name" maxlength="200" placeholder="Research data"></label>
  <label>S3 endpoint<input id="r2-endpoint" type="url" required placeholder="https://ACCOUNT_ID.r2.cloudflarestorage.com" spellcheck="false"></label>
  <div class="connection-row"><label>Bucket<input id="r2-bucket" required maxlength="63" spellcheck="false" placeholder="analytics"></label><label>Folder prefix <span class="optional">optional</span><input id="r2-prefix" maxlength="1024" spellcheck="false" placeholder="orders/2026"></label></div>
+ <p id="r2-edit-note" class="connection-note" hidden></p>
  <label>Access Key ID<input id="r2-access" required maxlength="256" autocomplete="off" spellcheck="false"></label>
  <label>Secret Access Key<input id="r2-secret" type="password" required maxlength="512" autocomplete="new-password" spellcheck="false"></label>
  <p class="connection-note">Use R2 Object Read only credentials scoped to this bucket. Keys are stored in macOS Keychain. Files are read from R2 as needed; queries run on this Mac.</p>
@@ -308,6 +319,16 @@ async function closeDocument(path:string){
   }
   updateFolder();
 }
+async function removeWorkspaceUI(root:string) {
+ const closing=[...documents.keys()].filter(path=>owner(path)?.root===root);
+ const closesActive=(!!file && closing.includes(file.path)) || (!file && workspaceRoot===root);
+ for(const path of closing)documents.delete(path);
+ folders.delete(root);workspaceQueries.delete(root);
+ document.querySelectorAll<HTMLElement>(".workspace-group").forEach(p=>{if(p.dataset.root===root)p.remove();});
+ if(closesActive)await previewAfterClose(documents.keys().next().value);
+ updateFolder();
+ if(file)$("query-save").textContent=folder ? "Saved locally" : "Kept for this session";
+}
 async function showFolder(info:Info,restore=false){
   if(folders.has(info.root)){if(!restore)await showWorkspace(info);return;}
   folders.set(info.root,info);
@@ -328,14 +349,9 @@ async function showFolder(info:Info,restore=false){
   });};
   control("folder-close").onclick=()=>void task("Closing workspace…",async()=>{
     await saveQuery();
-    const closing=[...documents.keys()].filter(path=>owner(path)?.root===info.root);
-    const closesActive=(!!file && closing.includes(file.path)) || (!file && workspaceRoot===info.root);
     await Workbench.closeWorkspace(info.root);
-    for(const path of closing)documents.delete(path);
-    folders.delete(info.root);workspaceQueries.delete(info.root);panel.remove();
-    if(closesActive)await previewAfterClose(documents.keys().next().value);
-    updateFolder();
-    if(file)$("query-save").textContent=folder ? "Saved locally" : "Kept for this session";
+    await removeWorkspaceUI(info.root);
+
   });
   $("workspace-roots").append(panel);updateFolder();
   try { await directory(tree,info,"."); } catch(e) { if(!info.root.startsWith("r2://"))throw e;tree.replaceChildren(el("p","R2 is unavailable. Refresh to retry, or reconnect with updated credentials.","aside-hint"));notify(String(e),true); }
@@ -346,6 +362,7 @@ async function openFolder(){await task("Opening workspace…",async()=>{await sa
 const sourceDialog=$<HTMLDialogElement>("source-dialog");
 let sourceReturn: HTMLElement;
 function selectSource(kind: string) {
+ if(kind==="cloud")void refreshConnections();
  for(const name of ["local","cloud"]) {
   const selected=name===kind;
   $("source-"+name).setAttribute("aria-selected",String(selected));
@@ -374,20 +391,83 @@ const closeSources=()=>{if(sourceDialog.open)sourceDialog.close();};
 $("open-folder").onclick=()=>{closeSources();void openFolder();};
 const r2Dialog=$<HTMLDialogElement>("r2-dialog");
 const clearR2Keys=()=>{ $<HTMLInputElement>("r2-access").value="";$<HTMLInputElement>("r2-secret").value=""; };
-$("open-r2").onclick=()=>{ closeSources();$("r2-error").hidden=true;r2Dialog.showModal();$<HTMLInputElement>("r2-endpoint").focus(); };
+let editingConnection="";
+let connectionOrigin:"source"|"settings"="source";
+const settingsDialog=$<HTMLDialogElement>("settings-dialog");
+let connectionLoad=0;
+function connectionLocation(c:Connection) {return "r2://"+c.config.bucket+(c.config.prefix?"/"+c.config.prefix:"");}
+async function refreshConnections() {
+ const ticket=++connectionLoad;
+ $("connection-list").replaceChildren(el("p","Loading connections…","settings-empty"));$("saved-connections").replaceChildren();
+ try {
+  const list=await Workbench.listConnections();if(ticket!==connectionLoad)return;
+  $("connections-error").hidden=true;
+  $("connection-list").replaceChildren();$("saved-connections").replaceChildren();
+  if(!list.length)$("connection-list").append(el("p","No saved connections yet. Add a cloud connection to get started.","settings-empty"));
+  for(const c of list) {
+   const quick=el("button","","source-option saved-connection");quick.dataset.root=c.root;
+   const text=el("span","");text.append(el("strong",c.config.name),el("small",connectionLocation(c)));quick.append(text,el("span",c.open?"Open":"Saved","connection-status"));
+   quick.onclick=()=>void openSavedConnection(c);$("saved-connections").append(quick);
+   const row=el("section","","connection-item");row.dataset.root=c.root;
+   const details=el("div","","connection-detail");details.append(el("strong",c.config.name),el("small","Cloudflare R2 / "+(c.open?"Workspace open":"Saved")),el("p",connectionLocation(c)),el("small",c.config.endpoint));
+   const actions=el("div","","connection-item-actions");
+   const button=(label:string,action:()=>void)=>{const b=el("button",label);b.onclick=action;actions.append(b);return b;};
+   button("Open",()=>void openSavedConnection(c)).dataset.action="open";
+   button("Edit",()=>editR2(c)).dataset.action="edit";
+   button("Test",()=>void settingsTask("Testing connection…",async()=>{await Workbench.testR2Connection(c.root);$("settings-message").textContent="Connection successful.";$("settings-message").hidden=false;})).dataset.action="test";
+   const remove=button("Delete",()=>{confirm.hidden=false;});remove.dataset.action="delete";
+   const confirm=el("div","","connection-delete");confirm.hidden=true;
+   confirm.append(el("p","Delete this connection and its saved credentials? Its open files will close. Cloud files will stay unchanged."));
+   const cancel=el("button","Cancel");cancel.onclick=()=>{confirm.hidden=true;};
+   const yes=el("button","Delete connection");yes.dataset.action="confirm-delete";yes.onclick=()=>void settingsTask("Deleting connection…",async()=>{await saveQuery();await Workbench.deleteR2Connection(c.root);await removeWorkspaceUI(c.root);await refreshConnections();});
+   confirm.append(cancel,yes);row.append(details,actions,confirm);$("connection-list").append(row);
+  }
+  controls();
+ }catch(e){if(ticket!==connectionLoad)return;$("connection-list").replaceChildren();for(const id of ["connections-error","settings-message"]){$(id).textContent=String(e);$(id).hidden=false;}}
+}
+async function settingsTask(label:string,fn:()=>Promise<void>) {
+ $("settings-message").hidden=true;
+ await task(label,async()=>{try{await fn();}catch(e){$("settings-message").textContent=String(e);$("settings-message").hidden=false;if(sourceDialog.open){$("connections-error").textContent=String(e);$("connections-error").hidden=false;}throw e;}});
+}
+function showSettings() {closeSources();$("settings-message").hidden=true;settingsDialog.showModal();$("settings-title").focus();void refreshConnections();}
+$("settings").onclick=showSettings;$("manage-connections").onclick=showSettings;
+$("settings-cancel").onclick=()=>void Workbench.cancel();
+settingsDialog.oncancel=e=>{if(busy){e.preventDefault();void Workbench.cancel();}};
+$("settings-dismiss").onclick=()=>settingsDialog.close();settingsDialog.onclose=()=>$("settings").focus();
+async function openSavedConnection(c:Connection) {
+ await settingsTask("Opening connection…",async()=>{await saveQuery();const info=await Workbench.openR2Connection(c.root);if(!info)throw new Error("No workspace returned");closeSources();if(settingsDialog.open)settingsDialog.close();await showFolder(info);});
+}
+function configureR2(c?:Connection) {
+ editingConnection=c?.root || "";clearR2Keys();
+ for(const [field,value] of Object.entries({name:c?.config.name || "",endpoint:c?.config.endpoint || "",bucket:c?.config.bucket || "",prefix:c?.config.prefix || ""}))$<HTMLInputElement>("r2-"+field).value=value;
+ for(const field of ["endpoint","bucket","prefix"])$<HTMLInputElement>("r2-"+field).readOnly=!!c?.open;
+ for(const field of ["access","secret"])$<HTMLInputElement>("r2-"+field).required=!c;
+ $("r2-edit-note").hidden=!c;$("r2-edit-note").textContent="Leave both key fields blank to keep saved credentials."+(c?.open?" Close the workspace before changing its location.":" Changing location resets saved queries.");
+ $("r2-title").textContent=c?"Edit Cloudflare R2":"Connect Cloudflare R2";
+ $("r2-submit").textContent=connectionOrigin==="settings"?"Test & save":"Test & connect";
+ $("r2-error").hidden=true;r2Dialog.showModal();$<HTMLInputElement>(c?"r2-name":"r2-endpoint").focus();
+}
+function editR2(c?:Connection) {connectionOrigin="settings";settingsDialog.close();configureR2(c);}
+$("settings-add").onclick=()=>editR2();
+$("open-r2").onclick=()=>{connectionOrigin="source";closeSources();configureR2();};
 r2Dialog.onclose=()=>{clearR2Keys();$("open-data").focus();};
-$("r2-back").onclick=()=>{r2Dialog.close();showSources($("open-data"));selectSource("cloud");$("source-cloud").focus();};
-r2Dialog.oncancel=e=>{if(busy){e.preventDefault();void Workbench.cancel();}};
-$("r2-dismiss").onclick=()=>r2Dialog.close();
-$("r2-cancel").onclick=()=>{if(busy)void Workbench.cancel();else r2Dialog.close();};
+function leaveR2(back=false){r2Dialog.close();if(connectionOrigin==="settings")showSettings();else if(back){showSources($("open-data"));selectSource("cloud");$("source-cloud").focus();}}
+$("r2-back").onclick=()=>leaveR2(true);
+r2Dialog.oncancel=e=>{e.preventDefault();if(busy)void Workbench.cancel();else leaveR2();};
+$("r2-dismiss").onclick=()=>leaveR2();
+$("r2-cancel").onclick=()=>{if(busy)void Workbench.cancel();else leaveR2();};
 $("r2-form").onsubmit=e=>{
  e.preventDefault();if(busy)return;
  const input={name:$<HTMLInputElement>("r2-name").value,endpoint:$<HTMLInputElement>("r2-endpoint").value,bucket:$<HTMLInputElement>("r2-bucket").value,prefix:$<HTMLInputElement>("r2-prefix").value,accessKey:$<HTMLInputElement>("r2-access").value,secretKey:$<HTMLInputElement>("r2-secret").value};
- clearR2Keys();$("r2-error").hidden=true;$("r2-submit").textContent="Connecting…";
- void task("Connecting to R2…",async()=>{
-  try {await saveQuery();const info=await Workbench.connectR2(input);if(!info)throw new Error("No R2 workspace returned");r2Dialog.close();await showFolder(info);}
-  catch(e){$("r2-error").textContent=String(e);$("r2-error").hidden=false;throw e;}
-  finally{input.accessKey="";input.secretKey="";$("r2-submit").textContent="Test & connect";}
+ clearR2Keys();$("r2-error").hidden=true;$("r2-submit").textContent="Testing…";
+ void task("Testing R2 connection…",async()=>{
+  try {
+   await saveQuery();const info=connectionOrigin==="settings"?await Workbench.saveR2Connection(editingConnection,input):await Workbench.connectR2(input);
+   if(!info)throw new Error("No R2 workspace returned");
+   const existing=folders.get(info.root);if(existing){Object.assign(existing,info);document.querySelectorAll<HTMLElement>(".workspace-group").forEach(p=>{if(p.dataset.root===info.root)p.querySelector<HTMLElement>('[data-control="folder-name"]')!.textContent=info.name;});updateFolder();}
+   r2Dialog.close();if(connectionOrigin==="settings")showSettings();else await showFolder(info);
+  }catch(e){$("r2-error").textContent=String(e);$("r2-error").hidden=false;throw e;}
+  finally{input.accessKey="";input.secretKey="";$("r2-submit").textContent=connectionOrigin==="settings"?"Test & save":"Test & connect";}
  });
 };
 $("sql").oninput=queryEdited;$("sql").onblur=()=>{if(saveTimer)void saveQuery();};
@@ -414,6 +494,7 @@ function notify(message: string, error = false) {
   n.hidden = false;
 }
 function controls() {
+ $("settings-cancel").hidden=!busy;
   document
     .querySelectorAll<
       | HTMLButtonElement
@@ -421,7 +502,7 @@ function controls() {
       | HTMLSelectElement
       | HTMLTextAreaElement
     >("button,input,select,textarea")
-    .forEach((n) => (n.disabled = busy && n.id !== "cancel" && n.id !== "r2-cancel"));
+    .forEach((n) => (n.disabled = busy && n.id !== "cancel" && n.id !== "r2-cancel" && n.id !== "settings-cancel"));
   $("previous").toggleAttribute(
     "disabled",
     busy || !result || request.offset === 0,
@@ -681,7 +762,7 @@ $("export").onclick = () =>
     if (path) notify(`Exported visible page to ${path}`);
   });
 document.addEventListener("keydown", (e) => {
-  if(r2Dialog.open && (e.metaKey || e.ctrlKey) && ["o","enter"].includes(e.key.toLowerCase())){e.preventDefault();return;}
+  if((r2Dialog.open || settingsDialog.open) && (e.metaKey || e.ctrlKey) && ["o","enter"].includes(e.key.toLowerCase())){e.preventDefault();return;}
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") {
     e.preventDefault();
     closeSources();void open();
@@ -692,7 +773,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 onFileDrop(({ paths }) => {
-  if (paths[0] && !r2Dialog.open) {closeSources();void open(paths[0]);}
+  if (paths[0] && !r2Dialog.open && !settingsDialog.open) {closeSources();void open(paths[0]);}
 });
 async function boot() {
   try {

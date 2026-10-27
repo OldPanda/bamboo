@@ -168,7 +168,7 @@ Opening a workspace now immediately shows its independent query editor, even wit
 
 ## Cloudflare R2 workspaces
 
-Choose **Open data → Cloud storage → Cloudflare R2**, enter the bucket's S3 endpoint, bucket name, optional folder prefix, and bucket-scoped **Object Read only** Access Key ID / Secret Access Key. **Test & connect** verifies listing access before saving the connection. Credentials live in macOS Keychain; metadata and saved SQL stay in Bamboo's private settings. Closing the R2 workspace removes its saved connection and Keychain entry, without changing cloud files.
+Choose **Open data → Cloud storage → Cloudflare R2**, enter the bucket's S3 endpoint, bucket name, optional folder prefix, and bucket-scoped **Object Read only** Access Key ID / Secret Access Key. **Test & connect** verifies listing access before saving the connection. Credentials live in macOS Keychain; metadata and saved SQL stay in Bamboo's private settings. Closing an R2 workspace retains its saved connection and Keychain entry. Manage connections through **Settings → Cloud connections**: add, edit, test, open, or explicitly delete a connection. Deletion closes its workspace and removes saved credentials, without changing cloud files.
 
 R2 appears beside local workspaces. You can query immediately without opening a document, browse folders, preview Parquet, inspect schema, and join files using `workspace."orders.parquet"` / `workspace."nested/other.parquet"`. Reads use byte ranges; large scans can still transfer substantial data and consume R2 read operations. Export remains local and page-only.
 

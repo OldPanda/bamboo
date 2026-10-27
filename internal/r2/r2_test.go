@@ -144,7 +144,7 @@ func TestStoreLifecycle(t *testing.T) {
 	if e != nil || same.Root != root || len(s.profiles) != 1 {
 		t.Fatal(same, e)
 	}
-	if e = s.Close(root); e != nil {
+	if e = s.DeleteConnection(root); e != nil {
 		t.Fatal(e)
 	}
 	if len(v.data) != 0 {
@@ -416,7 +416,7 @@ func TestCorruptStateAndAtomicPersistence(t *testing.T) {
 	if vault.data[root].SecretKey != input().SecretKey || s.profiles[root].Info.Name != input().Name {
 		t.Fatal("failed save mutated state")
 	}
-	if e = s.Close(root); e == nil || vault.data[root].SecretKey != input().SecretKey {
+	if e = s.DeleteConnection(root); e == nil || vault.data[root].SecretKey != input().SecretKey {
 		t.Fatal("failed close lost credentials", e)
 	}
 	s.filename = filepath.Join(badParent, "child")
@@ -426,7 +426,7 @@ func TestCorruptStateAndAtomicPersistence(t *testing.T) {
 		t.Fatal("failed new connection retained key", e)
 	}
 	s.filename = original
-	if e = s.Close(root); e != nil {
+	if e = s.DeleteConnection(root); e != nil {
 		t.Fatal(e)
 	}
 }
@@ -459,7 +459,7 @@ func TestStoreBoundsAndMissingCredentials(t *testing.T) {
 	if e = s.Select("r2://closed", "."); e == nil {
 		t.Fatal("closed profile")
 	}
-	if e = s.Close("r2://closed"); e == nil {
+	if e = s.DeleteConnection("r2://closed"); e == nil {
 		t.Fatal("closed removal")
 	}
 	if _, e = s.List(ctx, root, "../x", 0); e == nil {

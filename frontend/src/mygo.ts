@@ -9,6 +9,13 @@ export interface Column {
   type: string;
 }
 
+export interface Config {
+  name: string;
+  endpoint: string;
+  bucket: string;
+  prefix: string;
+}
+
 export interface ConnectInput {
   name: string;
   endpoint: string;
@@ -16,6 +23,13 @@ export interface ConnectInput {
   prefix: string;
   accessKey: string;
   secretKey: string;
+}
+
+export interface Connection {
+  root: string;
+  provider: string;
+  config: Config;
+  open: boolean;
 }
 
 export interface Entry {
@@ -100,6 +114,9 @@ export const Workbench = {
   connectR2(input: ConnectInput): Promise<Info | null> {
     return call("Workbench.ConnectR2", input);
   },
+  deleteR2Connection(root: string): Promise<void> {
+    return call("Workbench.DeleteR2Connection", root);
+  },
   /**
    * ExportPage saves the last successful page as typed JSON, keeping null distinct
    * from empty text and preserving numeric precision. It never re-runs the query.
@@ -110,6 +127,9 @@ export const Workbench = {
   initialFile(): Promise<string> {
     return call("Workbench.InitialFile");
   },
+  listConnections(): Promise<Connection[]> {
+    return call("Workbench.ListConnections");
+  },
   listDirectory(root: string, relative: string, offset: number): Promise<Page | null> {
     return call("Workbench.ListDirectory", root, relative, offset);
   },
@@ -118,6 +138,9 @@ export const Workbench = {
   },
   openPath(path: string): Promise<File | null> {
     return call("Workbench.OpenPath", path);
+  },
+  openR2Connection(root: string): Promise<Info | null> {
+    return call("Workbench.OpenR2Connection", root);
   },
   openWorkspace(): Promise<Info | null> {
     return call("Workbench.OpenWorkspace");
@@ -141,7 +164,13 @@ export const Workbench = {
   restoreWorkspaces(): Promise<Restored | null> {
     return call("Workbench.RestoreWorkspaces");
   },
+  saveR2Connection(root: string, input: ConnectInput): Promise<Info | null> {
+    return call("Workbench.SaveR2Connection", root, input);
+  },
   saveWorkspaceQuery(root: string, relative: string, draft: string, applied: string): Promise<void> {
     return call("Workbench.SaveWorkspaceQuery", root, relative, draft, applied);
+  },
+  testR2Connection(root: string): Promise<void> {
+    return call("Workbench.TestR2Connection", root);
   },
 } as const;

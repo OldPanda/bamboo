@@ -20,6 +20,7 @@ import (
 )
 
 type profile struct {
+	Closed  bool                       `json:"closed,omitempty"`
 	Info    workspace.Info             `json:"info"`
 	Config  Config                     `json:"config"`
 	Queries map[string]workspace.Query `json:"queries"`
@@ -121,9 +122,37 @@ func cloneQueries(m map[string]workspace.Query) map[string]workspace.Query {
 	return r
 }
 func (s *Store) Connect(ctx context.Context, in ConnectInput) (*workspace.Info, error) {
+	return s.saveConnection(ctx, "", in, true)
+}
+func (s *Store) SaveConnection(ctx context.Context, root string, in ConnectInput) (*workspace.Info, error) {
+	return s.saveConnection(ctx, root, in, false)
+}
+func (s *Store) saveConnection(ctx context.Context, target string, in ConnectInput, open bool) (*workspace.Info, error) {
+	s.mu.Lock()
+	if s.loadErr != nil {
+		err := s.loadErr
+		s.mu.Unlock()
+		return nil, err
+	}
+	previous, exists := s.profiles[target]
+	s.mu.Unlock()
+	if target != "" && !exists {
+		return nil, errors.New("R2 connection was not found")
+	}
+	if target != "" && in.AccessKey == "" && in.SecretKey == "" {
+		saved, err := s.vault.Get(target)
+		if err != nil {
+			return nil, err
+		}
+		in.AccessKey, in.SecretKey = saved.AccessKey, saved.SecretKey
+	}
+
 	c, cred, err := normalize(in)
 	if err != nil {
 		return nil, err
+	}
+	if target != "" && !previous.Closed && (c.Endpoint != previous.Config.Endpoint || c.Bucket != previous.Config.Bucket || c.Prefix != previous.Config.Prefix) {
+		return nil, errors.New("close this workspace before changing its location")
 	}
 	client := s.clientFactory(c, cred)
 	defer client.http.CloseIdleConnections()
@@ -132,11 +161,34 @@ func (s *Store) Connect(ctx context.Context, in ConnectInput) (*workspace.Info, 
 	}
 	hash := sha256.Sum256([]byte(c.Endpoint + "\n" + c.Bucket + "\n" + c.Prefix))
 	root := fmt.Sprintf("r2://%s/%x", c.Bucket, hash[:12])
+	matched := false
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for existingRoot, saved := range s.profiles {
+		if saved.Config.Endpoint == c.Endpoint && saved.Config.Bucket == c.Bucket && saved.Config.Prefix == c.Prefix {
+			if target != "" && existingRoot != target {
+				return nil, errors.New("a connection for this location already exists")
+			}
+			root = existingRoot
+			matched = true
+		}
+	}
+	if target != "" {
+		root = target
+	} else if !matched {
+		// An edited connection keeps its identity, so its original location's
+		// hash may already belong to a different saved location.
+		base := root
+		for suffix := 1; ; suffix++ {
+			if _, taken := s.profiles[root]; !taken {
+				break
+			}
+			root = fmt.Sprintf("%s-%d", base, suffix)
+		}
+	}
 	if len(s.profiles) >= 32 {
 		if _, ok := s.profiles[root]; !ok {
-			return nil, errors.New("up to 32 R2 workspaces can be open")
+			return nil, errors.New("up to 32 R2 connections can be saved")
 		}
 	}
 	oldCred, oldErr := s.vault.Get(root)
@@ -146,7 +198,14 @@ func (s *Store) Connect(ctx context.Context, in ConnectInput) (*workspace.Info, 
 	all := s.copy()
 	p, exists := all[root]
 	if !exists {
-		p = profile{Info: workspace.Info{Root: root, Active: "."}, Queries: map[string]workspace.Query{}}
+		p = profile{Closed: !open, Info: workspace.Info{Root: root, Active: "."}, Queries: map[string]workspace.Query{}}
+	}
+	if exists && (p.Config.Endpoint != c.Endpoint || p.Config.Bucket != c.Bucket || p.Config.Prefix != c.Prefix) {
+		p.Queries = map[string]workspace.Query{}
+		p.Info.Active = "."
+	}
+	if open {
+		p.Closed = false
 	}
 	p.Config = c
 	p.Info.Location = "r2://" + c.Bucket
@@ -163,6 +222,11 @@ func (s *Store) Connect(ctx context.Context, in ConnectInput) (*workspace.Info, 
 		}
 		return nil, err
 	}
+	for key := range s.cursors {
+		if strings.HasPrefix(key, root+"\n") {
+			delete(s.cursors, key)
+		}
+	}
 	return &p.Info, nil
 }
 func (s *Store) Restore() ([]workspace.Info, error) {
@@ -170,7 +234,9 @@ func (s *Store) Restore() ([]workspace.Info, error) {
 	defer s.mu.Unlock()
 	infos := []workspace.Info{}
 	for _, p := range s.profiles {
-		infos = append(infos, p.Info)
+		if !p.Closed {
+			infos = append(infos, p.Info)
+		}
 	}
 	sort.Slice(infos, func(i, j int) bool { return infos[i].Root < infos[j].Root })
 	return infos, s.loadErr
@@ -179,7 +245,7 @@ func (s *Store) client(root string) (*Client, error) {
 	s.mu.Lock()
 	p, ok := s.profiles[root]
 	s.mu.Unlock()
-	if !ok {
+	if !ok || p.Closed {
 		return nil, errors.New("R2 workspace is closed")
 	}
 	cred, err := s.vault.Get(root)
@@ -258,7 +324,7 @@ func (s *Store) Saved(root, relative string) (workspace.Query, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.profiles[root]
-	if !ok {
+	if !ok || p.Closed {
 		return workspace.Query{}, errors.New("R2 workspace is closed")
 	}
 	if relative != "." && !validRelative(relative) {
@@ -277,7 +343,7 @@ func (s *Store) edit(root string, fn func(*profile) error) error {
 	defer s.mu.Unlock()
 	all := s.copy()
 	p, ok := all[root]
-	if !ok {
+	if !ok || p.Closed {
 		return errors.New("R2 workspace is closed")
 	}
 	if err := fn(&p); err != nil {
@@ -324,7 +390,7 @@ func (s *Store) CloseFile(root, relative string) error {
 		return nil
 	})
 }
-func (s *Store) Close(root string) error {
+func (s *Store) DeleteConnection(root string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	all := s.copy()
@@ -378,4 +444,60 @@ func NewWithTransport(dir string, vault Vault, transport http.RoundTripper) *Sto
 		return client
 	}
 	return s
+}
+
+// Connection intentionally contains no credential fields; it is safe for the UI.
+type Connection struct {
+	Root     string `json:"root"`
+	Provider string `json:"provider"`
+	Config   Config `json:"config"`
+	Open     bool   `json:"open"`
+}
+
+func (s *Store) Connections() ([]Connection, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := []Connection{}
+	for root, p := range s.profiles {
+		out = append(out, Connection{root, "r2", p.Config, !p.Closed})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
+	return out, s.loadErr
+}
+func (s *Store) TestConnection(ctx context.Context, root string) error {
+	s.mu.Lock()
+	p, ok := s.profiles[root]
+	s.mu.Unlock()
+	if !ok {
+		return errors.New("R2 connection was not found")
+	}
+	cred, err := s.vault.Get(root)
+	if err != nil {
+		return err
+	}
+	c := s.clientFactory(p.Config, cred)
+	defer c.http.CloseIdleConnections()
+	_, err = c.list(ctx, ".", "")
+	return err
+}
+func (s *Store) OpenConnection(ctx context.Context, root string) (*workspace.Info, error) {
+	if err := s.TestConnection(ctx, root); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	all := s.copy()
+	p, ok := all[root]
+	if !ok {
+		return nil, errors.New("R2 connection was not found")
+	}
+	p.Closed = false
+	all[root] = p
+	if err := s.persist(all); err != nil {
+		return nil, err
+	}
+	return &p.Info, nil
+}
+func (s *Store) Close(root string) error {
+	return s.edit(root, func(p *profile) error { p.Closed = true; p.Info.Active = "."; return nil })
 }
