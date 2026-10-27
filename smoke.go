@@ -39,6 +39,9 @@ func smoke(win *mygo.Window) {
 		if workspacePhase == "r2" || workspacePhase == "r2-restore" {
 			scriptPath = "scripts/r2-smoke.js"
 		}
+		if workspacePhase == "s3" || workspacePhase == "s3-restore" {
+			scriptPath = "scripts/s3-smoke.js"
+		}
 		if workspacePhase == "multi" || workspacePhase == "multi-restore" {
 			scriptPath = "scripts/multi-smoke.js"
 		}
@@ -148,6 +151,12 @@ func smoke(win *mygo.Window) {
 	mygo.Theme.SetSource(mygo.ThemeLight)
 	win.Page().Eval(`document.getElementById("settings-dismiss").click()`)
 
+	if workspacePhase == "s3" {
+		win.Page().Eval(`document.getElementById("open-s3").click()`)
+		time.Sleep(100 * time.Millisecond)
+		capture("bamboo-s3-connection")
+		win.Page().Eval(`document.getElementById("r2-dismiss").click()`)
+	}
 	if workspacePhase == "r2" {
 		win.Page().Eval(`document.getElementById("open-r2").click()`)
 		time.Sleep(100 * time.Millisecond)

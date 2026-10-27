@@ -42,29 +42,29 @@ func New(dir string, vault Vault) *Store {
 		return s
 	}
 	if err != nil {
-		s.loadErr = errors.New("R2 workspace settings could not be read")
+		s.loadErr = errors.New("Cloud workspace settings could not be read")
 		return s
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil || st.Size() > 8<<20 {
-		s.loadErr = errors.New("R2 workspace settings exceed the size limit")
+		s.loadErr = errors.New("Cloud workspace settings exceed the size limit")
 		return s
 	}
 	var profiles map[string]profile
 	if json.NewDecoder(io.LimitReader(f, 8<<20+1)).Decode(&profiles) != nil || profiles == nil || len(profiles) > 32 {
-		s.loadErr = errors.New("R2 workspace settings are invalid")
+		s.loadErr = errors.New("Cloud workspace settings are invalid")
 		return s
 	}
 	for root, p := range profiles {
-		_, _, err = normalize(ConnectInput{Name: p.Config.Name, Endpoint: p.Config.Endpoint, Bucket: p.Config.Bucket, Prefix: p.Config.Prefix, AccessKey: "validate", SecretKey: "validate"})
-		if err != nil || !strings.HasPrefix(root, "r2://") || p.Info.Root != root || p.Queries == nil || len(p.Queries) > 256 || len(p.Info.Name) > 200 || (p.Info.Active != "" && p.Info.Active != "." && !validRelative(p.Info.Active)) {
-			s.loadErr = errors.New("R2 workspace settings are invalid")
+		_, _, err = normalize(ConnectInput{Provider: p.Config.provider(), Region: p.Config.Region, Name: p.Config.Name, Endpoint: p.Config.Endpoint, Bucket: p.Config.Bucket, Prefix: p.Config.Prefix, AccessKey: "validate", SecretKey: "validate"})
+		if err != nil || !strings.HasPrefix(root, p.Config.provider()+"://") || p.Info.Root != root || p.Queries == nil || len(p.Queries) > 256 || len(p.Info.Name) > 200 || (p.Info.Active != "" && p.Info.Active != "." && !validRelative(p.Info.Active)) {
+			s.loadErr = errors.New("Cloud workspace settings are invalid")
 			return s
 		}
 		for rel, q := range p.Queries {
 			if (rel != "." && !validRelative(rel)) || len(q.Draft) > 32768 || len(q.Applied) > 32768 {
-				s.loadErr = errors.New("R2 saved query is invalid")
+				s.loadErr = errors.New("Cloud saved query is invalid")
 				return s
 			}
 		}
@@ -78,14 +78,14 @@ func (s *Store) persist(profiles map[string]profile) error {
 		return err
 	}
 	if len(b) > 8<<20 {
-		return errors.New("R2 settings exceed 8 MiB")
+		return errors.New("Cloud settings exceed 8 MiB")
 	}
 	if err = os.MkdirAll(filepath.Dir(s.filename), 0700); err != nil {
-		return errors.New("could not save R2 workspace settings")
+		return errors.New("could not save cloud workspace settings")
 	}
 	f, err := os.CreateTemp(filepath.Dir(s.filename), ".r2-state-*")
 	if err != nil {
-		return errors.New("could not save R2 workspace settings")
+		return errors.New("could not save cloud workspace settings")
 	}
 	name := f.Name()
 	defer os.Remove(name)
@@ -101,7 +101,7 @@ func (s *Store) persist(profiles map[string]profile) error {
 		err = os.Rename(name, s.filename)
 	}
 	if err != nil {
-		return errors.New("could not save R2 workspace settings")
+		return errors.New("could not save cloud workspace settings")
 	}
 	s.profiles = profiles
 	return nil
@@ -137,19 +137,22 @@ func (s *Store) saveConnection(ctx context.Context, target string, in ConnectInp
 	previous, exists := s.profiles[target]
 	s.mu.Unlock()
 	if target != "" && !exists {
-		return nil, errors.New("R2 connection was not found")
+		return nil, errors.New("Cloud connection was not found")
 	}
-	if target != "" && in.AccessKey == "" && in.SecretKey == "" {
+	if target != "" && in.AccessKey == "" && in.SecretKey == "" && in.SessionToken == "" {
 		saved, err := s.vault.Get(target)
 		if err != nil {
 			return nil, err
 		}
-		in.AccessKey, in.SecretKey = saved.AccessKey, saved.SecretKey
+		in.AccessKey, in.SecretKey, in.SessionToken = saved.AccessKey, saved.SecretKey, saved.SessionToken
 	}
 
 	c, cred, err := normalize(in)
 	if err != nil {
 		return nil, err
+	}
+	if target != "" && c.provider() != previous.Config.provider() {
+		return nil, errors.New("create a new connection to change provider")
 	}
 	if target != "" && !previous.Closed && (c.Endpoint != previous.Config.Endpoint || c.Bucket != previous.Config.Bucket || c.Prefix != previous.Config.Prefix) {
 		return nil, errors.New("close this workspace before changing its location")
@@ -160,7 +163,7 @@ func (s *Store) saveConnection(ctx context.Context, target string, in ConnectInp
 		return nil, err
 	}
 	hash := sha256.Sum256([]byte(c.Endpoint + "\n" + c.Bucket + "\n" + c.Prefix))
-	root := fmt.Sprintf("r2://%s/%x", c.Bucket, hash[:12])
+	root := fmt.Sprintf("%s://%s/%x", c.provider(), c.Bucket, hash[:12])
 	matched := false
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -188,7 +191,7 @@ func (s *Store) saveConnection(ctx context.Context, target string, in ConnectInp
 	}
 	if len(s.profiles) >= 32 {
 		if _, ok := s.profiles[root]; !ok {
-			return nil, errors.New("up to 32 R2 connections can be saved")
+			return nil, errors.New("up to 32 cloud connections can be saved")
 		}
 	}
 	oldCred, oldErr := s.vault.Get(root)
@@ -208,7 +211,7 @@ func (s *Store) saveConnection(ctx context.Context, target string, in ConnectInp
 		p.Closed = false
 	}
 	p.Config = c
-	p.Info.Location = "r2://" + c.Bucket
+	p.Info.Location = c.provider() + "://" + c.Bucket
 	if c.Prefix != "" {
 		p.Info.Location += "/" + c.Prefix
 	}
@@ -246,7 +249,7 @@ func (s *Store) client(root string) (*Client, error) {
 	p, ok := s.profiles[root]
 	s.mu.Unlock()
 	if !ok || p.Closed {
-		return nil, errors.New("R2 workspace is closed")
+		return nil, errors.New("Cloud workspace is closed")
 	}
 	cred, err := s.vault.Get(root)
 	if err != nil {
@@ -256,7 +259,7 @@ func (s *Store) client(root string) (*Client, error) {
 }
 func (s *Store) List(ctx context.Context, root, rel string, offset int) (*workspace.Page, error) {
 	if offset < 0 || offset > 5000 {
-		return nil, errors.New("R2 directory page limit exceeded")
+		return nil, errors.New("Cloud directory page limit exceeded")
 	}
 	client, err := s.client(root)
 	if err != nil {
@@ -272,7 +275,7 @@ func (s *Store) List(ctx context.Context, root, rel string, offset int) (*worksp
 	}
 	if offset >= len(tokens) {
 		s.mu.Unlock()
-		return nil, errors.New("R2 directory cursor expired; refresh the folder")
+		return nil, errors.New("Cloud directory cursor expired; refresh the folder")
 	}
 	token := tokens[offset]
 	s.mu.Unlock()
@@ -325,10 +328,10 @@ func (s *Store) Saved(root, relative string) (workspace.Query, error) {
 	defer s.mu.Unlock()
 	p, ok := s.profiles[root]
 	if !ok || p.Closed {
-		return workspace.Query{}, errors.New("R2 workspace is closed")
+		return workspace.Query{}, errors.New("Cloud workspace is closed")
 	}
 	if relative != "." && !validRelative(relative) {
-		return workspace.Query{}, errors.New("invalid R2 object path")
+		return workspace.Query{}, errors.New("invalid cloud object path")
 	}
 	if q, ok := p.Queries[relative]; ok {
 		return q, nil
@@ -344,7 +347,7 @@ func (s *Store) edit(root string, fn func(*profile) error) error {
 	all := s.copy()
 	p, ok := all[root]
 	if !ok || p.Closed {
-		return errors.New("R2 workspace is closed")
+		return errors.New("Cloud workspace is closed")
 	}
 	if err := fn(&p); err != nil {
 		return err
@@ -354,14 +357,14 @@ func (s *Store) edit(root string, fn func(*profile) error) error {
 }
 func (s *Store) Save(root, relative string, q workspace.Query) error {
 	if relative != "." && !validRelative(relative) {
-		return errors.New("invalid R2 object path")
+		return errors.New("invalid cloud object path")
 	}
 	if len(q.Draft) > 32768 || len(q.Applied) > 32768 {
 		return errors.New("query exceeds 32 KiB")
 	}
 	return s.edit(root, func(p *profile) error {
 		if _, ok := p.Queries[relative]; !ok && len(p.Queries) >= 256 {
-			return errors.New("up to 256 saved queries per R2 workspace")
+			return errors.New("up to 256 saved queries per cloud workspace")
 		}
 		p.Queries[relative] = q
 		return nil
@@ -369,7 +372,7 @@ func (s *Store) Save(root, relative string, q workspace.Query) error {
 }
 func (s *Store) Select(root, relative string) error {
 	if relative != "." && !validRelative(relative) {
-		return errors.New("invalid R2 object path")
+		return errors.New("invalid cloud object path")
 	}
 	return s.edit(root, func(p *profile) error { p.Info.Active = relative; return nil })
 }
@@ -395,7 +398,7 @@ func (s *Store) DeleteConnection(root string) error {
 	defer s.mu.Unlock()
 	all := s.copy()
 	if _, ok := all[root]; !ok {
-		return errors.New("R2 workspace is closed")
+		return errors.New("Cloud workspace is closed")
 	}
 	delete(all, root)
 	oldCredential, credentialErr := s.vault.Get(root)
@@ -459,7 +462,7 @@ func (s *Store) Connections() ([]Connection, error) {
 	defer s.mu.Unlock()
 	out := []Connection{}
 	for root, p := range s.profiles {
-		out = append(out, Connection{root, "r2", p.Config, !p.Closed})
+		out = append(out, Connection{root, p.Config.provider(), p.Config, !p.Closed})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
 	return out, s.loadErr
@@ -469,7 +472,7 @@ func (s *Store) TestConnection(ctx context.Context, root string) error {
 	p, ok := s.profiles[root]
 	s.mu.Unlock()
 	if !ok {
-		return errors.New("R2 connection was not found")
+		return errors.New("Cloud connection was not found")
 	}
 	cred, err := s.vault.Get(root)
 	if err != nil {
@@ -489,7 +492,7 @@ func (s *Store) OpenConnection(ctx context.Context, root string) (*workspace.Inf
 	all := s.copy()
 	p, ok := all[root]
 	if !ok {
-		return nil, errors.New("R2 connection was not found")
+		return nil, errors.New("Cloud connection was not found")
 	}
 	p.Closed = false
 	all[root] = p

@@ -9,7 +9,9 @@ import (
 	"strings"
 )
 
-func isR2(root string) bool { return strings.HasPrefix(root, "r2://") }
+func isRemoteWorkspace(root string) bool {
+	return strings.HasPrefix(root, "r2://") || strings.HasPrefix(root, "s3://")
+}
 func (w *Workbench) remoteOperation(parent context.Context) (context.Context, func()) {
 	ctx, cancel := context.WithTimeout(parent, engine.Timeout)
 	w.mu.Lock()
@@ -17,6 +19,8 @@ func (w *Workbench) remoteOperation(parent context.Context) (context.Context, fu
 	w.mu.Unlock()
 	return ctx, func() { cancel(); w.mu.Lock(); w.remoteCancel = nil; w.mu.Unlock() }
 }
+
+// Legacy IPC names are retained for compatibility; provider selects R2 or AWS S3.
 func (w *Workbench) ConnectR2(ctx context.Context, input r2.ConnectInput) (*workspace.Info, error) {
 	if !w.opMu.TryLock() {
 		return nil, errors.New("another operation is running")

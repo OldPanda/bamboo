@@ -30,7 +30,11 @@ func (v *Vault) Get(id string) (r2.Credentials, error) {
 	if c, ok := v.Data[id]; ok {
 		return c, nil
 	}
-	return r2.Credentials{AccessKey: "fixture-access", SecretKey: "fixture-secret"}, nil
+	token := ""
+	if strings.HasPrefix(id, "s3://") {
+		token = "fixture-session"
+	}
+	return r2.Credentials{AccessKey: "fixture-access", SecretKey: "fixture-secret", SessionToken: token}, nil
 }
 func (v *Vault) Set(id string, c r2.Credentials) error {
 	v.mu.Lock()
@@ -92,6 +96,10 @@ func New(dir string) *Server {
 			return
 		}
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "AWS4-HMAC-SHA256 Credential=fixture-access/") {
+			w.WriteHeader(403)
+			return
+		}
+		if strings.HasPrefix(r.Host, "s3.") && (!strings.Contains(r.Header.Get("Authorization"), "/us-west-2/s3/aws4_request") || r.Header.Get("X-Amz-Security-Token") != "fixture-session") {
 			w.WriteHeader(403)
 			return
 		}

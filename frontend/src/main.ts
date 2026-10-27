@@ -59,6 +59,7 @@ app.innerHTML = `
  <div id="sources-cloud" role="tabpanel" aria-labelledby="source-cloud" hidden>
   <div id="saved-connections"></div><p id="connections-error" role="alert" hidden></p>
   <button id="open-r2" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg><span><strong>Cloudflare R2</strong><small>Connect a bucket or folder prefix</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
+  <button id="open-s3" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg><span><strong>Amazon S3</strong><small>Connect an AWS bucket</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
   <button id="manage-connections" class="quiet">Manage connections</button>
   <p class="source-note">Read-only connections. Credentials stay in macOS Keychain.</p>
  </div>
@@ -72,18 +73,23 @@ app.innerHTML = `
 </dialog>
 <dialog id="r2-dialog" class="connection-dialog" aria-labelledby="r2-title">
  <form id="r2-form" autocomplete="off">
- <div class="connection-heading"><div><h2 id="r2-title">Connect Cloudflare R2</h2><p>Browse and query Parquet files in a read-only workspace.</p></div><button id="r2-dismiss" type="button" class="quiet" aria-label="Close R2 connection">×</button></div>
- <label>Workspace name <span class="optional">optional</span><input id="r2-name" maxlength="200" placeholder="Research data"></label>
- <label>S3 endpoint<input id="r2-endpoint" type="url" required placeholder="https://ACCOUNT_ID.r2.cloudflarestorage.com" spellcheck="false"></label>
+ <div class="connection-heading"><div><h2 id="r2-title">Connect Cloudflare R2</h2><p>Browse and query Parquet files in a read-only workspace.</p></div><button id="r2-dismiss" type="button" class="quiet" aria-label="Close cloud connection">×</button></div>
+ <div class="connection-row"><label>Provider<select id="cloud-provider"><option value="r2">Cloudflare R2</option><option value="s3">Amazon S3</option></select></label>
+ <label>Workspace name <span class="optional">optional</span><input id="r2-name" maxlength="200" placeholder="Research data"></label></div>
+ <label id="endpoint-field">S3 endpoint<input id="r2-endpoint" type="url" required placeholder="https://ACCOUNT_ID.r2.cloudflarestorage.com" spellcheck="false"></label>
+ <label id="region-field" hidden>AWS Region<input id="s3-region" maxlength="40" placeholder="us-west-2" spellcheck="false"></label>
  <div class="connection-row"><label>Bucket<input id="r2-bucket" required maxlength="63" spellcheck="false" placeholder="analytics"></label><label>Folder prefix <span class="optional">optional</span><input id="r2-prefix" maxlength="1024" spellcheck="false" placeholder="orders/2026"></label></div>
  <p id="r2-edit-note" class="connection-note" hidden></p>
  <label>Access Key ID<input id="r2-access" required maxlength="256" autocomplete="off" spellcheck="false"></label>
  <label>Secret Access Key<input id="r2-secret" type="password" required maxlength="512" autocomplete="new-password" spellcheck="false"></label>
- <p class="connection-note">Use R2 Object Read only credentials scoped to this bucket. Keys are stored in macOS Keychain. Files are read from R2 as needed; queries run on this Mac.</p>
+ <label id="token-field" hidden>Session Token <span class="optional">for temporary credentials</span><input id="s3-token" type="password" maxlength="16384" autocomplete="new-password" spellcheck="false"></label>
+ <p id="cloud-credentials-note" class="connection-note">Use R2 Object Read only credentials scoped to this bucket. Keys are stored in macOS Keychain. Files are read from R2 as needed; queries run on this Mac.</p>
  <p id="r2-error" role="alert" hidden></p>
  <div class="connection-actions"><button id="r2-back" type="button" class="quiet">Back</button><button id="r2-cancel" type="button">Cancel</button><button id="r2-submit" type="submit" class="primary">Test &amp; connect</button></div>
  </form>
 </dialog>`;
+const isCloudRoot=(root:string)=>root.startsWith("r2://") || root.startsWith("s3://");
+const providerName=(provider:string)=>provider==="s3"?"Amazon S3":"Cloudflare R2";
 let file: DataFile | null = null;
 let result: Result | null = null;
 let busy = false;
@@ -127,8 +133,8 @@ function updateFolder() {
   $("query-save").hidden = !file && !folder;
   document.body.classList.toggle("workspace-query-mode", !file && !!folder);
   const sourceBadge = document.querySelector<HTMLElement>(".local-badge")!;
-  sourceBadge.hidden = !folder?.root.startsWith("r2://");
-  sourceBadge.textContent = sourceBadge.hidden ? "" : "R2 / read-only";
+  sourceBadge.hidden = !folder || !isCloudRoot(folder.root);
+  sourceBadge.textContent = sourceBadge.hidden ? "" : (folder!.root.startsWith("s3://")?"S3":"R2")+" / read-only";
   $("query-scope").textContent = file ? "Read-only / table: data" : "Read-only / workspace";
   if (!file && folder) { $("breadcrumb").textContent="Explore Data"; $("file-name").textContent=folder.name; $("file-path").textContent=displayRoot(folder); $("file-path").title=displayRoot(folder); }
   document.querySelectorAll<HTMLElement>(".workspace-group").forEach(p=>p.querySelector('[data-control="folder-name"]')!.setAttribute("aria-current",String(!file && p.dataset.root===workspaceRoot)));
@@ -354,7 +360,7 @@ async function showFolder(info:Info,restore=false){
 
   });
   $("workspace-roots").append(panel);updateFolder();
-  try { await directory(tree,info,"."); } catch(e) { if(!info.root.startsWith("r2://"))throw e;tree.replaceChildren(el("p","R2 is unavailable. Refresh to retry, or reconnect with updated credentials.","aside-hint"));notify(String(e),true); }
+  try { await directory(tree,info,"."); } catch(e) { if(!isCloudRoot(info.root))throw e;tree.replaceChildren(el("p","Cloud storage is unavailable. Refresh to retry, or reconnect with updated credentials.","aside-hint"));notify(String(e),true); }
   if(restore && info.active && info.active!=="."){try{await openFolderFile(info,info.active);}catch(e){await showWorkspace(info);notify(`Last file is unavailable. Choose another file. ${String(e)}`,true);}}
   else await showWorkspace(info);
 }
@@ -390,12 +396,12 @@ for(const kind of ["local","cloud"]) {
 const closeSources=()=>{if(sourceDialog.open)sourceDialog.close();};
 $("open-folder").onclick=()=>{closeSources();void openFolder();};
 const r2Dialog=$<HTMLDialogElement>("r2-dialog");
-const clearR2Keys=()=>{ $<HTMLInputElement>("r2-access").value="";$<HTMLInputElement>("r2-secret").value=""; };
+const clearR2Keys=()=>{ $<HTMLInputElement>("r2-access").value="";$<HTMLInputElement>("r2-secret").value="";$<HTMLInputElement>("s3-token").value=""; };
 let editingConnection="";
 let connectionOrigin:"source"|"settings"="source";
 const settingsDialog=$<HTMLDialogElement>("settings-dialog");
 let connectionLoad=0;
-function connectionLocation(c:Connection) {return "r2://"+c.config.bucket+(c.config.prefix?"/"+c.config.prefix:"");}
+function connectionLocation(c:Connection) {return (c.provider || "r2")+"://"+c.config.bucket+(c.config.prefix?"/"+c.config.prefix:"");}
 async function refreshConnections() {
  const ticket=++connectionLoad;
  $("connection-list").replaceChildren(el("p","Loading connections…","settings-empty"));$("saved-connections").replaceChildren();
@@ -409,7 +415,7 @@ async function refreshConnections() {
    const text=el("span","");text.append(el("strong",c.config.name),el("small",connectionLocation(c)));quick.append(text,el("span",c.open?"Open":"Saved","connection-status"));
    quick.onclick=()=>void openSavedConnection(c);$("saved-connections").append(quick);
    const row=el("section","","connection-item");row.dataset.root=c.root;
-   const details=el("div","","connection-detail");details.append(el("strong",c.config.name),el("small","Cloudflare R2 / "+(c.open?"Workspace open":"Saved")),el("p",connectionLocation(c)),el("small",c.config.endpoint));
+   const details=el("div","","connection-detail");details.append(el("strong",c.config.name),el("small",providerName(c.provider)+" / "+(c.open?"Workspace open":"Saved")),el("p",connectionLocation(c)),el("small",c.config.endpoint));
    const actions=el("div","","connection-item-actions");
    const button=(label:string,action:()=>void)=>{const b=el("button",label);b.onclick=action;actions.append(b);return b;};
    button("Open",()=>void openSavedConnection(c)).dataset.action="open";
@@ -437,19 +443,30 @@ $("settings-dismiss").onclick=()=>settingsDialog.close();settingsDialog.onclose=
 async function openSavedConnection(c:Connection) {
  await settingsTask("Opening connection…",async()=>{await saveQuery();const info=await Workbench.openR2Connection(c.root);if(!info)throw new Error("No workspace returned");closeSources();if(settingsDialog.open)settingsDialog.close();await showFolder(info);});
 }
-function configureR2(c?:Connection) {
+function updateProviderFields() {
+ const s3=$<HTMLSelectElement>("cloud-provider").value==="s3";
+ $("endpoint-field").hidden=s3;$("region-field").hidden=!s3;$("token-field").hidden=!s3;
+ $<HTMLInputElement>("r2-endpoint").required=!s3;$<HTMLInputElement>("s3-region").required=s3;
+ $("r2-title").textContent=(editingConnection?"Edit ":"Connect ")+providerName(s3?"s3":"r2");
+ $("cloud-credentials-note").textContent=(s3?"Use credentials with s3:ListBucket and s3:GetObject permissions. Temporary credentials also require a Session Token; replace them when they expire.":"Use R2 Object Read only credentials scoped to this bucket.")+" Credentials stay in macOS Keychain. Queries run on this Mac.";
+}
+$("cloud-provider").onchange=()=>{clearR2Keys();$("r2-error").hidden=true;updateProviderFields();};
+function configureR2(c?:Connection,provider="r2") {
  editingConnection=c?.root || "";clearR2Keys();
+ $<HTMLSelectElement>("cloud-provider").value=c?.provider || provider;$<HTMLSelectElement>("cloud-provider").disabled=!!c;
+ $<HTMLInputElement>("s3-region").value=c?.config.region || "";$<HTMLInputElement>("s3-region").readOnly=!!c?.open;
  for(const [field,value] of Object.entries({name:c?.config.name || "",endpoint:c?.config.endpoint || "",bucket:c?.config.bucket || "",prefix:c?.config.prefix || ""}))$<HTMLInputElement>("r2-"+field).value=value;
  for(const field of ["endpoint","bucket","prefix"])$<HTMLInputElement>("r2-"+field).readOnly=!!c?.open;
  for(const field of ["access","secret"])$<HTMLInputElement>("r2-"+field).required=!c;
- $("r2-edit-note").hidden=!c;$("r2-edit-note").textContent="Leave both key fields blank to keep saved credentials."+(c?.open?" Close the workspace before changing its location.":" Changing location resets saved queries.");
- $("r2-title").textContent=c?"Edit Cloudflare R2":"Connect Cloudflare R2";
+ $("r2-edit-note").hidden=!c;$("r2-edit-note").textContent="Leave all credential fields blank to keep saved credentials. Provide both keys and any Session Token to replace them."+(c?.open?" Close the workspace before changing its location.":" Changing location resets saved queries.");
+ updateProviderFields();
  $("r2-submit").textContent=connectionOrigin==="settings"?"Test & save":"Test & connect";
- $("r2-error").hidden=true;r2Dialog.showModal();$<HTMLInputElement>(c?"r2-name":"r2-endpoint").focus();
+ $("r2-error").hidden=true;r2Dialog.showModal();$<HTMLInputElement>(c?"r2-name":$<HTMLSelectElement>("cloud-provider").value==="s3"?"s3-region":"r2-endpoint").focus();
 }
 function editR2(c?:Connection) {connectionOrigin="settings";settingsDialog.close();configureR2(c);}
 $("settings-add").onclick=()=>editR2();
 $("open-r2").onclick=()=>{connectionOrigin="source";closeSources();configureR2();};
+$("open-s3").onclick=()=>{connectionOrigin="source";closeSources();configureR2(undefined,"s3");};
 r2Dialog.onclose=()=>{clearR2Keys();$("open-data").focus();};
 function leaveR2(back=false){r2Dialog.close();if(connectionOrigin==="settings")showSettings();else if(back){showSources($("open-data"));selectSource("cloud");$("source-cloud").focus();}}
 $("r2-back").onclick=()=>leaveR2(true);
@@ -458,16 +475,17 @@ $("r2-dismiss").onclick=()=>leaveR2();
 $("r2-cancel").onclick=()=>{if(busy)void Workbench.cancel();else leaveR2();};
 $("r2-form").onsubmit=e=>{
  e.preventDefault();if(busy)return;
- const input={name:$<HTMLInputElement>("r2-name").value,endpoint:$<HTMLInputElement>("r2-endpoint").value,bucket:$<HTMLInputElement>("r2-bucket").value,prefix:$<HTMLInputElement>("r2-prefix").value,accessKey:$<HTMLInputElement>("r2-access").value,secretKey:$<HTMLInputElement>("r2-secret").value};
+ const provider=$<HTMLSelectElement>("cloud-provider").value;
+ const input={provider,region:provider==="s3"?$<HTMLInputElement>("s3-region").value:"",sessionToken:provider==="s3"?$<HTMLInputElement>("s3-token").value:"",name:$<HTMLInputElement>("r2-name").value,endpoint:provider==="s3"?"":$<HTMLInputElement>("r2-endpoint").value,bucket:$<HTMLInputElement>("r2-bucket").value,prefix:$<HTMLInputElement>("r2-prefix").value,accessKey:$<HTMLInputElement>("r2-access").value,secretKey:$<HTMLInputElement>("r2-secret").value};
  clearR2Keys();$("r2-error").hidden=true;$("r2-submit").textContent="Testing…";
- void task("Testing R2 connection…",async()=>{
+ void task("Testing cloud connection…",async()=>{
   try {
    await saveQuery();const info=connectionOrigin==="settings"?await Workbench.saveR2Connection(editingConnection,input):await Workbench.connectR2(input);
-   if(!info)throw new Error("No R2 workspace returned");
+   if(!info)throw new Error("No cloud workspace returned");
    const existing=folders.get(info.root);if(existing){Object.assign(existing,info);document.querySelectorAll<HTMLElement>(".workspace-group").forEach(p=>{if(p.dataset.root===info.root)p.querySelector<HTMLElement>('[data-control="folder-name"]')!.textContent=info.name;});updateFolder();}
    r2Dialog.close();if(connectionOrigin==="settings")showSettings();else await showFolder(info);
   }catch(e){$("r2-error").textContent=String(e);$("r2-error").hidden=false;throw e;}
-  finally{input.accessKey="";input.secretKey="";$("r2-submit").textContent=connectionOrigin==="settings"?"Test & save":"Test & connect";}
+  finally{input.accessKey="";input.secretKey="";input.sessionToken="";$("r2-submit").textContent=connectionOrigin==="settings"?"Test & save":"Test & connect";}
  });
 };
 $("sql").oninput=queryEdited;$("sql").onblur=()=>{if(saveTimer)void saveQuery();};
@@ -503,6 +521,7 @@ function controls() {
       | HTMLTextAreaElement
     >("button,input,select,textarea")
     .forEach((n) => (n.disabled = busy && n.id !== "cancel" && n.id !== "r2-cancel" && n.id !== "settings-cancel"));
+  $<HTMLSelectElement>("cloud-provider").disabled=busy || !!editingConnection;
   $("previous").toggleAttribute(
     "disabled",
     busy || !result || request.offset === 0,

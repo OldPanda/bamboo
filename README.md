@@ -173,3 +173,10 @@ Choose **Open data → Cloud storage → Cloudflare R2**, enter the bucket's S3 
 R2 appears beside local workspaces. You can query immediately without opening a document, browse folders, preview Parquet, inspect schema, and join files using `workspace."orders.parquet"` / `workspace."nested/other.parquet"`. Reads use byte ranges; large scans can still transfer substantial data and consume R2 read operations. Export remains local and page-only.
 
 See [R2_WORKSPACES.md](R2_WORKSPACES.md) for setup, read boundaries, validation and limitations. The macOS arm64 build downloads a hash-pinned official httpfs extension once and packages it for offline startup. Local-only workspaces make no R2 requests.
+
+
+## Amazon S3 workspaces
+
+Choose **Open data → Cloud storage → Amazon S3**, or add a connection in **Settings**. Supply the bucket's AWS Region, bucket, optional prefix and read credentials; temporary credentials include a Session Token. S3 supports the same Parquet preview, schema, paging and workspace SQL as R2. Credentials remain in macOS Keychain. Closing a workspace keeps its saved connection; deleting a connection never deletes cloud files.
+
+See [S3_WORKSPACES.md](S3_WORKSPACES.md) for setup, least-privilege example, protocol boundaries and supported bucket types. Actual AWS-account acceptance remains separate from the automated native-window/S3-protocol checks.

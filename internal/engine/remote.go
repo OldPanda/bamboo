@@ -27,10 +27,10 @@ func (e *Engine) SetHTTPFS(p string) { e.httpfs = p }
 func remoteDatabase(ctx context.Context, paths []string, extension string) (*sql.DB, error) {
 	b, err := os.ReadFile(extension)
 	if err != nil {
-		return nil, errors.New("R2 reader is not installed; rebuild Bamboo with scripts/build.sh")
+		return nil, errors.New("Cloud reader is not installed; rebuild Bamboo with scripts/build.sh")
 	}
 	if fmt.Sprintf("%x", sha256.Sum256(b)) != HTTPFSSHA256 {
-		return nil, errors.New("R2 reader integrity check failed")
+		return nil, errors.New("Cloud reader integrity check failed")
 	}
 	db, err := sql.Open("duckdb", "?threads=2&memory_limit=256MB&max_temp_directory_size=0B&autoload_known_extensions=false&autoinstall_known_extensions=false")
 	if err != nil {
@@ -97,7 +97,7 @@ func remoteError(scope *RemoteScope, err error) error {
 	}
 	s := err.Error()
 	for _, p := range scope.Paths {
-		s = strings.ReplaceAll(s, p, "[R2 object]")
+		s = strings.ReplaceAll(s, p, "[cloud object]")
 	}
 	return errors.New(s)
 }

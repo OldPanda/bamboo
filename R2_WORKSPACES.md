@@ -17,7 +17,7 @@ ORDER BY a.order_id
 
 ## Data and credentials
 
-- Only HTTPS Cloudflare R2 S3 endpoints are accepted, including supported jurisdiction variants. The transport never discovers ambient AWS credentials and never follows redirects.
+- For R2 connections, only HTTPS Cloudflare R2 S3 endpoints are accepted, including supported jurisdiction variants. The transport never discovers ambient AWS credentials and never follows redirects.
 - Credentials are stored through the native macOS Security framework under Bamboo's Keychain service. They are absent from JSON settings, SQL and logs; the form clears inputs on submit/close. Unlock or approve Keychain access if macOS requests it. Rebuilding an ad-hoc signed app can cause macOS to request access again.
 - Metadata and SQL are stored in `~/Library/Application Support/Bamboo/r2-workspaces.json` with private file permissions and atomic replacement. No metadata is written into the bucket.
 - Queries execute locally. Each query obtains current metadata, then reads selected byte ranges guarded by ETag/If-Match. It does not silently fall back to downloading entire objects. There is no persistent object cache. Different queries may observe newer versions; multiple objects do not form a transactional snapshot.
@@ -38,7 +38,7 @@ Official references: [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api
 
 ## Connection settings
 
-**Settings → Cloud connections** separates reusable connection profiles from currently open workspaces. Adding a connection here tests and saves it without opening it. Open data shows saved connections alongside the provider entry. Current supported provider: Cloudflare R2; future providers belong in this same management surface, not additional sidebar buttons.
+**Settings → Cloud connections** separates reusable connection profiles from currently open workspaces. Adding a connection here tests and saves it without opening it. Open data shows saved connections alongside the provider entry. Current supported providers: Cloudflare R2 and Amazon S3; future providers belong in this same management surface, not additional sidebar buttons.
 
 - Edit name or rotate credentials. Existing keys are never returned over IPC or filled into the form. Leave both key fields blank to retain them; provide both to replace them.
 - Close the workspace before changing endpoint, bucket or prefix. Changing location resets its saved SQL to avoid applying queries to a different dataset. Renaming/rotating keys preserves SQL and the stable connection identity.

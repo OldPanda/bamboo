@@ -8,11 +8,11 @@ type unavailableVault struct{}
 
 func NewVault() Vault { return unavailableVault{} }
 func (unavailableVault) Get(string) (Credentials, error) {
-	return Credentials{}, errors.New("R2 credential storage requires macOS Keychain")
+	return Credentials{}, errors.New("Cloud credential storage requires macOS Keychain")
 }
 func (unavailableVault) Set(string, Credentials) error {
-	return errors.New("R2 credential storage requires macOS Keychain")
+	return errors.New("Cloud credential storage requires macOS Keychain")
 }
 func (unavailableVault) Delete(string) error {
-	return errors.New("R2 credential storage requires macOS Keychain")
+	return errors.New("Cloud credential storage requires macOS Keychain")
 }

@@ -47,7 +47,7 @@ func (keychain) Set(id string, cred Credentials) error {
 	defer C.free(unsafe.Pointer(cid))
 	status := C.bset(cid, unsafe.Pointer(&b[0]), C.int(len(b)))
 	if status != 0 {
-		return fmt.Errorf("could not save R2 credentials in Keychain (status %d)", int(status))
+		return fmt.Errorf("could not save Cloud credentials in Keychain (status %d)", int(status))
 	}
 	return nil
 }
@@ -58,14 +58,14 @@ func (keychain) Get(id string) (Credentials, error) {
 	var n C.int
 	status := C.bget(cid, &b, &n)
 	if status != 0 {
-		return Credentials{}, fmt.Errorf("R2 credentials unavailable; reconnect or unlock Keychain (status %d)", int(status))
+		return Credentials{}, fmt.Errorf("Cloud credentials unavailable; reconnect or unlock Keychain (status %d)", int(status))
 	}
 	defer C.free(b)
 	data := C.GoBytes(b, n)
 	defer clear(data)
 	var c Credentials
 	if json.Unmarshal(data, &c) != nil {
-		return c, fmt.Errorf("R2 credentials are invalid; reconnect this workspace")
+		return c, fmt.Errorf("Cloud credentials are invalid; reconnect this workspace")
 	}
 	return c, nil
 }
@@ -73,7 +73,7 @@ func (keychain) Delete(id string) error {
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
 	if s := C.bdelete(cid); s != 0 {
-		return fmt.Errorf("could not remove R2 credentials from Keychain (status %d)", int(s))
+		return fmt.Errorf("could not remove Cloud credentials from Keychain (status %d)", int(s))
 	}
 	return nil
 }

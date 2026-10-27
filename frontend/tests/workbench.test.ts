@@ -525,7 +525,7 @@ describe("R2 connection workspaces",()=>{
   setup();await boot();await click("open-r2");fill();responses["Workbench.ConnectR2"]=()=>{throw new Error("R2 access denied")};await submit();
   expect($("r2-error").textContent).toContain("R2 access denied");expect($("r2-error").hidden).toBe(false);expect(document.body.textContent).not.toContain("test-secret");expect($<HTMLInputElement>("r2-secret").value).toBe("");
   await click("r2-cancel");expect($<HTMLDialogElement>("r2-dialog").open).toBe(false);await click("open-r2");expect($("r2-error").hidden).toBe(true);await click("r2-dismiss");
-  await click("open-r2");fill();responses["Workbench.ConnectR2"]=()=>null;await submit();expect($("r2-error").textContent).toContain("No R2 workspace");
+  await click("open-r2");fill();responses["Workbench.ConnectR2"]=()=>null;await submit();expect($("r2-error").textContent).toContain("No cloud workspace");
  });
  it("cancels an in-flight connection and retains a disconnected R2 root for refresh",async()=>{
   setup();await boot();await click("open-r2");fill();let reject!: (e:Error)=>void;
@@ -534,5 +534,41 @@ describe("R2 connection workspaces",()=>{
   const cancel=new Event("cancel",{cancelable:true});$("r2-dialog").dispatchEvent(cancel);expect(cancel.defaultPrevented).toBe(true);await settled();expect($("r2-error").textContent).toContain("canceled");
   fill();responses["Workbench.ConnectR2"]=()=>({root,name:"Cloud analytics",active:"."});responses["Workbench.ListDirectory"]=()=>{throw new Error("R2 network unavailable")};await submit();
   expect(document.querySelector(".folder-tree")!.textContent).toContain("Refresh to retry");expect($("workspace").hidden).toBe(false);
+ });
+});
+
+
+describe("AWS S3 connections",()=>{
+ const root="s3://analytics/test-connection";
+ function setup(){
+  responses["Workbench.ConnectR2"]=()=>({root,name:"S3 analytics",active:"."});
+  responses["Workbench.ListDirectory"]=()=>({entries:[{name:"orders.parquet",path:"orders.parquet",directory:false}],next:0,more:false});
+  responses["Workbench.SaveWorkspaceQuery"]=()=>undefined;
+  responses["Workbench.CloseWorkspace"]=()=>undefined;
+ }
+ const provider=(v:string)=>{value('cloud-provider',v);$('cloud-provider').dispatchEvent(new Event('change'));};
+ async function submit(){$('r2-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await settled();}
+ it("opens S3 with regional temporary credentials and keeps secrets off the page",async()=>{
+  setup();await boot();await click('open-data');await click('source-cloud');await click('open-s3');
+  expect($('r2-title').textContent).toBe('Connect Amazon S3');expect($('endpoint-field').hidden).toBe(true);expect($('region-field').hidden).toBe(false);
+  value('s3-region','us-west-2');value('r2-bucket','analytics');value('r2-access','test-access');value('r2-secret','test-secret');value('s3-token','test-session');await submit();
+  const call=bridge.call.mock.calls.find(([name])=>name==='Workbench.ConnectR2')!;expect(call[1]).toMatchObject({provider:'s3',region:'us-west-2',endpoint:''});
+  expect($<HTMLInputElement>('s3-token').value).toBe('');expect(document.body.textContent).not.toContain('test-session');expect(document.querySelector('.local-badge')!.textContent).toBe('S3 / read-only');
+  value('sql','SELECT * FROM workspace."orders.parquet"');$('sql').dispatchEvent(new Event('input'));await click('run');expect($('grid').querySelectorAll('tbody tr').length).toBe(2);
+  await click('folder-close');expect($('welcome').hidden).toBe(false);
+ });
+ it("switches providers in Settings and edits saved S3 without returning credentials",async()=>{
+  setup();const c={root,provider:'s3',config:{provider:'s3',region:'eu-west-1',name:'Saved S3',endpoint:'https://s3.eu-west-1.amazonaws.com',bucket:'analytics',prefix:'sales'},open:false};
+  responses['Workbench.ListConnections']=()=>[c];responses['Workbench.SaveR2Connection']=()=>({root,name:'Renamed S3',active:'.'});
+  await boot();await click('settings');await vi.waitFor(()=>expect($('connection-list').textContent).toContain('Amazon S3'));
+  expect($('connection-list').textContent).toContain('s3://analytics/sales');document.querySelector<HTMLButtonElement>('[data-action="edit"]')!.click();
+  expect($<HTMLSelectElement>('cloud-provider').disabled).toBe(true);expect($<HTMLInputElement>('s3-region').value).toBe('eu-west-1');expect($<HTMLInputElement>('s3-token').value).toBe('');value('r2-name','Renamed S3');await submit();
+  expect($<HTMLDialogElement>('settings-dialog').open).toBe(true);await click('settings-add');provider('s3');value('s3-token','temporary');provider('r2');expect($<HTMLInputElement>('s3-token').value).toBe('');expect($('endpoint-field').hidden).toBe(false);expect($<HTMLInputElement>('s3-region').required).toBe(false);
+  provider('s3');value('s3-token','temporary');await click('r2-back');expect($<HTMLInputElement>('s3-token').value).toBe('');
+ });
+ it("shows S3 errors, clears session tokens and locks open connection regions",async()=>{
+  setup();responses['Workbench.ConnectR2']=()=>{throw Error('AWS S3 rejected the request; check bucket region and credentials')};await boot();await click('open-s3');value('s3-region','us-east-1');value('r2-bucket','analytics');value('r2-access','key');value('r2-secret','secret');value('s3-token','temporary');await submit();expect($('r2-error').textContent).toContain('bucket region');expect($<HTMLInputElement>('s3-token').value).toBe('');await click('r2-cancel');
+  responses['Workbench.ListConnections']=()=>[{root,provider:'s3',config:{region:'us-east-1',name:'S3',endpoint:'https://s3.us-east-1.amazonaws.com',bucket:'analytics',prefix:''},open:true}];
+  await click('settings');await vi.waitFor(()=>expect(document.querySelector('.connection-item')).not.toBeNull());document.querySelector<HTMLButtonElement>('[data-action="edit"]')!.click();expect($<HTMLInputElement>('s3-region').readOnly).toBe(true);
  });
 });

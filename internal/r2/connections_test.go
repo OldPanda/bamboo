@@ -149,7 +149,7 @@ func TestConnectionEditFailures(t *testing.T) {
 	if err := s.TestConnection(ctx, first.Root); err == nil {
 		t.Fatal("missing vault test")
 	}
-	v.data[first.Root] = Credentials{input().AccessKey, input().SecretKey}
+	v.data[first.Root] = Credentials{AccessKey: input().AccessKey, SecretKey: input().SecretKey}
 	blocker := filepath.Join(t.TempDir(), "file")
 	if err := os.WriteFile(blocker, []byte("x"), 0600); err != nil {
 		t.Fatal(err)

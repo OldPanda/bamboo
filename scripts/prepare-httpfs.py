@@ -2,7 +2,7 @@
 """Fetch only the pinned, official DuckDB extension during an explicit build."""
 import gzip, hashlib, io, pathlib, platform, subprocess
 if platform.system() != 'Darwin' or platform.machine() != 'arm64':
-    raise SystemExit('This R2 build currently supports macOS arm64 only.')
+    raise SystemExit('This cloud-reader build currently supports macOS arm64 only.')
 sha = 'c2d72a98ad081bf4d62c908b8d9f60b70ab1b83faa9141fc7e7d53526658761d'
 target = pathlib.Path('build/extensions/httpfs.duckdb_extension')
 if target.exists() and hashlib.sha256(target.read_bytes()).hexdigest() == sha:

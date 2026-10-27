@@ -247,7 +247,7 @@ body.is-busy select:disabled, body.is-busy textarea:disabled { opacity: 1; }
 .connection-heading h2 { margin: 0 0 var(--space-xs); font-size: 22px; }
 .connection-heading p, .connection-note { color: var(--muted); font-size: 13px; line-height: 1.6; }
 .connection-dialog label { display: block; font-size: 13px; margin-bottom: var(--space-sm); }
-.connection-dialog input { width: 100%; box-sizing: border-box; display: block; margin-top: var(--space-2xs); }
+.connection-dialog input, .connection-dialog select { width: 100%; box-sizing: border-box; display: block; margin-top: var(--space-2xs); }
 .connection-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
 .connection-actions { display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: 20px; }
 .connection-dialog .optional { color: var(--muted); font-size: 12px; }

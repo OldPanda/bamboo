@@ -167,6 +167,7 @@ def main():
     run(["npm", "exec", "tsc", "--", "--noEmit"], "tsc.log")
     if not unit:
         run([sys.executable, "scripts/validate-r2.py"], "r2-native.log")
+        run([sys.executable, "scripts/validate-s3.py"], "s3-native.log")
     run(["npm", "audit", "--json"], "npm-audit.json")
     run(["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.9.0", "./..."], "govulncheck.log")
     assert sources() == source_hashes, "Sources changed while coverage was running; rerun the workflow."

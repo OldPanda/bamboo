@@ -10,6 +10,8 @@ export interface Column {
 }
 
 export interface Config {
+  provider?: string;
+  region?: string;
   name: string;
   endpoint: string;
   bucket: string;
@@ -17,6 +19,9 @@ export interface Config {
 }
 
 export interface ConnectInput {
+  provider: string;
+  region: string;
+  sessionToken: string;
   name: string;
   endpoint: string;
   bucket: string;
@@ -111,6 +116,7 @@ export const Workbench = {
   closeWorkspaceFile(root: string, relative: string): Promise<void> {
     return call("Workbench.CloseWorkspaceFile", root, relative);
   },
+  /** Legacy IPC names are retained for compatibility; provider selects R2 or AWS S3. */
   connectR2(input: ConnectInput): Promise<Info | null> {
     return call("Workbench.ConnectR2", input);
   },

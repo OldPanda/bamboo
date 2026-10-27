@@ -31,13 +31,13 @@ func (w *Workbench) useWorkspace(path string) (*workspace.Info, error) {
 	return w.folders.Use(path)
 }
 func (w *Workbench) RenameWorkspace(root, name string) (*workspace.Info, error) {
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		return w.remote.Rename(root, name)
 	}
 	return w.folders.Rename(root, name)
 }
 func (w *Workbench) ListDirectory(root, relative string, offset int) (*workspace.Page, error) {
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		if !w.opMu.TryLock() {
 			return nil, errors.New("another operation is running")
 		}
@@ -49,7 +49,7 @@ func (w *Workbench) ListDirectory(root, relative string, offset int) (*workspace
 	return w.folders.List(root, relative, offset)
 }
 func (w *Workbench) SaveWorkspaceQuery(root, relative, draft, applied string) error {
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		return w.remote.Save(root, relative, workspace.Query{Draft: draft, Applied: applied})
 	}
 	return w.folders.Save(root, relative, workspace.Query{Draft: draft, Applied: applied})
@@ -59,7 +59,7 @@ func (w *Workbench) OpenWorkspaceFile(ctx context.Context, root, relative string
 		return nil, errors.New("another operation is running")
 	}
 	defer w.opMu.Unlock()
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		return w.openRemoteFile(ctx, root, relative)
 	}
 	path, err := w.folders.Resolve(root, relative)
@@ -102,7 +102,7 @@ func (w *Workbench) RestoreWorkspaces() (*workspace.Restored, error) {
 	return restored, nil
 }
 func (w *Workbench) CloseWorkspace(root string) error {
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		if !w.opMu.TryLock() {
 			return errors.New("another operation is running")
 		}
@@ -112,7 +112,7 @@ func (w *Workbench) CloseWorkspace(root string) error {
 	return w.folders.Close(root)
 }
 func (w *Workbench) CloseWorkspaceFile(root, relative string) error {
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		return w.remote.CloseFile(root, relative)
 	}
 	return w.folders.CloseFile(root, relative)
@@ -133,7 +133,7 @@ func (w *Workbench) ClearPreview() error {
 
 // OpenWorkspaceQuery restores the independent folder query and remembers this view.
 func (w *Workbench) OpenWorkspaceQuery(root string) (workspace.Query, error) {
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		q, err := w.remote.Saved(root, ".")
 		if err != nil {
 			return q, err
@@ -151,7 +151,7 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 		return nil, errors.New("another operation is running")
 	}
 	defer w.opMu.Unlock()
-	if isR2(root) {
+	if isRemoteWorkspace(root) {
 		result, err := w.engine.QueryRemoteWorkspace(ctx, r, w.remote.Resolver(root))
 		if err == nil {
 			w.mu.Lock()
