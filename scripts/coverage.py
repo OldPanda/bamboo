@@ -123,6 +123,11 @@ def smoke(
 def main():
     """Collect unit coverage and optionally native desktop coverage with source manifests."""
     unit = "--unit" in sys.argv
+    ci = "--ci" in sys.argv
+    if ci and unit:
+        raise SystemExit(
+            "--ci requires native desktop coverage; do not combine with --unit"
+        )
     OUT.mkdir(parents=True, exist_ok=True)
     source_hashes = sources()
     # Never reuse a stale desktop report or profile for a new unit-only run.
@@ -134,15 +139,19 @@ def main():
     # temporary disk use bounded without changing the coverage scope.
     run(
         [
-            "go",
+            sys.executable,
+            "scripts/go-release.py",
+            "--with-smoke",
             "test",
             "-p=1",
-            "-coverpkg=./...",
-            "-ldflags=-s -w",
+            "-coverpkg=.,./internal/...,./cmd/...",
+            "-timeout=300s",
             "-count=1",
             "-json",
             "-coverprofile=artifacts/coverage/go-unit.out",
-            "./...",
+            ".",
+            "./internal/...",
+            "./cmd/...",
         ],
         "go-tests.jsonl",
     )
@@ -189,7 +198,18 @@ def main():
         (desktop / "raw").mkdir(parents=True)
         # Fixtures are generated locally, never taken from a user's dataset.
         fixture_dir = ROOT / "build/coverage-fixtures"
-        run(["go", "run", "./cmd/fixtures", str(fixture_dir)], "fixtures.log")
+        run(
+            [
+                sys.executable,
+                "scripts/go-release.py",
+                "build",
+                "-o",
+                "build/bamboo-fixtures",
+                "./cmd/fixtures",
+            ],
+            "build-fixtures.log",
+        )
+        run([str(ROOT / "build/bamboo-fixtures"), str(fixture_dir)], "fixtures.log")
         fixture = fixture_dir / "orders.parquet"
         smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop)
         (fixture.parent / "nested").mkdir(exist_ok=True)
@@ -366,7 +386,18 @@ def main():
             ["codesign", "--verify", "--deep", "--strict", "build/Bamboo.app"],
             "signature.log",
         )
-    run(["go", "vet", "./..."], "go-vet.log")
+    run(
+        [
+            sys.executable,
+            "scripts/go-release.py",
+            "--with-smoke",
+            "vet",
+            ".",
+            "./internal/...",
+            "./cmd/...",
+        ],
+        "go-vet.log",
+    )
     run(["npm", "exec", "tsc", "--", "--noEmit"], "tsc.log")
     if not unit:
         run([sys.executable, "scripts/validate-r2.py"], "r2-native.log")
@@ -382,10 +413,17 @@ def main():
     (OUT / "source-manifest.json").write_text(
         json.dumps({"sourceSHA256": source_hashes}, indent=2) + "\n"
     )
-    run(
-        [sys.executable, "scripts/coverage_report.py", "--unit" if unit else "--check"],
-        "report.log",
-    )
+    if ci:
+        run([sys.executable, "scripts/check_coverage.py"], "report.log")
+    else:
+        run(
+            [
+                sys.executable,
+                "scripts/coverage_report.py",
+                "--unit" if unit else "--check",
+            ],
+            "report.log",
+        )
 
 
 if __name__ == "__main__":

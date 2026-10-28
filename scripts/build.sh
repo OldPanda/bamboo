@@ -2,6 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export GOTOOLCHAIN=go1.27.3
+# Reject invalid versions before doing any build work.
+python3 scripts/release_version.py >/dev/null
 python3 scripts/prepare-httpfs.py
 # A tiny placeholder breaks the first-build embed/bindings dependency cycle.
 mkdir -p frontend/dist build
@@ -43,6 +45,7 @@ if [ "$(uname -s)" = Darwin ]; then
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+  python3 scripts/release_version.py --plist "$bundle/Contents/Info.plist" >/dev/null
   mkdir -p "$bundle/Contents/Resources/extensions"
   cp build/extensions/httpfs.duckdb_extension "$bundle/Contents/Resources/extensions/"
   cp -R licenses "$bundle/Contents/Resources/"

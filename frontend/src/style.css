@@ -110,8 +110,6 @@ textarea:focus-visible {
 }
 .brand-mark {
   filter: var(--bamboo-icon-filter);
-}
-.brand-mark {
   display: block;
   width: 36px;
   height: 36px;
@@ -1337,8 +1335,6 @@ body.is-busy textarea:disabled {
   color: var(--muted);
   font-size: var(--text-sm);
   line-height: 1.6;
-}
-.source-note {
   margin: var(--space-sm);
 }
 #sources-cloud #open-r2 {

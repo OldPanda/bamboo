@@ -25,11 +25,8 @@
   --text-md: 1rem;
   --text-lg: 1.169231rem;
   --text-xl: 1.369231rem;
-  --text-2xl: 1.6rem;
   --text-3xl: 1.876923rem;
   --text-display: var(--text-3xl);
-  --text-section: var(--text-xl);
-  --text-title: var(--text-lg);
   --display-weight: 600;
   --tracking-display: -0.02em;
   --space-3xs: 2px;
@@ -39,14 +36,10 @@
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 40px;
-  --space-2xl: 64px;
-  --space-3xl: 96px;
-  --space-4xl: 144px;
   --color-paper: #ffffff;
   --color-paper-2: #f9fafb;
   --color-paper-3: #f3f4f6;
   --color-ink: #111827;
-  --color-ink-2: #374151;
   --color-muted: #4b5563;
   --color-rule: #e5e7eb;
   --color-rule-2: #7b8593;
@@ -61,11 +54,7 @@
   --radius-card: 8px;
   --radius-input: 4px;
   --dur-micro: 120ms;
-  --dur-short: 220ms;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --z-base: 1;
   --z-sticky: 200;
-  --z-modal: 400;
   --z-toast: 500;
   --line: var(--color-rule);
   --muted: var(--color-muted);
@@ -74,7 +63,6 @@
   --hover: #f2f9ff;
   --side: var(--color-paper-2);
   --ink: var(--color-ink);
-  --app: var(--color-paper);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -85,7 +73,6 @@
     --color-paper-2: #313131;
     --color-paper-3: #404040;
     --color-ink: #f5f5f5;
-    --color-ink-2: #d4d4d4;
     --color-muted: #b5b5b5;
     --color-rule: #3d3d3d;
     --color-rule-2: #858585;

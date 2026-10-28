@@ -14,7 +14,9 @@
     "coverage:unit": "python3 scripts/coverage.py --unit",
     "test:perf": "python3 scripts/performance.py",
     "lint": "python3 scripts/lint.py",
-    "format": "python3 scripts/lint.py --format"
+    "format": "python3 scripts/lint.py --format",
+    "coverage:ci": "python3 scripts/coverage.py --ci",
+    "package:dmg": "bash scripts/package-dmg.sh"
   },
   "dependencies": {
     "mygo-runtime": "0.6.4"

@@ -42,11 +42,7 @@ export const chinese: Record<string, string> = {
   "Save changes": "保存更改",
   "Saved. Applies to the next query.": "已保存，下次查询生效。",
   "⌘ + Enter to run": "⌘ + Enter 运行",
-  "Use SSD space when a query exceeds memory. 0 disables spilling. Keeps at least 1 GiB free where possible; temporary data is cleaned after queries.":
-    "查询超出内存时使用 SSD 临时空间，设为 0 可禁用。尽可能保留至少 1 GiB 空闲空间，查询结束后清理临时数据。",
   "could not save resource settings": "无法保存资源设置",
-  "temporary disk space must be between 0 and 64 GiB":
-    "临时磁盘空间必须为 0–64 GiB",
   "query timeout must be between 15 and 3600 seconds":
     "查询超时必须为 15–3600 秒",
   "query stopped to preserve free disk space":
@@ -55,7 +51,6 @@ export const chinese: Record<string, string> = {
   "{provider} / read-only": "{provider} / 只读",
   General: "通用",
   Language: "语言",
-  "Interface language": "界面语言",
   Settings: "设置",
   "Settings categories": "设置分类",
   "Cloud connections": "云连接",
@@ -75,15 +70,6 @@ export const chinese: Record<string, string> = {
   "Export the visible result page as JSON or CSV":
     "将当前结果页导出为 JSON 或 CSV",
   "Explore your data": "探索你的数据",
-  "Explore a local file, a folder, or a cloud workspace.":
-    "打开本地文件、文件夹或云端工作区。",
-  "or drop a .parquet file anywhere": "也可以将 .parquet 文件拖入窗口",
-  "Browse rows": "浏览数据",
-  "Small pages, precise values.": "按页加载，保留精确数值。",
-  "Query with SQL": "使用 SQL 查询",
-  "Filter, sort, and query.": "筛选、排序和查询。",
-  "Keep it local": "本地处理",
-  "Your files stay yours.": "你的文件由你掌控。",
   "File metadata": "文件元数据",
   rows: "行",
   columns: "字段",
@@ -105,7 +91,6 @@ export const chinese: Record<string, string> = {
   "for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.":
     "查询当前文件，或插入下方工作区表进行 JOIN 或 UNION 查询。展开侧栏文件夹可显示更多表，仅限当前工作区。",
   "SQL query": "SQL 查询",
-  "⌘ + Enter to run / 15 second timeout": "⌘ + Enter 运行 / 超时限制 15 秒",
   "Run query": "运行查询",
   Column: "字段",
   "Filter column": "筛选字段",
@@ -244,11 +229,9 @@ export const chinese: Record<string, string> = {
   Open: "已打开",
   Saved: "已保存",
   "Workspace open": "工作区已打开",
-  "{provider} / {status}": "{provider} / {status}",
   "Open connection": "打开连接",
   "Edit connection": "编辑连接",
   "Delete connection": "删除连接",
-  "{action}: {name}": "{action}：{name}",
   "Confirm deletion of {name}": "确认删除 {name}",
   "Delete “{name}”?": "删除“{name}”？",
   "This removes the saved connection and credentials and closes its open files. Cloud files stay unchanged.":

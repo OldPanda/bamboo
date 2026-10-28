@@ -2,7 +2,6 @@
 
 import http.server
 import subprocess
-import tempfile
 import threading
 from pathlib import Path
 
@@ -86,18 +85,17 @@ try:
         ("workspace-dark", 1100, 800, "zh-CN", True),
         ("workspace-small", 390, 600, "en", False),
     ]:
-        with tempfile.TemporaryDirectory(prefix="bamboo-headless-") as profile:
-            cmd = [
-                "node",
-                str(Path(__file__).with_name("visual-capture.mjs")),
-                f"http://127.0.0.1:{server.server_port}/?lang={lang}{'&active=1' if dark else ''}",
-                str(out),
-                name,
-                str(width),
-                str(height),
-                "dark" if dark else "light",
-            ]
-            subprocess.run(cmd, check=True, timeout=40)
+        cmd = [
+            "node",
+            str(Path(__file__).with_name("visual-capture.mjs")),
+            f"http://127.0.0.1:{server.server_port}/?lang={lang}{'&active=1' if dark else ''}",
+            str(out),
+            name,
+            str(width),
+            str(height),
+            "dark" if dark else "light",
+        ]
+        subprocess.run(cmd, check=True, timeout=40)
 
 finally:
     server.shutdown()

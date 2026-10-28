@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Release quality gate
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build macOS DMG
+    needs: quality
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      BAMBOO_VERSION: ${{ github.ref_name }}
+      GOTOOLCHAIN: go1.27.3
+      GOMAXPROCS: "3"
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "22.23.3"
+          cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Validate tag version
+        id: version
+        run: python3 scripts/release_version.py --github-output "$GITHUB_OUTPUT"
+      - name: Build app and installer
+        run: |
+          test "$(uname -m)" = arm64
+          npm ci
+          go mod download go.duckdb.org/libduckdb/darwin-arm64
+          npm run build
+          git diff --exit-code -- frontend/src/mygo.ts
+          npm run package:dmg
+      - name: Upload verified installer
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: macos-installer
+          path: build/releases/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: macos-installer
+          path: installer
+      - name: Verify and publish installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        working-directory: installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="Bamboo-${VERSION}-macOS-arm64.dmg"
+          sha256sum --check "$name.sha256"
+          if draft=$(gh release view "$TAG" --json isDraft --jq '.isDraft'); then
+            if [ "$draft" != true ]; then
+              echo "Release $TAG is already published; leaving its assets unchanged."
+              exit 0
+            fi
+          else
+            gh release create "$TAG" --verify-tag --draft \
+              --title "Bamboo $VERSION" --generate-notes \
+              --prerelease="$PRERELEASE" \
+              --notes "macOS Apple Silicon (arm64). This build is ad-hoc signed and is not Apple-notarized."
+          fi
+          gh release upload "$TAG" "$name" "$name.sha256" --clobber
+          gh release edit "$TAG" --draft=false --prerelease="$PRERELEASE"

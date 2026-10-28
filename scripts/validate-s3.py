@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -15,7 +16,16 @@ OUT.mkdir(parents=True, exist_ok=True)
 ENV = {**os.environ, "GOTOOLCHAIN": "go1.27.3"}
 binary = ROOT / "build/bamboo-s3-validation"
 subprocess.run(
-    ["go", "build", "-tags=cloudsmoke", "-ldflags=-s -w", "-o", str(binary), "."],
+    [
+        sys.executable,
+        "scripts/go-release.py",
+        "--with-smoke",
+        "build",
+        "-tags=cloudsmoke",
+        "-o",
+        str(binary),
+        ".",
+    ],
     cwd=ROOT,
     env=ENV,
     check=True,
