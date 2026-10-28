@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -10,18 +9,16 @@ import (
 	"strings"
 )
 
-func openDatabase(ctx context.Context, paths []string) (*sql.DB, error) {
-	db, err := sql.Open("duckdb", "?threads=2&memory_limit=256MB&max_temp_directory_size=0B&autoload_known_extensions=false&autoinstall_known_extensions=false")
+func openDatabase(ctx context.Context, paths []string, configs ...Resources) (*database, error) {
+	db, err := newDatabase(ctx, configs...)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 	quoted := make([]string, len(paths))
 	for i, path := range paths {
 		quoted[i] = literal(path)
 	}
-	for _, q := range []string{"SET TimeZone = 'UTC'", "SET allowed_paths = [" + strings.Join(quoted, ",") + "]", "SET enable_external_access = false", "SET lock_configuration = true"} {
+	for _, q := range []string{"SET TimeZone = 'UTC'", "SET allowed_paths = [" + strings.Join(quoted, ",") + "]", "SET allowed_directories=[]", "SET enable_external_access = false", "SET lock_configuration = true"} {
 		if _, err = db.ExecContext(ctx, q); err != nil {
 			db.Close()
 			return nil, err
@@ -29,7 +26,7 @@ func openDatabase(ctx context.Context, paths []string) (*sql.DB, error) {
 	}
 	return db, nil
 }
-func createView(ctx context.Context, db *sql.DB, name, path string) error {
+func createView(ctx context.Context, db *database, name, path string) error {
 	_, err := db.ExecContext(ctx, "CREATE VIEW "+name+" AS SELECT * FROM read_parquet("+literal(path)+", hive_partitioning=false)")
 	return err
 }
@@ -126,15 +123,45 @@ func workspaceReferences(query string) ([]string, error) {
 	return refs, nil
 }
 
-func (e *Engine) queryDatabase(ctx context.Context, query string) (*sql.DB, func(), error) {
+func (e *Engine) queryDatabase(ctx context.Context, query string) (*database, func(), error) {
 	refs, err := workspaceReferences(query)
 	if err != nil {
 		return nil, nil, err
 	}
 	if e.remote != nil {
+		if len(refs) == 0 && e.remoteKeep != nil {
+			if e.db == nil {
+				db, err := remoteDatabase(ctx, e.remoteKeep.Paths, e.httpfs, e.resources)
+				if err != nil {
+					return nil, nil, err
+				}
+				if err = createView(ctx, db, "data", e.remoteKeep.Paths[0]); err != nil {
+					db.Close()
+					return nil, nil, err
+				}
+				e.db = db
+			}
+			e.remoteScope = e.remoteKeep
+			return e.db, func() {
+				if e.remoteScope == e.remoteKeep {
+					e.remoteScope = nil
+				}
+			}, nil
+		}
 		return e.remoteDatabaseForQuery(ctx, refs)
 	}
-	if len(refs) == 0 && e.db != nil {
+	if len(refs) == 0 && e.file != nil {
+		if e.db == nil {
+			db, err := openDatabase(ctx, []string{e.file.Path}, e.resources)
+			if err != nil {
+				return nil, nil, err
+			}
+			if err = createView(ctx, db, "data", e.file.Path); err != nil {
+				db.Close()
+				return nil, nil, err
+			}
+			e.db = db
+		}
 		return e.db, func() {}, nil
 	}
 	if e.resolve == nil {
@@ -165,7 +192,7 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*sql.DB, func
 		}
 		paths = append(paths, path)
 	}
-	db, err := openDatabase(ctx, paths)
+	db, err := openDatabase(ctx, paths, e.resources)
 	if err != nil {
 		return nil, nil, err
 	}

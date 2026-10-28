@@ -3,13 +3,16 @@ node_modules/
 frontend/dist/
 /build
 /fixtures/
-artifacts/*.png
-artifacts/*.log
 .DS_Store
 __pycache__/
-artifacts/coverage/frontend/*.png
-artifacts/coverage/frontend/*.css
-artifacts/coverage/frontend/*.js
-artifacts/coverage/frontend/*.html
 
-artifacts/redesign/comparison-render/
+
+# Local design records and preview tooling
+/.hallmark/
+
+# Local screenshots, test logs, coverage and performance reports
+/artifacts/
+
+# Local lint tools and caches
+/.venv/
+/.ruff_cache/

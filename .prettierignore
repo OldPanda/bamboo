@@ -1,0 +1,13 @@
+node_modules/
+build/
+artifacts/
+.hallmark/
+.cindy-worktrees/
+.venv/
+frontend/dist/
+frontend/src/mygo.ts
+package-lock.json
+licenses/
+fixtures/
+# Async function bodies, parsed and linted by ESLint instead.
+scripts/*-smoke.js

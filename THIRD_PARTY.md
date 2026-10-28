@@ -26,3 +26,5 @@ Connection logos are bundled locally, unmodified, to identify their providers.
 Cloudflare cloud-only logo: https://www.cloudflare.com/logo.svg (official website SVG, without wordmark).
 AWS logo: https://press.aboutamazon.com/logos ; asset https://assets.aboutamazon.com/ff/9f/c88d0578474381e7ee1b6d337d23/aws-logo-rgb.png .
 These marks belong to their respective owners and are not covered by Bamboo's MIT license. No affiliation or endorsement is implied.
+
+Release builds select the pinned static libraries through the bindings' documented `duckdb_use_static_lib` path. The static registration loader omits only `autocomplete`, `tpch`, and `tpcds`; core functions, ICU, JSON, Parquet, httplib and loadable-extension support remain. The official httpfs binary is retained without modification. No upstream source or module-cache archives are changed.

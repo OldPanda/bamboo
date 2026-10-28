@@ -1,4 +1,4 @@
-// Package engine provides bounded, local-only exploration of local Parquet files.
+// Package engine provides bounded, read-only queries over local and scoped cloud Parquet data.
 package engine
 
 import (
@@ -15,16 +15,28 @@ import (
 	_ "github.com/duckdb/duckdb-go/v2"
 )
 
+// MaxPage limits the number of rows returned by one preview.
 const MaxPage = 500
+
+// MaxColumns limits the columns exposed by a file or query result.
 const MaxColumns = 256
+
+// MaxCell limits the byte length of a rendered cell value.
 const MaxCell = 64 * 1024
+
+// MaxResult limits the aggregate byte size of rendered query values.
 const MaxResult = 4 * 1024 * 1024
+
+// Timeout bounds metadata operations; query timeouts use Resources instead.
 const Timeout = 15 * time.Second
 
+// Column describes a result column and its DuckDB type.
 type Column struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 }
+
+// File contains Parquet metadata; large counts use strings to preserve precision in JavaScript.
 type File struct {
 	Name      string   `json:"name"`
 	Path      string   `json:"path"`
@@ -33,6 +45,8 @@ type File struct {
 	RowGroups string   `json:"rowGroups"`
 	Columns   []Column `json:"columns"`
 }
+
+// Request specifies a read-only query, page, sort and optional text filter.
 type Request struct {
 	SQL          string `json:"sql"`
 	Offset       int    `json:"offset"`
@@ -42,6 +56,8 @@ type Request struct {
 	FilterColumn string `json:"filterColumn"`
 	FilterValue  string `json:"filterValue"`
 }
+
+// Result contains one bounded page; nil cell pointers represent SQL NULL.
 type Result struct {
 	Columns   []Column    `json:"columns"`
 	Rows      [][]*string `json:"rows"`
@@ -52,31 +68,41 @@ type Result struct {
 
 // Engine has one active operation and a separately cancellable context.
 type Engine struct {
-	gate        chan struct{}
-	mu          sync.Mutex
-	cancel      context.CancelFunc
-	db          *sql.DB
-	file        *File
-	resolve     func(string) (string, error)
-	httpfs      string
-	remote      RemoteResolver
-	remoteRef   string
-	remoteScope *RemoteScope
+	gate         chan struct{}
+	mu           sync.Mutex
+	cancel       context.CancelFunc
+	db           *database
+	resources    Resources
+	file         *File
+	resolve      func(string) (string, error)
+	httpfs       string
+	remote       RemoteResolver
+	remoteRef    string
+	remoteScope  *RemoteScope
+	remoteKeep   *RemoteScope
+	remoteCancel context.CancelFunc
 }
 
-func New() *Engine { return &Engine{gate: make(chan struct{}, 1)} }
-func (e *Engine) start(parent context.Context) (context.Context, func(), error) {
+// New creates an idle engine with default resource budgets.
+func New() *Engine { return &Engine{gate: make(chan struct{}, 1), resources: DefaultResources()} }
+func (e *Engine) start(parent context.Context, query ...bool) (context.Context, func(), error) {
 	select {
 	case e.gate <- struct{}{}:
 	default:
 		return nil, nil, errors.New("another operation is running; cancel it or wait")
 	}
-	ctx, cancel := context.WithTimeout(parent, Timeout)
+	timeout := Timeout
+	if len(query) > 0 && query[0] {
+		timeout = time.Duration(e.resources.TimeoutSeconds) * time.Second
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	e.mu.Lock()
 	e.cancel = cancel
 	e.mu.Unlock()
 	return ctx, func() { e.mu.Lock(); e.cancel = nil; e.mu.Unlock(); cancel(); <-e.gate }, nil
 }
+
+// Cancel interrupts the active operation, if any.
 func (e *Engine) Cancel() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -84,14 +110,30 @@ func (e *Engine) Cancel() {
 		e.cancel()
 	}
 }
-func (e *Engine) Close() {
-	e.Cancel()
-	e.gate <- struct{}{}
-	defer func() { <-e.gate }()
+func (e *Engine) dropKept() {
+	if e.remoteCancel != nil {
+		e.remoteCancel()
+		e.remoteCancel = nil
+	}
+	if e.remoteKeep != nil {
+		if e.remoteScope == e.remoteKeep {
+			e.remoteScope = nil
+		}
+		e.remoteKeep.Close()
+		e.remoteKeep = nil
+	}
 	if e.db != nil {
 		e.db.Close()
 		e.db = nil
 	}
+}
+
+// Close cancels active work and releases the current reader and remote scope.
+func (e *Engine) Close() {
+	e.Cancel()
+	e.gate <- struct{}{}
+	defer func() { <-e.gate }()
+	e.dropKept()
 	e.file = nil
 	e.resolve = nil
 	e.remote = nil
@@ -100,6 +142,7 @@ func (e *Engine) Close() {
 func literal(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 func ident(s string) string   { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
+// Open opens a local Parquet reader and returns its metadata.
 func (e *Engine) Open(parent context.Context, path string) (*File, error) {
 	return e.OpenScoped(parent, path, nil)
 }
@@ -132,7 +175,7 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 	if !st.Mode().IsRegular() {
 		return nil, errors.New("choose a regular Parquet file")
 	}
-	db, err := openDatabase(ctx, []string{path})
+	db, err := openDatabase(ctx, []string{path}, e.resources)
 	if err != nil {
 		return nil, err
 	}
@@ -154,9 +197,7 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 	if err != nil {
 		return nil, err
 	}
-	if e.db != nil {
-		e.db.Close()
-	}
+	e.dropKept()
 	e.db = db
 	e.file = f
 	e.resolve = resolve
@@ -165,7 +206,7 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 	ok = true
 	return f, nil
 }
-func describe(ctx context.Context, db *sql.DB, q string) ([]Column, error) {
+func describe(ctx context.Context, db *database, q string) ([]Column, error) {
 	rows, err := db.QueryContext(ctx, "DESCRIBE SELECT * FROM ("+q+"\n) AS bamboo_schema")
 	if err != nil {
 		return nil, err
@@ -213,8 +254,10 @@ func query(r Request) (string, []any, error) {
 	}
 	return q, args, nil
 }
+
+// Query executes a bounded read-only preview against the current file.
 func (e *Engine) Query(parent context.Context, r Request) (*Result, error) {
-	ctx, done, err := e.start(parent)
+	ctx, done, err := e.start(parent, true)
 	if err != nil {
 		return nil, err
 	}
@@ -224,16 +267,16 @@ func (e *Engine) Query(parent context.Context, r Request) (*Result, error) {
 
 // QueryWorkspace queries an explicitly selected folder without opening a document.
 func (e *Engine) QueryWorkspace(parent context.Context, r Request, resolve func(string) (string, error)) (*Result, error) {
-	ctx, done, err := e.start(parent)
+	ctx, done, err := e.start(parent, true)
 	if err != nil {
 		return nil, err
 	}
 	defer done()
-	scoped := &Engine{resolve: resolve}
+	scoped := &Engine{resolve: resolve, resources: e.resources}
 	return scoped.run(ctx, r)
 }
 func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure error) {
-	if e.db == nil && e.resolve == nil && e.remote == nil {
+	if e.file == nil && e.db == nil && e.resolve == nil && e.remote == nil {
 		return nil, errors.New("open a Parquet file first")
 	}
 	started := time.Now()
@@ -246,6 +289,19 @@ func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure er
 		return nil, err
 	}
 	defer cleanup()
+	ctx, stopDisk := db.watchDisk(ctx)
+	defer func() {
+		if err := stopDisk(); err != nil {
+			output = nil
+			failure = err
+		}
+		// Close after rows are released, before deleting spill files. Preserve cloud
+		// range caches and file identity; the next query recreates only the database.
+		if db == e.db && (db.hasSpill() || failure != nil) {
+			db.Close()
+			e.db = nil
+		}
+	}()
 	defer func() {
 		if e.remoteScope != nil {
 			failure = remoteError(e.remoteScope, failure)

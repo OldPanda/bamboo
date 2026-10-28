@@ -6,22 +6,28 @@ python3 scripts/prepare-httpfs.py
 # A tiny placeholder breaks the first-build embed/bindings dependency cycle.
 mkdir -p frontend/dist build
 if [ ! -f frontend/dist/index.html ]; then printf '<!doctype html><title>Bamboo</title>' > frontend/dist/index.html; fi
-go build -ldflags='-s -w' -o build/bamboo .
+python3 scripts/go-release.py build -o build/bamboo .
 MYGO_GENERATE=frontend/src/mygo.ts build/bamboo
 npm run build:web
-go build -trimpath -ldflags='-s -w' -o build/bamboo .
+python3 scripts/go-release.py build -trimpath -o build/bamboo .
 if [ "$(uname -s)" = Darwin ]; then
-  mkdir -p build/Bamboo.app/Contents/MacOS build/Bamboo.app/Contents/Resources
-  cp build/bamboo build/Bamboo.app/Contents/MacOS/Bamboo
-  # Generate the full macOS icon family from the approved artwork.
+  # Package from an empty staging directory; stale generated files cannot survive.
+  stage_dir=$(mktemp -d "$PWD/build/.bamboo-package.XXXXXX")
+  trap 'rm -rf "$stage_dir"' EXIT
+  bundle="$stage_dir/Bamboo.app"
+  mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
+  cp build/bamboo "$bundle/Contents/MacOS/Bamboo"
+  # Keep the Dock tile aligned with the calibrated native macOS silhouette.
+  swift -module-cache-path build/icon-module-cache scripts/package-icon.swift assets/dock-template.png frontend/src/assets/bamboo.png build/Bamboo-icon.png
+  # Generate the full macOS icon family from the packaged artwork.
   mkdir -p build/Bamboo.iconset
   for size in 16 32 128 256 512; do
-    sips -z "$size" "$size" assets/bamboo.png --out "build/Bamboo.iconset/icon_${size}x${size}.png" >/dev/null
+    sips -z "$size" "$size" build/Bamboo-icon.png --out "build/Bamboo.iconset/icon_${size}x${size}.png" >/dev/null
     double=$((size * 2))
-    sips -z "$double" "$double" assets/bamboo.png --out "build/Bamboo.iconset/icon_${size}x${size}@2x.png" >/dev/null
+    sips -z "$double" "$double" build/Bamboo-icon.png --out "build/Bamboo.iconset/icon_${size}x${size}@2x.png" >/dev/null
   done
-  iconutil -c icns build/Bamboo.iconset -o build/Bamboo.app/Contents/Resources/Bamboo.icns
-  cat > build/Bamboo.app/Contents/Info.plist <<'PLIST'
+  iconutil -c icns build/Bamboo.iconset -o "$bundle/Contents/Resources/Bamboo.icns"
+  cat > "$bundle/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -37,14 +43,23 @@ if [ "$(uname -s)" = Darwin ]; then
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
-  mkdir -p build/Bamboo.app/Contents/Resources/extensions
-  cp build/extensions/httpfs.duckdb_extension build/Bamboo.app/Contents/Resources/extensions/
-  # Module-cache license copies may retain read-only modes from a previous build.
-  if [ -d build/Bamboo.app/Contents/Resources/licenses ]; then
-    chmod -R u+w build/Bamboo.app/Contents/Resources/licenses
-  fi
-  cp -R licenses build/Bamboo.app/Contents/Resources/
-  cp LICENSE THIRD_PARTY.md build/Bamboo.app/Contents/Resources/
-  codesign --force --sign - build/Bamboo.app
+  mkdir -p "$bundle/Contents/Resources/extensions"
+  cp build/extensions/httpfs.duckdb_extension "$bundle/Contents/Resources/extensions/"
+  cp -R licenses "$bundle/Contents/Resources/"
+  cp LICENSE THIRD_PARTY.md "$bundle/Contents/Resources/"
+  codesign --force --sign - "$bundle"
+  codesign --verify --deep --strict "$bundle"
+  python3 - "$bundle" "$PWD/build/Bamboo.app" "$stage_dir/previous.app" <<'PYTHON'
+import os, pathlib, sys
+staged, target, previous = map(pathlib.Path, sys.argv[1:])
+if target.exists():
+    os.replace(target, previous)
+try:
+    os.replace(staged, target)
+except BaseException:
+    if previous.exists():
+        os.replace(previous, target)
+    raise
+PYTHON
   printf 'Built %s/build/Bamboo.app\n' "$PWD"
 fi

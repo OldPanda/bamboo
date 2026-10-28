@@ -1,16 +1,19 @@
 package main
 
 import (
+	"bamboo/internal/cloudstorage"
 	"bamboo/internal/engine"
-	"bamboo/internal/r2"
 	"bamboo/internal/workspace"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/egoist/mygo"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -20,27 +23,33 @@ type fileDialogs interface {
 	Save(mygo.SaveDialogOptions) (string, error)
 }
 
-// Workbench exposes only local file selection, bounded queries and explicit export.
+// Workbench exposes local files, cloud workspaces, bounded queries and appearance.
 type Workbench struct {
 	engine       *engine.Engine
-	remote       *r2.Store
+	remote       *cloudstorage.Store
 	remoteCancel context.CancelFunc
 	folders      *workspace.Store
 	mu           sync.Mutex
 	opMu         sync.Mutex
 	last         *engine.Result
 	initial      string
+	configDir    string
 	dialogs      fileDialogs
 }
 
+// InitialFile returns the optional Parquet path supplied at startup.
 func (w *Workbench) InitialFile() string { return w.initial }
+
+// Open shows the native file chooser and opens the selected Parquet file.
 func (w *Workbench) Open(ctx context.Context) (*engine.File, error) {
-	paths, err := w.dialogs.Open(mygo.OpenDialogOptions{Parent: mygo.CallerWindow(ctx), Title: "Open a Parquet file", Filters: []mygo.FileFilter{{Name: "Parquet", Extensions: []string{"parquet"}}}})
+	paths, err := w.dialogs.Open(mygo.OpenDialogOptions{Parent: mygo.CallerWindow(ctx), Title: w.languageText("Open a Parquet file", "打开 Parquet 文件"), Filters: []mygo.FileFilter{{Name: "Parquet", Extensions: []string{"parquet"}}}})
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
 	return w.OpenPath(ctx, paths[0])
 }
+
+// OpenPath opens a local Parquet file and clears the previous export page on success.
 func (w *Workbench) OpenPath(ctx context.Context, path string) (*engine.File, error) {
 	if !w.opMu.TryLock() {
 		return nil, errors.New("another operation is running")
@@ -54,6 +63,8 @@ func (w *Workbench) OpenPath(ctx context.Context, path string) (*engine.File, er
 	}
 	return f, err
 }
+
+// Query runs a preview and retains the successful page for export.
 func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result, error) {
 	if !w.opMu.TryLock() {
 		return nil, errors.New("another operation is running")
@@ -67,6 +78,8 @@ func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result
 	}
 	return result, err
 }
+
+// Cancel interrupts the active query or cloud operation.
 func (w *Workbench) Cancel() {
 	w.mu.Lock()
 	if w.remoteCancel != nil {
@@ -79,37 +92,90 @@ func (w *Workbench) Cancel() {
 // ExportPage saves the last successful page as typed JSON, keeping null distinct
 // from empty text and preserving numeric precision. It never re-runs the query.
 func (w *Workbench) ExportPage(ctx context.Context) (string, error) {
+	return w.ExportPageAs(ctx, "json")
+}
+
+// ExportPageAs exports the last successful visible page as JSON or CSV.
+// CSV preserves textual values; NULL and empty text both become empty fields.
+func (w *Workbench) ExportPageAs(ctx context.Context, format string) (string, error) {
+	if format != "json" && format != "csv" {
+		return "", errors.New("choose JSON or CSV export format")
+	}
 	w.mu.Lock()
 	r := w.last
 	w.mu.Unlock()
 	if r == nil {
 		return "", errors.New("run a query before exporting")
 	}
-	path, err := w.dialogs.Save(mygo.SaveDialogOptions{Parent: mygo.CallerWindow(ctx), Title: "Export visible page as JSON", DefaultPath: "bamboo-page.json", Filters: []mygo.FileFilter{{Name: "JSON", Extensions: []string{"json"}}}})
+	path, err := w.dialogs.Save(mygo.SaveDialogOptions{Parent: mygo.CallerWindow(ctx), Title: w.languageText("Export visible page as ", "导出当前页为 ") + strings.ToUpper(format), DefaultPath: "bamboo-page." + format, Filters: []mygo.FileFilter{{Name: strings.ToUpper(format), Extensions: []string{format}}}})
 	if err != nil || path == "" {
 		return "", err
 	}
-	if filepath.Ext(path) != ".json" {
-		return "", errors.New("export filename must end in .json")
+	if filepath.Ext(path) != "."+format {
+		return "", fmt.Errorf("export filename must end in .%s", format)
 	}
-	return path, writeExport(path, r)
+	return path, writeExportFormat(path, r, format)
 }
 func writeExport(path string, r *engine.Result) error {
-	return writeExportWith(path, r, func(path string) (io.WriteCloser, error) {
+	return writeExportFormat(path, r, "json")
+}
+func writeExportFormat(path string, r *engine.Result, format string) error {
+	return writeExportFormatWith(path, r, format, func(path string) (io.WriteCloser, error) {
 		return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	})
 }
 
 // writeExportWith keeps file creation and write/close failure handling testable.
 func writeExportWith(path string, r *engine.Result, create func(string) (io.WriteCloser, error)) error {
+	return writeExportFormatWith(path, r, "json", create)
+}
+func writeExportFormatWith(path string, r *engine.Result, format string, create func(string) (io.WriteCloser, error)) error {
+	if format != "json" && format != "csv" {
+		return errors.New("choose JSON or CSV export format")
+	}
+	if r == nil {
+		return errors.New("run a query before exporting")
+	}
+	if format == "csv" {
+		for _, row := range r.Rows {
+			if len(row) != len(r.Columns) {
+				return errors.New("result columns do not match row values")
+			}
+		}
+	}
 	// O_EXCL also prevents symlink replacement and accidental source overwrites.
 	f, err := create(path)
 	if err != nil {
 		return errors.New("choose a new filename; existing files are never overwritten")
 	}
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	err = enc.Encode(r)
+	if format == "json" {
+		enc := json.NewEncoder(f)
+		enc.SetIndent("", "  ")
+		err = enc.Encode(r)
+	} else {
+		enc := csv.NewWriter(f)
+		header := make([]string, len(r.Columns))
+		for i, col := range r.Columns {
+			header[i] = col.Name
+		}
+		err = enc.Write(header)
+		for _, row := range r.Rows {
+			if err != nil {
+				break
+			}
+			values := make([]string, len(row))
+			for i, value := range row {
+				if value != nil {
+					values[i] = *value
+				}
+			}
+			err = enc.Write(values)
+		}
+		enc.Flush()
+		if err == nil {
+			err = enc.Error()
+		}
+	}
 	closeErr := f.Close()
 	if err != nil {
 		os.Remove(path)

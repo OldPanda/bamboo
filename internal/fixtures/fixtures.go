@@ -1,3 +1,4 @@
+// Package fixtures generates deterministic Parquet datasets for tests.
 package fixtures
 
 import (
@@ -9,6 +10,7 @@ import (
 	"strings"
 )
 
+// Generate writes deterministic Parquet fixtures to dir, optionally including the large dataset.
 func Generate(dir string, large bool) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err

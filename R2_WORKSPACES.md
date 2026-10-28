@@ -28,7 +28,7 @@ ORDER BY a.order_id
 
 Tests use a local S3-compatible protocol fixture with synthetic keys and real Parquet, plus the actual DuckDB extension. They cover listing, encoded names, Range requests, ETag changes, revoked access, malformed responses, SQL boundaries, cancellation, failed-settings rollback, exact types, joins and paging. An opt-in native Keychain test creates, updates, reads and deletes only a uniquely named synthetic entry.
 
-Native R2 UI/IPC tests use a separate `r2smoke` build that replaces only transport and vault. Its fixture hook is excluded from the production app. Creation and restart phases verify the actual connection dialog, draft/result restoration and cascading workspace closure. Production app tests separately verify local behavior and its signature. Recorded results and screenshots are in `artifacts/r2/`.
+Native R2 UI/IPC tests use a separate `cloudsmoke` build that replaces only transport and vault. Its fixture hook is excluded from the production app. Creation and restart phases verify the actual connection dialog, draft/result restoration and cascading workspace closure. Production app tests separately verify local behavior and its signature. Recorded results and screenshots are in `artifacts/r2/`.
 
 A selective query over a 1,000,000-row, 5,166,996-byte fixture read 368,813 bytes. This is one fixture/query, not a general performance guarantee. Sorting, joins or aggregation may scan substantial remote data, consume R2 read requests, and exceed the timeout. The owner's live Cloudflare bucket still requires acceptance using credentials entered in the app. Multi-GB production workloads, other architectures/OSes, and R2 customer-provided encryption are not validated/supported in this first version.
 

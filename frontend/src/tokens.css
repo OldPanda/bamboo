@@ -1,18 +1,47 @@
 /* Palette reference: https://stockanalysis.com/; sampled 2026-10-26.
  * Field edges and muted dark text are strengthened for dense desktop controls. */
 :root {
+  /* Fixed miniature palettes show both choices in either active theme. */
+  --preview-light-paper: #ffffff;
+  --preview-light-side: #f3f4f6;
+  --preview-light-editor: #f3f4f6;
+  --preview-light-line: #9ca3af;
+  --preview-light-grid: #e5e7eb;
+  --preview-light-accent: #1e73ba;
+  --preview-dark-paper: #262626;
+  --preview-dark-side: #313131;
+  --preview-dark-editor: #404040;
+  --preview-dark-line: #a3a3a3;
+  --preview-dark-grid: #525252;
+  --preview-dark-accent: #8bb4f7;
   color-scheme: light;
+  --bamboo-icon-filter: none;
   font-size: 13px;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: var(--font-body);
   --font-outlier: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  --text-xs: 0.846154rem; --text-sm: 0.923077rem; --text-md: 1rem;
-  --text-lg: 1.169231rem; --text-xl: 1.369231rem; --text-2xl: 1.6rem; --text-3xl: 1.876923rem;
-  --text-display: var(--text-3xl); --text-section: var(--text-xl); --text-title: var(--text-lg);
-  --display-weight: 600; --tracking-display: -0.02em;
-  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px;
-  --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px;
-  --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.846154rem;
+  --text-sm: 0.923077rem;
+  --text-md: 1rem;
+  --text-lg: 1.169231rem;
+  --text-xl: 1.369231rem;
+  --text-2xl: 1.6rem;
+  --text-3xl: 1.876923rem;
+  --text-display: var(--text-3xl);
+  --text-section: var(--text-xl);
+  --text-title: var(--text-lg);
+  --display-weight: 600;
+  --tracking-display: -0.02em;
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+  --space-4xl: 144px;
   --color-paper: #ffffff;
   --color-paper-2: #f9fafb;
   --color-paper-3: #f3f4f6;
@@ -29,17 +58,28 @@
   --color-error: #b91c1c;
   --color-error-soft: #fee2e2;
   --color-backdrop: rgb(17 24 39 / 45%);
-  --radius-card: 8px; --radius-input: 4px;
-  --dur-micro: 120ms; --dur-short: 220ms;
+  --radius-card: 8px;
+  --radius-input: 4px;
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --z-base: 1; --z-sticky: 200; --z-modal: 400; --z-toast: 500;
-  --line: var(--color-rule); --muted: var(--color-muted); --green: var(--color-accent);
-  --surface: var(--color-paper); --hover: #f2f9ff; --side: var(--color-paper-2);
-  --ink: var(--color-ink); --app: var(--color-paper);
+  --z-base: 1;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+  --line: var(--color-rule);
+  --muted: var(--color-muted);
+  --green: var(--color-accent);
+  --surface: var(--color-paper);
+  --hover: #f2f9ff;
+  --side: var(--color-paper-2);
+  --ink: var(--color-ink);
+  --app: var(--color-paper);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
+    --bamboo-icon-filter: brightness(0) invert(0.96);
     --hover: #404040;
     --color-paper: #262626;
     --color-paper-2: #313131;

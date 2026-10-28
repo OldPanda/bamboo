@@ -12,24 +12,32 @@ import (
 	"sync"
 )
 
+// DefaultSQL is the initial preview query for a selected file.
 const DefaultSQL = "SELECT * FROM data"
 const stateLimit = 8 << 20
 
+// Query stores the editor draft separately from the last executed SQL.
 type Query struct {
 	Draft   string `json:"draft"`
 	Applied string `json:"applied"`
 }
+
+// Info describes a workspace root, display name and active relative path.
 type Info struct {
 	Root     string `json:"root"`
 	Name     string `json:"name"`
 	Active   string `json:"active"`
 	Location string `json:"location,omitempty"`
 }
+
+// Entry describes a browsable file or directory inside a workspace.
 type Entry struct {
 	Name      string `json:"name"`
 	Path      string `json:"path"`
 	Directory bool   `json:"directory"`
 }
+
+// Page contains a bounded directory listing and its continuation offset.
 type Page struct {
 	Entries []Entry `json:"entries"`
 	Next    int     `json:"next"`
@@ -45,6 +53,8 @@ type state struct {
 	Last     string              `json:"last"`
 	Profiles map[string]*profile `json:"profiles"`
 }
+
+// Store persists local workspace preferences and tracks currently open roots.
 type Store struct {
 	mu      sync.Mutex
 	path    string
@@ -54,6 +64,7 @@ type Store struct {
 	loadErr error
 }
 
+// New loads workspace preferences from dir; read errors surface on restore.
 func New(dir string) *Store {
 	s := &Store{path: filepath.Join(dir, "workspaces.json"), opened: map[string]bool{}, data: state{Version: 1, Profiles: map[string]*profile{}}}
 	f, err := os.Open(s.path)
@@ -147,6 +158,8 @@ func (s *Store) copy() state {
 	}
 	return d
 }
+
+// Use validates a readable folder, opens it and remembers it as active.
 func (s *Store) Use(path string) (*Info, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -194,6 +207,8 @@ func (s *Store) Use(path string) (*Info, error) {
 	v := d.Profiles[root].Info
 	return &v, nil
 }
+
+// Restore reopens the last active workspace, or returns nil when none was saved.
 func (s *Store) Restore() (*Info, error) {
 	s.mu.Lock()
 	err := s.loadErr
@@ -207,6 +222,8 @@ func (s *Store) Restore() (*Info, error) {
 	}
 	return s.Use(last)
 }
+
+// Leave closes all open workspaces while preserving their saved queries.
 func (s *Store) Leave() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -226,6 +243,8 @@ func (s *Store) currentProfile(root string) (*profile, error) {
 	}
 	return s.data.Profiles[root], nil
 }
+
+// Rename changes the display name without renaming the folder on disk.
 func (s *Store) Rename(root, name string) (*Info, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -266,6 +285,8 @@ func (s *Store) Resolve(root, rel string) (string, error) {
 	}
 	return full, nil
 }
+
+// List returns a bounded listing beneath an open workspace root.
 func (s *Store) List(root, rel string, offset int) (*Page, error) {
 	if offset < 0 || offset > 1000000 {
 		return nil, errors.New("directory page limit exceeded")
@@ -303,6 +324,8 @@ func (s *Store) List(root, rel string, offset int) (*Page, error) {
 	}
 	return p, nil
 }
+
+// Saved returns the saved draft and applied SQL for a relative path.
 func (s *Store) Saved(root, rel string) (Query, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -322,6 +345,8 @@ func (s *Store) Saved(root, rel string) (Query, error) {
 	}
 	return q, nil
 }
+
+// Save persists draft and applied SQL for a file or workspace query.
 func (s *Store) Save(root, rel string, q Query) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -339,6 +364,8 @@ func (s *Store) Save(root, rel string, q Query) error {
 	d.Profiles[root].Queries[rel] = q
 	return s.commit(d)
 }
+
+// Select remembers the active relative path in an open workspace.
 func (s *Store) Select(root, rel string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -354,13 +381,13 @@ func (s *Store) Select(root, rel string) error {
 	return s.commit(d)
 }
 
-// RestoreAll migrates the previous single-workspace setting and restores each
-// accessible root independently, with the last active root ordered last.
+// Restored contains reopened workspaces and warnings for inaccessible roots.
 type Restored struct {
 	Workspaces []Info `json:"workspaces"`
 	Warning    string `json:"warning"`
 }
 
+// RestoreAll reopens accessible roots independently, ordering the last active root last.
 func (s *Store) RestoreAll() (*Restored, error) {
 	s.mu.Lock()
 	err := s.loadErr
@@ -385,6 +412,8 @@ func (s *Store) RestoreAll() (*Restored, error) {
 	}
 	return r, nil
 }
+
+// Close closes one workspace while retaining its profile and queries.
 func (s *Store) Close(root string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -406,6 +435,8 @@ func (s *Store) Close(root string) error {
 	s.current = d.Last
 	return nil
 }
+
+// CloseFile clears the active file when it matches rel.
 func (s *Store) CloseFile(root, rel string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

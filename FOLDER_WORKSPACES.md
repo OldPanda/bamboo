@@ -18,7 +18,7 @@ Workspace names, recent active file and per-file draft/successful SQL are saved 
 
 ## Evidence and limits
 
-[Coverage report](artifacts/coverage/report.html) and raw source-bound profiles are under artifacts/coverage. [Delivered-app creation checks](artifacts/folder-workspace/create/desktop-smoke.json) and [restart checks](artifacts/folder-workspace/restore/desktop-smoke.json) use isolated test config, not the user's settings. The delivery manifest records source/script and app binary hashes.
+Coverage report (`artifacts/coverage/report.html`, local only) and raw source-bound profiles are under artifacts/coverage. Delivered-app creation checks (`artifacts/folder-workspace/create/desktop-smoke.json`, local only) and restart checks (`artifacts/folder-workspace/restore/desktop-smoke.json`, local only) use isolated test config, not the user's settings. The delivery manifest records source/script and app binary hashes.
 
 Only folders and Parquet files are listed; hidden entries and symbolic links are omitted. Listing reads 200 raw entries per page without an upfront recursive walk. This first version has one active data file, no multi-file SQL, no custom cross-directory collection, no filesystem watcher, and no simultaneous app-instance config coordination. Expanded directory branches are not restored; the active file and query are. Refresh reloads changes. Drafts debounce for 350 ms: wait for Saved locally before quitting. Limits and config location are documented in README.md.
 

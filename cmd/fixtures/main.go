@@ -1,3 +1,4 @@
+// Command fixtures generates local Parquet datasets for development.
 package main
 
 import (

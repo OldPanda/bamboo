@@ -6,8 +6,8 @@ Switching files now keeps the old coherent preview visible until the next query 
 
 The supplied recording was inspected locally. The pre-fix native reproduction captured navigation opacity changing from 1 to 0.55 and a transient empty table when switching from ordinary data to the million-row fixture. Sampled anchor geometry did not move: the reproduced problem was flicker, not a measured change to the actual OS window bounds.
 
-- [Original build identity](artifacts/file-switching/before-build.json), [baseline samples](artifacts/file-switching/before-desktop.json), and [baseline sampler](artifacts/file-switching/before-sampler.js).
-- [Signed-app normal-width samples](artifacts/coverage/app-desktop/stable/desktop-smoke.json) and [700px samples](artifacts/coverage/app-desktop/stable-narrow/desktop-smoke.json).
+- Original build identity (`artifacts/file-switching/before-build.json`, local only), baseline samples (`artifacts/file-switching/before-desktop.json`, local only), and baseline sampler (`artifacts/file-switching/before-sampler.js`, local only).
+- Signed-app normal-width samples (`artifacts/coverage/app-desktop/stable/desktop-smoke.json`, local only) and 700px samples (`artifacts/coverage/app-desktop/stable-narrow/desktop-smoke.json`, local only).
 - Four transitions per width: ordinary → million-row → special types → empty → ordinary. All use real local Parquet files, production IPC and DuckDB.
 - Across the final samples, eight layout anchors had **0 CSS px maximum observed drift**, navigation opacity stayed **1**, and every observed title matched its table's rows and columns. Both signed-app runs passed 12 assertions each.
 - Timed 16ms sampling and MutationObserver snapshots are used; this is not a claim to have captured every display frame. WKWebView can suspend requestAnimationFrame in automation. A separate delayed-result frontend test verifies that the previous title/table/view remain intact until completion, and a failed-preview test verifies stale rows cannot be exported.

@@ -14,7 +14,7 @@ No security-audit skill/workflow was available in the supplied skill catalog, pr
 
 ## Tested and remaining scope
 
-Negative tests cover write/administrative SQL, multi-statement wrapper escapes, unrelated local files, URLs/globs, malformed Parquet, quoting, page/cell/column limits, cancellation/deadline recovery, and source immutability. Tests are in `internal/engine/engine_test.go` and `export_test.go`.
+Negative tests cover write/administrative SQL, multi-statement wrapper escapes, unrelated local files, URLs/globs, malformed Parquet, quoting, page/cell/column limits, cancellation/deadline recovery, and source immutability. Tests are in `internal/engine/engine_test.go` and `export_json_test.go`.
 
 This is an in-process native engine, not an OS-level sandbox. A DuckDB/Parquet decoder vulnerability or huge intermediate value may exceed these application controls. `memory_limit` does not bound all process memory, and the text limit is checked after DuckDB formats a cell. The path allowlist is not a snapshot: another local process may replace an already-selected file. Queries can introspect DuckDB metadata and read the selected file using other built-in readers. Running unfamiliar SQL is not represented as a robust hostile-code security boundary.
 

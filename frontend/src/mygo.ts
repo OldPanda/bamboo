@@ -37,6 +37,14 @@ export interface Connection {
   open: boolean;
 }
 
+export interface DiskLimits {
+  detected: boolean;
+  availableGiB: number;
+  reserveGiB: number;
+  maxTempGiB: number;
+  autoTempGiB: number;
+}
+
 export interface Entry {
   name: string;
   path: string;
@@ -57,6 +65,12 @@ export interface Info {
   name: string;
   active: string;
   location?: string;
+}
+
+export interface MemoryLimits {
+  physicalMiB: number;
+  maxMemoryMiB: number;
+  autoMemoryMiB: number;
 }
 
 export interface Page {
@@ -80,6 +94,14 @@ export interface Request {
   filterValue: string;
 }
 
+export interface Resources {
+  memoryMiB: number;
+  memoryAuto: boolean;
+  tempGiB: number;
+  tempAuto: boolean;
+  timeoutSeconds: number;
+}
+
 export interface Restored {
   workspaces: Info[];
   warning: string;
@@ -93,6 +115,7 @@ export interface Result {
   elapsedMS: number;
 }
 
+/** WorkspaceFile combines file metadata, restored SQL and any persistence warning. */
 export interface WorkspaceFile {
   file: File | null;
   query: Query;
@@ -101,8 +124,13 @@ export interface WorkspaceFile {
 
 // ---- Services ----
 
-/** Workbench exposes only local file selection, bounded queries and explicit export. */
+/** Workbench exposes local files, cloud workspaces, bounded queries and appearance. */
 export const Workbench = {
+  /** Appearance returns the saved system, light, or dark appearance. */
+  appearance(): Promise<string> {
+    return call("Workbench.Appearance");
+  },
+  /** Cancel interrupts the active query or cloud operation. */
   cancel(): Promise<void> {
     return call("Workbench.Cancel");
   },
@@ -110,18 +138,28 @@ export const Workbench = {
   clearPreview(): Promise<void> {
     return call("Workbench.ClearPreview");
   },
+  /** CloseWorkspace closes a local or cloud workspace while retaining its saved preferences. */
   closeWorkspace(root: string): Promise<void> {
     return call("Workbench.CloseWorkspace", root);
   },
+  /** CloseWorkspaceFile clears a workspace file selection without removing the source object. */
   closeWorkspaceFile(root: string, relative: string): Promise<void> {
     return call("Workbench.CloseWorkspaceFile", root, relative);
   },
-  /** Legacy IPC names are retained for compatibility; provider selects R2 or AWS S3. */
+  /**
+   * ConnectR2 opens a cloud connection; provider selects R2 or AWS S3.
+   * The legacy IPC name is retained for compatibility.
+   */
   connectR2(input: ConnectInput): Promise<Info | null> {
     return call("Workbench.ConnectR2", input);
   },
+  /** DeleteR2Connection removes a saved cloud connection and its credentials. */
   deleteR2Connection(root: string): Promise<void> {
     return call("Workbench.DeleteR2Connection", root);
+  },
+  /** DiskLimits reports current free space and budgets on the temporary volume. */
+  diskLimits(): Promise<DiskLimits> {
+    return call("Workbench.DiskLimits");
   },
   /**
    * ExportPage saves the last successful page as typed JSON, keeping null distinct
@@ -130,27 +168,46 @@ export const Workbench = {
   exportPage(): Promise<string> {
     return call("Workbench.ExportPage");
   },
+  /**
+   * ExportPageAs exports the last successful visible page as JSON or CSV.
+   * CSV preserves textual values; NULL and empty text both become empty fields.
+   */
+  exportPageAs(format: string): Promise<string> {
+    return call("Workbench.ExportPageAs", format);
+  },
+  /** InitialFile returns the optional Parquet path supplied at startup. */
   initialFile(): Promise<string> {
     return call("Workbench.InitialFile");
   },
+  /** Language returns the saved interface language, defaulting to English. */
+  language(): Promise<string> {
+    return call("Workbench.Language");
+  },
+  /** ListConnections returns saved connection summaries without credentials. */
   listConnections(): Promise<Connection[]> {
     return call("Workbench.ListConnections");
   },
+  /** ListDirectory lists a bounded page inside a local or cloud workspace. */
   listDirectory(root: string, relative: string, offset: number): Promise<Page | null> {
     return call("Workbench.ListDirectory", root, relative, offset);
   },
+  /** Open shows the native file chooser and opens the selected Parquet file. */
   open(): Promise<File | null> {
     return call("Workbench.Open");
   },
+  /** OpenPath opens a local Parquet file and clears the previous export page on success. */
   openPath(path: string): Promise<File | null> {
     return call("Workbench.OpenPath", path);
   },
+  /** OpenR2Connection verifies and opens a saved R2 or S3 workspace. */
   openR2Connection(root: string): Promise<Info | null> {
     return call("Workbench.OpenR2Connection", root);
   },
+  /** OpenWorkspace shows a native folder chooser and opens the selected local workspace. */
   openWorkspace(): Promise<Info | null> {
     return call("Workbench.OpenWorkspace");
   },
+  /** OpenWorkspaceFile opens a scoped Parquet reader and restores its saved query. */
   openWorkspaceFile(root: string, relative: string): Promise<WorkspaceFile | null> {
     return call("Workbench.OpenWorkspaceFile", root, relative);
   },
@@ -158,24 +215,51 @@ export const Workbench = {
   openWorkspaceQuery(root: string): Promise<Query> {
     return call("Workbench.OpenWorkspaceQuery", root);
   },
+  /** Query runs a preview and retains the successful page for export. */
   query(r: Request): Promise<Result | null> {
     return call("Workbench.Query", r);
   },
+  /** QueryWorkspace runs a read-only query limited to the selected workspace. */
   queryWorkspace(root: string, r: Request): Promise<Result | null> {
     return call("Workbench.QueryWorkspace", root, r);
   },
+  /** RenameWorkspace changes a local or cloud workspace display name. */
   renameWorkspace(root: string, name: string): Promise<Info | null> {
     return call("Workbench.RenameWorkspace", root, name);
   },
+  /** ResourceLimits returns memory budgets derived from the current machine. */
+  resourceLimits(): Promise<MemoryLimits> {
+    return call("Workbench.ResourceLimits");
+  },
+  /** Resources loads the persisted query resource settings, falling back to defaults. */
+  resources(): Promise<Resources> {
+    return call("Workbench.Resources");
+  },
+  /** RestoreWorkspaces reopens saved local and cloud workspaces with per-workspace warnings. */
   restoreWorkspaces(): Promise<Restored | null> {
     return call("Workbench.RestoreWorkspaces");
   },
+  /** SaveR2Connection saves an R2 or S3 connection; the legacy IPC name is preserved. */
   saveR2Connection(root: string, input: ConnectInput): Promise<Info | null> {
     return call("Workbench.SaveR2Connection", root, input);
   },
+  /** SaveWorkspaceQuery persists separate editor draft and executed SQL for a workspace path. */
   saveWorkspaceQuery(root: string, relative: string, draft: string, applied: string): Promise<void> {
     return call("Workbench.SaveWorkspaceQuery", root, relative, draft, applied);
   },
+  /** SetAppearance saves and applies a system, light, or dark appearance. */
+  setAppearance(source: string): Promise<void> {
+    return call("Workbench.SetAppearance", source);
+  },
+  /** SetLanguage saves the interface language independently of data and appearance. */
+  setLanguage(language: string): Promise<void> {
+    return call("Workbench.SetLanguage", language);
+  },
+  /** SetResources validates and atomically saves limits before applying them to future queries. */
+  setResources(r: Resources): Promise<void> {
+    return call("Workbench.SetResources", r);
+  },
+  /** TestR2Connection checks access to a saved R2 or S3 connection. */
   testR2Connection(root: string): Promise<void> {
     return call("Workbench.TestR2Connection", root);
   },

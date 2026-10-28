@@ -16,15 +16,15 @@ The full list of open documents, outside-file queries, pagination, filters/sorts
 
 The full `npm run coverage` workflow passed against the final sources, rebuilding and signing `build/Bamboo.app`:
 
-| Measurement | Result |
-|---|---:|
-| All Go, ordinary tests only | 80.84% (557/689) |
-| All Go, tests + instrumented desktop | **95.94% (661/689)** |
-| Core logic, ordinary tests | 97.46% (537/551) |
-| All production Go including startup, tests + desktop | 96.05% (559/582) |
-| Frontend statements | 100% (501/501) |
-| Frontend branches | 97.25% (177/182) |
-| Frontend functions / lines | 100% / 100% |
+| Measurement                                          |               Result |
+| ---------------------------------------------------- | -------------------: |
+| All Go, ordinary tests only                          |     80.84% (557/689) |
+| All Go, tests + instrumented desktop                 | **95.94% (661/689)** |
+| Core logic, ordinary tests                           |     97.46% (537/551) |
+| All production Go including startup, tests + desktop |     96.05% (559/582) |
+| Frontend statements                                  |       100% (501/501) |
+| Frontend branches                                    |     97.25% (177/182) |
+| Frontend functions / lines                           |          100% / 100% |
 
 - 19 frontend behavioral scenarios passed. They cover independent drafts/results, pagination/view switching, duplicate opens, no duplicate sidebar entries, tree close controls after refresh, hiding the empty outside list, path boundaries, nested/root workspaces, cascading workspace closure with unrelated files retained and failed writes preserved, inactive/active/last-file closure and recovery when a neighboring file disappears.
 - Real Go tests include multi-root authorization, selective closing, saved-file clearing, failed writes, old-config migration, missing-root restoration, and engine release/reuse. Existing DuckDB million-row, precise-value, query-boundary, cancellation and export tests also passed.
@@ -36,10 +36,10 @@ The full `npm run coverage` workflow passed against the final sources, rebuildin
 
 ## Evidence
 
-- [Readable coverage report](artifacts/coverage/report.html), raw profiles and source hashes in the same directory.
-- [Delivered-app multi-file assertions](artifacts/coverage/app-desktop/multi/desktop-smoke.json) and [restart/close assertions](artifacts/coverage/app-desktop/multi-restore/desktop-smoke.json).
-- [Light screenshot](artifacts/coverage/app-desktop/multi/bamboo-light.png), [dark screenshot](artifacts/coverage/app-desktop/multi/bamboo-desktop.png), [narrow screenshot](artifacts/coverage/app-desktop/multi/bamboo-narrow.png).
-- [Offline visual report](artifacts/multiple-files/bamboo-multiple-files.html) and [delivery hashes](artifacts/multiple-files/delivery-manifest.json).
+- Readable coverage report (`artifacts/coverage/report.html`, local only), raw profiles and source hashes in the same directory.
+- Delivered-app multi-file assertions (`artifacts/coverage/app-desktop/multi/desktop-smoke.json`, local only) and restart/close assertions (`artifacts/coverage/app-desktop/multi-restore/desktop-smoke.json`, local only).
+  Screenshots are retained locally under `artifacts/` and are not part of the public source distribution.
+- Offline visual report (`artifacts/multiple-files/bamboo-multiple-files.html`, local only) and delivery hashes (`artifacts/multiple-files/delivery-manifest.json`, local only).
 
 Quit the old Bamboo window and reopen `build/Bamboo.app`. Choose Open Folder for each root, then open several files and switch using their workspace tree entries or the external Open files list. Use each file's × to close it; the workspace's × closes that workspace and its opened files.
 

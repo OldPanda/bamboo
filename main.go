@@ -1,22 +1,24 @@
+// Bamboo is a desktop workbench for local and cloud Parquet data.
 package main
 
 import (
+	"bamboo/internal/cloudstorage"
 	"bamboo/internal/engine"
-	"bamboo/internal/r2"
 	"bamboo/internal/workspace"
 	"embed"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/egoist/mygo"
 )
 
-//go:embed all:frontend/dist
+//go:embed frontend/dist
 var frontend embed.FS
 
-var remoteStoreFactory = r2.New
+var remoteStoreFactory = cloudstorage.New
 
 func main() {
 	mygo.App.SetName("Bamboo")
@@ -34,13 +36,17 @@ func main() {
 		}
 		config = filepath.Join(base, "Bamboo")
 	}
+	if err := e.Configure(loadResources(config), nil); err != nil {
+		log.Fatal(err)
+	}
 	executable, _ := os.Executable()
 	extension := filepath.Join(filepath.Dir(executable), "extensions", "httpfs.duckdb_extension")
 	if filepath.Base(filepath.Dir(executable)) == "MacOS" {
 		extension = filepath.Join(filepath.Dir(executable), "..", "Resources", "extensions", "httpfs.duckdb_extension")
 	}
 	e.SetHTTPFS(extension)
-	w := &Workbench{remote: remoteStoreFactory(config, r2.NewVault()), engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config)}
+	w := &Workbench{remote: remoteStoreFactory(config, cloudstorage.NewVault()), engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config), configDir: config}
+	mygo.Theme.SetSource(loadAppearance(config))
 	if len(os.Args) == 3 && os.Args[1] == "--workspace" {
 		if _, err := w.useWorkspace(os.Args[2]); err != nil {
 			log.Fatal(err)
@@ -53,7 +59,10 @@ func main() {
 	}
 	mygo.SetFrontend(web)
 	mygo.App.WhenReady(func() {
-		win := mygo.NewWindow(mygo.WindowOptions{Title: "Bamboo", Width: 1280, Height: 820, MinWidth: 700, MinHeight: 520, URL: "/", BackgroundColor: "#f7f8f5"})
+		win := mygo.NewWindow(mygo.WindowOptions{Title: "Bamboo", Width: 1280, Height: 820, MinWidth: 700, MinHeight: 520, URL: "/", BackgroundColor: "light-dark(#ffffff, #262626)"})
+		if runtime.GOOS == "darwin" {
+			keepWindowInDock(mygo.App, win)
+		}
 		win.Page().OnWillNavigate(func(ev *mygo.NavigateEvent) { ev.PreventDefault() })
 		win.Page().SetWindowOpenHandler(func(mygo.WindowOpenRequest) *mygo.WindowOptions { return nil })
 		if os.Getenv("BAMBOO_SMOKE") != "" {

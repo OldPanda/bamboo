@@ -11,15 +11,24 @@
     "test:web": "vitest run",
     "coverage:web": "vitest run --coverage",
     "coverage": "python3 scripts/coverage.py",
-    "coverage:unit": "python3 scripts/coverage.py --unit"
+    "coverage:unit": "python3 scripts/coverage.py --unit",
+    "test:perf": "python3 scripts/performance.py",
+    "lint": "python3 scripts/lint.py",
+    "format": "python3 scripts/lint.py --format"
   },
   "dependencies": {
     "mygo-runtime": "0.6.4"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@vitest/coverage-v8": "5.0.5",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsdoc": "54.7.0",
+    "globals": "16.5.0",
     "jsdom": "27.4.0",
+    "prettier": "3.9.10",
     "typescript": "~5.9.3",
+    "typescript-eslint": "8.72.1",
     "vite": "^7.3.1",
     "vitest": "5.0.5"
   }

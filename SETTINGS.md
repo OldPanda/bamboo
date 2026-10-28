@@ -21,3 +21,19 @@ Validation uses real DuckDB/Parquet and a local S3 protocol fixture, synthetic c
 ## AWS S3 addition
 
 The same form now offers a provider selector. Amazon S3 asks for Region instead of a Cloudflare endpoint and supports optional Session Token credentials. Current provider-specific results and screenshots are in `artifacts/s3/`; current whole-repository coverage is in `artifacts/coverage/`.
+
+## Temporary disk budgets
+
+Performance settings provide an Auto switch and a slider with exact numeric input.
+New settings use Auto: 25% of currently available space on the system temporary
+volume after reserving 1 GiB, rounded down to whole GiB. Custom mode ranges from
+0 (no spill) to the currently available space minus that reserve, replacing the
+old 64 GiB ceiling. The display refreshes when Settings opens. Existing custom
+budgets, including 0, remain custom when upgrading.
+
+A new query reader measures free space again and caps its spill quota accordingly;
+saved preferences are retained if free space later shrinks. Saving a custom value
+above the current allowance is rejected. Automatic mode grants no spill space
+when detection fails. The existing periodic free-space guard, cancellation and
+private temporary-directory cleanup remain in effect. The reserve is best effort
+when other processes write concurrently; this does not reserve disk space upfront.

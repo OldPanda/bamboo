@@ -180,7 +180,7 @@ func TestLimitsAndCancellation(t *testing.T) {
 		t.Fatal("engine did not recover", err)
 	}
 	// Check the actual locked settings, not just the configuration strings.
-	for name, want := range map[string]string{"enable_external_access": "false", "autoinstall_known_extensions": "false", "autoload_known_extensions": "false", "lock_configuration": "true", "threads": "2", "max_temp_directory_size": "0 bytes"} {
+	for name, want := range map[string]string{"enable_external_access": "false", "autoinstall_known_extensions": "false", "autoload_known_extensions": "false", "lock_configuration": "true", "threads": "2"} {
 		var got string
 		if err := e.db.QueryRow("SELECT current_setting(?)::VARCHAR", name).Scan(&got); err != nil {
 			t.Fatal(err)
