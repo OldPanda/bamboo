@@ -136,8 +136,8 @@ export const chinese: Record<string, string> = {
   "Close export chooser": "关闭导出选项",
   "Preserve column types, exact values and NULL.":
     "保留字段类型、精确数值和 NULL。",
-  "Text values with a header row. NULL and empty text both export as empty fields.":
-    "以文本形式导出，包含表头。NULL 和空文本均导出为空字段。",
+  "Formula-like text gets a leading apostrophe. NULL and empty text export as empty fields. Use JSON for original values.":
+    "公式样式文本会添加前置单引号。NULL 和空文本均导出为空字段。保留原始值请使用 JSON。",
   "Choose where your data lives.": "选择数据所在的位置。",
   "Close data source chooser": "关闭数据来源选择",
   "Data location": "数据位置",

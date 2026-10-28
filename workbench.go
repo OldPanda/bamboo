@@ -13,8 +13,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
+	"unicode"
 )
 
 // fileDialogs is the native boundary; tests use a dialog double without opening UI.
@@ -96,7 +98,8 @@ func (w *Workbench) ExportPage(ctx context.Context) (string, error) {
 }
 
 // ExportPageAs exports the last successful visible page as JSON or CSV.
-// CSV preserves textual values; NULL and empty text both become empty fields.
+// CSV prefixes formula-like text with an apostrophe; JSON preserves original values.
+// NULL and empty text both become empty CSV fields.
 func (w *Workbench) ExportPageAs(ctx context.Context, format string) (string, error) {
 	if format != "json" && format != "csv" {
 		return "", errors.New("choose JSON or CSV export format")
@@ -156,7 +159,7 @@ func writeExportFormatWith(path string, r *engine.Result, format string, create 
 		enc := csv.NewWriter(f)
 		header := make([]string, len(r.Columns))
 		for i, col := range r.Columns {
-			header[i] = col.Name
+			header[i] = spreadsheetText(col.Name, "")
 		}
 		err = enc.Write(header)
 		for _, row := range r.Rows {
@@ -166,7 +169,7 @@ func writeExportFormatWith(path string, r *engine.Result, format string, create 
 			values := make([]string, len(row))
 			for i, value := range row {
 				if value != nil {
-					values[i] = *value
+					values[i] = spreadsheetText(*value, r.Columns[i].Type)
 				}
 			}
 			err = enc.Write(values)
@@ -185,4 +188,33 @@ func writeExportFormatWith(path string, r *engine.Result, format string, create 
 		os.Remove(path)
 	}
 	return closeErr
+}
+
+// Only typed numeric cells with a complete numeric representation bypass text
+// protection. Never parse through float64: large integers/decimals stay exact.
+var csvNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
+
+func spreadsheetText(value, columnType string) string {
+	numeric := false
+	switch strings.Split(columnType, "(")[0] {
+	case "TINYINT", "SMALLINT", "INTEGER", "BIGINT", "HUGEINT", "UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT", "UHUGEINT", "FLOAT", "DOUBLE", "DECIMAL":
+		numeric = true
+	}
+	if numeric && csvNumber.MatchString(value) {
+		return value
+	}
+	for _, c := range value {
+		// Spreadsheet imports can discard leading whitespace/control characters.
+		if unicode.IsControl(c) || c == '\ufeff' {
+			return "'" + value
+		}
+		if unicode.IsSpace(c) {
+			continue
+		}
+		if strings.ContainsRune("=+-@＝＋－＠", c) {
+			return "'" + value
+		}
+		break
+	}
+	return value
 }

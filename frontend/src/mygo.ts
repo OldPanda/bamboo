@@ -170,7 +170,8 @@ export const Workbench = {
   },
   /**
    * ExportPageAs exports the last successful visible page as JSON or CSV.
-   * CSV preserves textual values; NULL and empty text both become empty fields.
+   * CSV prefixes formula-like text with an apostrophe; JSON preserves original values.
+   * NULL and empty text both become empty CSV fields.
    */
   exportPageAs(format: string): Promise<string> {
     return call("Workbench.ExportPageAs", format);

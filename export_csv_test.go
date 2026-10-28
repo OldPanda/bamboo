@@ -114,3 +114,56 @@ func TestCSVFailureCleansUp(t *testing.T) {
 		})
 	}
 }
+
+func TestCSVFormulaProtection(t *testing.T) {
+	cases := []struct{ value, typ, want string }{
+		{"=1+1", "VARCHAR", "'=1+1"}, {"+2+2", "VARCHAR", "'+2+2"},
+		{"-2+3", "VARCHAR", "'-2+3"}, {"@SUM(1)", "VARCHAR", "'@SUM(1)"},
+		{"\t=1+1", "VARCHAR", "'\t=1+1"}, {"\r=1+1", "VARCHAR", "'\r=1+1"},
+		{"\n=1+1", "VARCHAR", "'\n=1+1"}, {"  =1+1", "VARCHAR", "'  =1+1"},
+		{"\ufeff=1+1", "VARCHAR", "'\ufeff=1+1"}, {"＝1+1", "VARCHAR", "'＝1+1"},
+		{"-42", "BIGINT", "-42"}, {"-9223372036854775808", "BIGINT", "-9223372036854775808"},
+		{"-12345678901234567890.123456789", "DECIMAL(38,9)", "-12345678901234567890.123456789"},
+		{"-1.25e+10", "DOUBLE", "-1.25e+10"}, {"-42", "VARCHAR", "'-42"},
+		{"-1+2", "BIGINT", "'-1+2"}, {"", "VARCHAR", ""}, {"竹子,\"text\"\nline", "VARCHAR", "竹子,\"text\"\nline"},
+	}
+	r := &engine.Result{}
+	row := []*string{}
+	want := []string{}
+	for _, c := range cases {
+		r.Columns = append(r.Columns, engine.Column{Name: c.value, Type: c.typ})
+		value := c.value
+		row = append(row, &value)
+		want = append(want, c.want)
+	}
+	r.Rows = [][]*string{row}
+	p := filepath.Join(t.TempDir(), "protected.csv")
+	if err := writeExportFormat(p, r, "csv"); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	got, err := csv.NewReader(f).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// encoding/csv normalizes CRLF; these fixtures only contain isolated CR.
+	if !reflect.DeepEqual(got[1], want) {
+		t.Fatalf("values: %#v want %#v", got[1], want)
+	}
+	for i, c := range cases {
+		expected := c.want
+		if c.value != "" && c.value[0] == '-' {
+			expected = "'" + c.value
+		}
+		if got[0][i] != expected {
+			t.Errorf("header %d: %q want %q", i, got[0][i], expected)
+		}
+		if *r.Rows[0][i] != c.value {
+			t.Fatal("export mutated original data")
+		}
+	}
+}

@@ -50,7 +50,7 @@ func workspaceReferences(query string) ([]string, error) {
 			continue
 		}
 		if i+1 < len(q) && q[i:i+2] == "--" {
-			for i < len(q) && q[i] != '\n' {
+			for i < len(q) && q[i] != '\n' && q[i] != '\r' {
 				i++
 			}
 			continue

@@ -1,30 +1,33 @@
+<div align="center">
+
+<img src="assets/bamboo.png" width="112" height="112" alt="Bamboo logo" />
+
 # Bamboo
 
 ### Explore Parquet, locally and in the cloud.
 
-A lightweight desktop workbench for browsing Parquet files and querying them with SQL.
-Open a file, a local folder, or an Amazon S3 / Cloudflare R2 workspace—without importing your data into a database.
+**Your files. Your SQL. One workbench.**<br>
+Browse local files, Amazon S3 and Cloudflare R2.<br>
+Query with DuckDB, without importing your data into a database.
 
-[Getting started](#getting-started) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT license](LICENSE)
+![macOS Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon-111111?logo=apple&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE)
 
-## What you can do
+**[Quick start](#quick-start)** · **[Documentation](#documentation)** · **[Contributing](CONTRIBUTING.md)** · **[Security](SECURITY.md)**
 
-- **Explore your data.** Preview rows, inspect schemas, sort and filter columns.
-- **Query with SQL.** Use DuckDB for joins, aggregations and cross-file queries, with inline completion.
-- **Keep work organized.** Open multiple files and workspaces, and restore saved query drafts.
-- **Read from the cloud.** Browse S3 and R2 with credentials stored in macOS Keychain.
-- **Export a preview.** Save the current result page as JSON or CSV.
-- **Make it yours.** Choose light, dark or automatic appearance, English or Chinese, and query resource limits.
+</div>
 
-Queries run on your Mac. Source files stay read-only, and local files work offline.
-Built with [MyGo](https://github.com/egoist/mygo) and [DuckDB](https://duckdb.org/).
+## Features
 
-## Getting started
+- **Explore files.** Preview rows, inspect schemas, sort and filter columns.
+- **Query across files.** Write SQL with inline completion, joins and aggregations.
+- **Connect your storage.** Open local folders, S3 or R2 workspaces; cloud credentials stay in macOS Keychain.
+- **Pick up where you left off.** Keep multiple files open and restore saved query drafts.
 
-Currently supported: **macOS on Apple Silicon**.
+## Quick start
 
-To build from source, install Xcode Command Line Tools, Node.js 22.12+, Python 3.12+,
-and Go with toolchain download support. From the repository root:
+**1 · Build.** On an Apple Silicon Mac, install Xcode Command Line Tools,
+Node.js 22.12+, Python 3.12+ and Go. From the repository root:
 
 ```sh
 npm ci
@@ -32,17 +35,17 @@ npm run build
 open build/Bamboo.app
 ```
 
-The build selects Go 1.27.3 automatically. The resulting app needs no development
-tools to run; local builds are ad-hoc signed, not notarized.
+The build downloads Go 1.27.3 as needed. Local builds are ad-hoc signed, not notarized.
 
-Choose **Open data** to open a file, folder or cloud workspace, or drag a Parquet file
-into the welcome area. Query the selected file as `data`; use
-`workspace."orders.parquet"` to reference a file in the active workspace.
+**2 · Open data.** Choose a file, folder or cloud workspace, or drop a Parquet file into the welcome area.
 
-## Learn more
+**3 · Query.** Use `data` for the selected file, or `workspace."orders.parquet"` for a file in the active workspace.
 
-- [Cross-file SQL](WORKSPACE_SQL.md)
-- [Cloudflare R2](R2_WORKSPACES.md) · [Amazon S3](S3_WORKSPACES.md)
-- [Development, lint and tests](CONTRIBUTING.md)
-- [Security and data access](SECURITY.md)
-- [Third-party licenses](THIRD_PARTY.md)
+## Documentation
+
+[Cross-file SQL](WORKSPACE_SQL.md) · [Amazon S3](S3_WORKSPACES.md) · [Cloudflare R2](R2_WORKSPACES.md) · [Development and tests](CONTRIBUTING.md)
+
+## License
+
+[MIT](LICENSE). Built with [MyGo](https://github.com/egoist/mygo) and [DuckDB](https://duckdb.org/).
+See [third-party notices](THIRD_PARTY.md) for dependency licenses.

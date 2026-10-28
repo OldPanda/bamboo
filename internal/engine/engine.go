@@ -289,6 +289,9 @@ func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure er
 		return nil, err
 	}
 	defer cleanup()
+	if err := validateSelect(ctx, db, q); err != nil {
+		return nil, err
+	}
 	ctx, stopDisk := db.watchDisk(ctx)
 	defer func() {
 		if err := stopDisk(); err != nil {
