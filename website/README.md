@@ -9,6 +9,7 @@ website/
   site.js                # English/Chinese copy and interactions
   assets/                # Original screenshots and artwork, named by content hash
   scripts/               # Website build, browser checks and capture helpers
+  tests/                 # Isolated build regression tests
   _headers               # Cloudflare Pages security and cache headers
   *-provenance.json      # Capture and benchmark evidence; not deployed
   package.json           # Deployment CLI only; separate from App dependencies
@@ -56,7 +57,9 @@ The download buttons currently point at the verified `v0.1.0` Apple Silicon DMG.
 
 ## Verify changes
 
-Run `npm run test:website` from the repository root (requires Node 22+ and Chrome; set `BAMBOO_CHROME` to override the executable). It exercises the actual page at five viewport/theme combinations, verifies its screenshot appearance, navigation and mobile download behavior, rejects external runtime requests and private paths, and writes evidence to ignored `artifacts/website/`. CI runs the same check with the existing visual regressions.
+`npm --prefix website run test:build` runs dependency-free Node tests in disposable directories: public-file allowlisting, stale-output cleanup, asset hashes and references, reproducible builds, self-contained preview assets, and rejection of modified or unexpected images. These tests never modify the source assets or use cloud credentials.
+
+Run `npm run test:website` from the repository root (requires Node 22+ and Chrome; set `BAMBOO_CHROME` to override the executable). It first runs the isolated build tests, then exercises the actual page at five viewport/theme combinations, verifies its screenshot appearance, navigation and mobile download behavior, rejects external runtime requests and private paths, and writes evidence to ignored `artifacts/website/`. It also checks shared language/legal URLs, theme persistence, invalid preference fallback, unavailable browser storage, and the header icon order/style. Both website and App CI run the complete suite.
 
 - Format `website/index.html`, this document, and the installation guide with the repository's Prettier version.
 - Open the page at desktop and mobile widths, including 320 px, in light and dark appearances.

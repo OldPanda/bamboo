@@ -1,5 +1,6 @@
 /** Verify the built website over HTTP in headless Chrome without opening the app. */
 import assert from "node:assert/strict";
+import { checkPreferences } from "./website-preferences-check.mjs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -371,6 +372,28 @@ try {
     assert.equal(layout.creator, "https://x.com/OldPanda");
     assert(layout.issues && layout.discussions && layout.guide);
     assert.equal(layout.dark, mode === "dark");
+    if (width >= 700) {
+      const header = await evaluate(`(() => {
+        const language = document.querySelector('.language-control');
+        const theme = document.getElementById('theme-toggle');
+        const github = document.querySelector('.github-link');
+        const style = element => { const s = getComputedStyle(element); return [s.width, s.height, s.borderRadius, s.color, s.backgroundColor]; };
+        return {ordered: !!(language.compareDocumentPosition(theme) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(theme.compareDocumentPosition(github) & Node.DOCUMENT_POSITION_FOLLOWING), theme: style(theme), github: style(github), label: github.getAttribute('aria-label'), text: github.textContent.trim(), destination: github.href};
+      })()`);
+      assert(
+        header.ordered,
+        "Header order must remain language, theme, GitHub",
+      );
+      assert.deepEqual(
+        header.github,
+        header.theme,
+        "GitHub and theme controls share the icon button style",
+      );
+      assert.equal(header.label, "GitHub");
+      assert.equal(header.text, "");
+      assert.equal(header.destination, "https://github.com/OldPanda/bamboo");
+    }
+
     for (const id of ["terms", "privacy"]) {
       await evaluate(
         `document.querySelector('.footer-links a[href="#${id}"]').click()`,
@@ -524,6 +547,8 @@ try {
     "en",
     "Restore saved language",
   );
+  const preferenceChecks = await checkPreferences({ send, evaluate, origin });
+  console.log(`Preference regressions passed: ${preferenceChecks.length}`);
   await send("Emulation.setUserAgentOverride", {
     userAgent:
       "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
@@ -547,6 +572,7 @@ try {
       {
         results,
         phoneDownload: "passed",
+        preferenceChecks,
         externalRequests: remoteRequests,
         javascriptErrors: errors,
       },

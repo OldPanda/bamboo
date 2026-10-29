@@ -31,6 +31,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "22.23.4"
+      - name: Test website build boundaries
+        run: npm --prefix website run test:build
       - name: Build public files and standalone preview
         run: node website/scripts/website-build.mjs --standalone
       - name: Verify built website with production headers

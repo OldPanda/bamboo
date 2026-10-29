@@ -11,6 +11,7 @@
   "scripts": {
     "build": "node scripts/website-build.mjs",
     "build:preview": "node scripts/website-build.mjs --standalone",
-    "test": "node scripts/website-build.mjs && node scripts/website-smoke.mjs"
+    "test": "npm run test:build && node scripts/website-build.mjs && node scripts/website-smoke.mjs",
+    "test:build": "node --test tests/*.test.mjs"
   }
 }

@@ -76,8 +76,7 @@ jobs:
           for check in scripts/visual/*/visual-check.py; do
             python3 "$check"
           done
-          node website/scripts/website-build.mjs
-          node website/scripts/website-smoke.mjs
+          npm run test:website
       - name: All production-size performance cases
         run: npm run test:perf -- --runs 1 --output artifacts/performance/ci
       - name: Upload test evidence
