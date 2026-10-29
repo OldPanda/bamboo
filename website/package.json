@@ -1,0 +1,16 @@
+{
+  "name": "bamboo-website-deployment",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.0"
+  },
+  "scripts": {
+    "build": "node scripts/website-build.mjs",
+    "build:preview": "node scripts/website-build.mjs --standalone",
+    "test": "node scripts/website-build.mjs && node scripts/website-smoke.mjs"
+  }
+}

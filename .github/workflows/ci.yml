@@ -76,6 +76,8 @@ jobs:
           for check in scripts/visual/*/visual-check.py; do
             python3 "$check"
           done
+          node website/scripts/website-build.mjs
+          node website/scripts/website-smoke.mjs
       - name: All production-size performance cases
         run: npm run test:perf -- --runs 1 --output artifacts/performance/ci
       - name: Upload test evidence
@@ -99,6 +101,7 @@ jobs:
             artifacts/r2/native-summary.json
             artifacts/s3/native-summary.json
             artifacts/visual/
+            artifacts/website/
             artifacts/performance/ci/
       - name: Remove isolated CI Keychain
         if: always()

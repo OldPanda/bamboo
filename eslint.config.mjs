@@ -43,7 +43,7 @@ export default ts.config(
   },
   // Native smoke files are async function bodies injected into WKWebView.
   {
-    files: ["scripts/*-smoke.js"],
+    files: ["scripts/*-smoke.js", "website/scripts/*-smoke.js"],
     languageOptions: {
       sourceType: "script",
       parserOptions: { ecmaFeatures: { globalReturn: true } },
