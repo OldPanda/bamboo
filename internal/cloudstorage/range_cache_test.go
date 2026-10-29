@@ -329,3 +329,96 @@ func TestRangeCacheFetchBudgetAllowsSmallParallelReads(t *testing.T) {
 		})
 	}
 }
+
+// observedWaitContext signals that a reader has reached its cancellation select.
+type observedWaitContext struct {
+	context.Context
+	once    sync.Once
+	waiting chan struct{}
+}
+
+// Done records entry into a blocking wait without using scheduling sleeps.
+func (c *observedWaitContext) Done() <-chan struct{} {
+	c.once.Do(func() { close(c.waiting) })
+	return c.Context.Done()
+}
+
+func TestRangeCacheWaitingReaderOutcomes(t *testing.T) {
+	for _, kind := range []string{"success", "fetch-failure", "leader-canceled", "waiter-canceled", "cache-closed"} {
+		t.Run(kind, func(t *testing.T) {
+			c := newRangeCache(context.Background())
+			defer c.close()
+			leaderCtx, cancelLeader := context.WithCancel(context.Background())
+			defer cancelLeader()
+			waiterCtx, cancelWaiter := context.WithCancel(context.Background())
+			defer cancelWaiter()
+			waiter := &observedWaitContext{Context: waiterCtx, waiting: make(chan struct{})}
+			started, release := make(chan struct{}), make(chan struct{})
+			var calls atomic.Int64
+			fetchErr := errors.New("synthetic transfer failure")
+			fetch := func(ctx context.Context, _, _ int64) ([]byte, error) {
+				if calls.Add(1) == 1 {
+					close(started)
+					select {
+					case <-release:
+						if kind == "fetch-failure" {
+							return nil, fetchErr
+						}
+					case <-ctx.Done():
+						return nil, ctx.Err()
+					}
+				}
+				return []byte{7}, nil
+			}
+			o := Object{Key: "data.parquet", Size: 1, ETag: "v1"}
+			type outcome struct {
+				body []byte
+				err  error
+			}
+			leaderDone, waiterDone := make(chan outcome, 1), make(chan outcome, 1)
+			go func() { b, err := c.read(leaderCtx, o, 0, 0, fetch); leaderDone <- outcome{b, err} }()
+			<-started
+			go func() { b, err := c.read(waiter, o, 0, 0, fetch); waiterDone <- outcome{b, err} }()
+			<-waiter.waiting
+			switch kind {
+			case "leader-canceled":
+				cancelLeader()
+			case "waiter-canceled":
+				cancelWaiter()
+			case "cache-closed":
+				c.close()
+			default:
+				close(release)
+			}
+			result := <-waiterDone
+			switch kind {
+			case "waiter-canceled", "cache-closed":
+				if !errors.Is(result.err, context.Canceled) {
+					t.Fatal(result.err)
+				}
+			case "fetch-failure":
+				if !errors.Is(result.err, fetchErr) {
+					t.Fatal("shared failure lost", result.err)
+				}
+			default:
+				if result.err != nil || !bytes.Equal(result.body, []byte{7}) {
+					t.Fatal(result.body, result.err)
+				}
+			}
+			if kind == "waiter-canceled" {
+				close(release)
+			}
+			leaderResult := <-leaderDone
+			if kind == "waiter-canceled" && leaderResult.err != nil {
+				t.Fatal("waiter canceled shared leader", leaderResult.err)
+			}
+			wantCalls := int64(1)
+			if kind == "leader-canceled" {
+				wantCalls = 2
+			}
+			if calls.Load() != wantCalls {
+				t.Fatal("unexpected fetch count", calls.Load())
+			}
+		})
+	}
+}

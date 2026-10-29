@@ -160,3 +160,7 @@ BAMBOO_VERSION=v0.1.0 npm run package:dmg
 
 Outputs stay in the ignored `build/releases/` directory. Never move an existing
 published version tag to a different commit; create a new version instead.
+
+See [Automatic updates](docs/automatic-updates.md) for the one-time signing secret,
+stable release feed and native updater checks. Version releases now require
+`SPARKLE_PRIVATE_KEY`; ordinary PR tests continue to run without repository secrets.

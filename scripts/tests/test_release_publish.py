@@ -18,6 +18,8 @@ class ReleasePublishTests(unittest.TestCase):
         script = textwrap.dedent(WORKFLOW.read_text().rsplit("        run: |\n", 1)[1])
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            (root / "appcast.xml").write_text("signed-test-feed")
+            (root / "release-notes.md").write_text("Product overview")
             log = root / "calls"
             gh = root / "gh"
             gh.write_text(
@@ -70,6 +72,7 @@ class ReleasePublishTests(unittest.TestCase):
         )
         self.assertIn("--draft ", calls[1])
         self.assertIn("--verify-tag", calls[1])
+        self.assertIn("--notes-file release-notes.md", calls[1])
         self.assertIn("--prerelease=true", calls[1])
         self.assertIn("--draft=false", calls[-1])
 

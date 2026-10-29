@@ -115,6 +115,14 @@ export interface Result {
   elapsedMS: number;
 }
 
+export interface Status {
+  updateVersion: string;
+  version: string;
+  available: boolean;
+  automatic: boolean;
+  canCheck: boolean;
+}
+
 /** WorkspaceFile combines file metadata, restored SQL and any persistence warning. */
 export interface WorkspaceFile {
   file: File | null;
@@ -133,6 +141,10 @@ export const Workbench = {
   /** Cancel interrupts the active query or cloud operation. */
   cancel(): Promise<void> {
     return call("Workbench.Cancel");
+  },
+  /** CheckForUpdates opens the native signed-update flow, preserving work until consent. */
+  checkForUpdates(): Promise<void> {
+    return call("Workbench.CheckForUpdates");
   },
   /** ClearPreview releases the active engine after the last open file is closed. */
   clearPreview(): Promise<void> {
@@ -252,6 +264,10 @@ export const Workbench = {
   setAppearance(source: string): Promise<void> {
     return call("Workbench.SetAppearance", source);
   },
+  /** SetAutomaticUpdates changes only Sparkle's automatic-check preference. */
+  setAutomaticUpdates(enabled: boolean): Promise<void> {
+    return call("Workbench.SetAutomaticUpdates", enabled);
+  },
   /** SetLanguage saves the interface language independently of data and appearance. */
   setLanguage(language: string): Promise<void> {
     return call("Workbench.SetLanguage", language);
@@ -263,5 +279,9 @@ export const Workbench = {
   /** TestR2Connection checks access to a saved R2 or S3 connection. */
   testR2Connection(root: string): Promise<void> {
     return call("Workbench.TestR2Connection", root);
+  },
+  /** UpdateStatus returns update preferences and the currently installed version. */
+  updateStatus(): Promise<Status> {
+    return call("Workbench.UpdateStatus");
   },
 } as const;

@@ -117,6 +117,33 @@ try {
   rejected = true;
 }
 assert(rejected, "IPC rejects multiple SQL statements");
+// Exercise native settings IPC without starting the network updater in smoke builds.
+await mygo.call("Workbench.SetAppearance", "dark");
+assert(
+  (await mygo.call("Workbench.Appearance")) === "dark",
+  "appearance persists through native IPC",
+);
+await mygo.call("Workbench.SetAppearance", "system");
+const updateStatus = await mygo.call("Workbench.UpdateStatus");
+assert(
+  updateStatus.available === false &&
+    updateStatus.canCheck === false &&
+    typeof updateStatus.automatic === "boolean",
+  "smoke updater reports unavailable with boolean preferences",
+);
+for (const [method, args] of [
+  ["Workbench.CheckForUpdates", []],
+  ["Workbench.SetAutomaticUpdates", [true]],
+  ["Workbench.SetAutomaticUpdates", [false]],
+]) {
+  let failed = false;
+  try {
+    await mygo.call(method, ...args);
+  } catch {
+    failed = true;
+  }
+  assert(failed, method + " rejects unavailable updater without opening UI");
+}
 // Restore the actual UI/session after direct IPC checks.
 await mygo.call("Workbench.OpenPath", path);
 $("sql").value = "SELECT * FROM data";

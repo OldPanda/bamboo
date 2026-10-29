@@ -54,7 +54,15 @@ class ReleaseVersionTests(unittest.TestCase):
             root = Path(temporary)
             plist = root / "Info.plist"
             output = root / "github-output"
-            plist.write_bytes(plistlib.dumps({"CFBundleName": "Bamboo"}))
+            plist.write_bytes(
+                plistlib.dumps(
+                    {
+                        "CFBundleName": "Bamboo",
+                        "SUAutomaticallyUpdate": True,
+                        "SUAllowsAutomaticUpdates": True,
+                    }
+                )
+            )
             result = subprocess.run(
                 [
                     sys.executable,
@@ -74,6 +82,9 @@ class ReleaseVersionTests(unittest.TestCase):
             self.assertEqual(info["CFBundleVersion"], "2.3.4")
             self.assertEqual(info["CFBundleShortVersionString"], "2.3.4")
             self.assertEqual(info["BambooReleaseVersion"], "2.3.4-rc.1")
+            self.assertIs(info["SUEnableAutomaticChecks"], True)
+            self.assertIs(info["SUAutomaticallyUpdate"], False)
+            self.assertIs(info["SUAllowsAutomaticUpdates"], False)
             self.assertEqual(result.stdout, "2.3.4-rc.1\n")
             self.assertEqual(
                 output.read_text(), "version=2.3.4-rc.1\nprerelease=true\n"

@@ -1365,6 +1365,27 @@ body.is-busy textarea:disabled {
 }
 
 /* Connections remain in Settings independently of open workspaces. */
+.sidebar-footer {
+  margin-top: auto;
+  display: grid;
+  gap: var(--space-2xs);
+  flex-shrink: 0;
+}
+.update-reminder.quiet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-accent);
+  text-align: left;
+}
+.update-reminder svg {
+  flex-shrink: 0;
+}
+.update-reminder span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .settings-button {
   display: flex;
   align-items: center;
@@ -1478,6 +1499,7 @@ button.danger:hover:not(:disabled) {
   outline: none;
 }
 @media (max-width: 700px) {
+  .update-reminder span,
   .settings-button span {
     display: none;
   }
@@ -2096,4 +2118,33 @@ button.danger:hover:not(:disabled) {
 }
 #manage-connections svg {
   flex-shrink: 0;
+}
+
+.general-updates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px 24px;
+  align-items: center;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.general-updates h4,
+.general-updates p {
+  margin: 0;
+}
+.general-updates #update-version {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.general-updates .update-toggle {
+  justify-self: end;
+}
+#update-message {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+#update-message:empty {
+  display: none;
 }

@@ -70,5 +70,12 @@
       "github.com_aws_smithy-go-LICENSE",
       "github.com_aws_smithy-go-NOTICE"
     ]
+  },
+  {
+    "module": "github.com/sparkle-project/Sparkle",
+    "version": "2.10.1",
+    "licenses": [
+      "sparkle-LICENSE.txt"
+    ]
   }
 ]

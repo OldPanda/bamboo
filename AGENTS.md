@@ -92,6 +92,10 @@ requested, and update their tests together.
 - On macOS, the red close button hides the window; Dock activation restores it.
   Explicit Quit must still terminate. Test repeated hide/show cycles and quitting
   from both visible and hidden states.
+- Background update checks may discover and announce a new version. Installation
+  and relaunch require an explicit user action; never silently update or restart
+  an active session. Preserve this policy even if older preferences enabled
+  automatic downloads, and test it against the real updater framework.
 - Update English and Chinese together in `frontend/src/i18n.ts`. Use existing
   design tokens, accessible labels, keyboard behavior and visible focus states.
   Check both appearances, longer translations and narrow windows.

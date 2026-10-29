@@ -27,6 +27,7 @@ type fileDialogs interface {
 
 // Workbench exposes local files, cloud workspaces, bounded queries and appearance.
 type Workbench struct {
+	updates      updateService
 	engine       *engine.Engine
 	remote       *cloudstorage.Store
 	remoteCancel context.CancelFunc

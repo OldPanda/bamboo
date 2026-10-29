@@ -118,7 +118,30 @@ try {
     !result.scrolls
   )
     throw Error("layout overflow");
-  console.log(name, JSON.stringify({ ...result, mode }));
+  await send("Runtime.evaluate", {
+    expression: "document.getElementById('settings-dismiss').click()",
+  });
+  const reminder = await send("Runtime.evaluate", {
+    expression: `(() => {
+      const button = document.getElementById('update-reminder');
+      const r = button.getBoundingClientRect();
+      const sidebar = document.querySelector('.sidebar').getBoundingClientRect();
+      const settings = document.getElementById('settings').getBoundingClientRect();
+      return !button.hidden && !button.disabled && r.width > 0 && r.height >= 36 &&
+        r.left >= sidebar.left && r.right <= sidebar.right &&
+        r.bottom <= settings.top && settings.bottom <= innerHeight &&
+        r.top > innerHeight / 2;
+    })()`,
+    returnByValue: true,
+  });
+  if (!reminder.result.value)
+    throw Error("update reminder is not visible at sidebar bottom");
+  const reminderShot = await send("Page.captureScreenshot", { format: "png" });
+  await writeFile(
+    join(out, name + "-reminder.png"),
+    Buffer.from(reminderShot.data, "base64"),
+  );
+  console.log(name, JSON.stringify({ ...result, mode, reminderVisible: true }));
 } finally {
   socket?.close();
   proc.kill("SIGTERM");

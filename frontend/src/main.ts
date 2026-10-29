@@ -44,7 +44,10 @@ app.innerHTML = `
   <div id="file-card" hidden></div>
   <div id="columns-label" class="section-label columns-label" hidden>Columns <span id="column-count">—</span></div>
   <div id="column-list" class="column-list" hidden></div>
+  <div class="sidebar-footer">
+  <button id="update-reminder" class="update-reminder quiet" hidden title="Review and install update"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v5h14v-5"/></svg><span id="update-reminder-label"></span></button>
   <button id="settings" class="settings-button quiet" aria-haspopup="dialog" aria-controls="settings-dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--side)"/><circle cx="15" cy="17" r="3" fill="var(--side)"/></svg><span>Settings</span></button>
+  </div>
 </aside>
 <main>
   <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge" hidden></span><button id="export" title="Export the visible result page as JSON or CSV" aria-haspopup="dialog" aria-controls="export-dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m-5 5 5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg><span>Export</span></button></div></header>
@@ -121,6 +124,13 @@ app.innerHTML = `
     <div class="general-language">
      <label class="language-field" for="interface-language">Language</label>
      <div class="language-select"><select id="interface-language"><option value="en" lang="en">English</option><option value="zh-CN" lang="zh-CN">简体中文</option></select><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></div>
+    </div>
+    <div class="general-updates">
+     <div><h4>Software updates</h4><p id="update-version" class="muted"></p></div>
+     <button id="check-updates" class="quiet" disabled>Check for updates</button>
+     <label for="automatic-updates">Automatically check for updates</label>
+     <label class="resource-toggle update-toggle"><input id="automatic-updates" type="checkbox" role="switch" aria-label="Automatically check for updates" disabled></label>
+     <p id="update-message" class="muted" role="status" aria-live="polite"></p>
     </div>
    </section>
    <section id="settings-panel-performance" role="tabpanel" aria-labelledby="settings-tab-performance" tabindex="0" hidden>
@@ -1305,11 +1315,121 @@ $("interface-language").onchange = async () => {
     select.disabled = busy;
   }
 };
+let updatingPreferences = false;
+let updatesAvailable = false;
+let reminderReady = false;
+let reminderTicket = 0;
+async function refreshUpdateReminder() {
+  const ticket = ++reminderTicket;
+  try {
+    const status = await Workbench.updateStatus();
+    if (ticket !== reminderTicket) return;
+    const version = status?.available ? status.updateVersion : "";
+    $("update-reminder").hidden = !version;
+    reminderReady = !!version && !!status?.canCheck;
+    if (version) {
+      setText($("update-reminder-label"), "Update to {version}", { version });
+      setAttribute($("update-reminder"), "title", "Review and install update");
+    }
+  } catch {
+    if (ticket !== reminderTicket) return;
+    $("update-reminder").hidden = true;
+    reminderReady = false;
+  }
+  updateControls();
+}
+function updateControls() {
+  $("update-reminder").toggleAttribute(
+    "disabled",
+    busy || updatingPreferences || !reminderReady,
+  );
+  for (const id of ["check-updates", "automatic-updates"])
+    $(id).toggleAttribute(
+      "disabled",
+      busy || updatingPreferences || !updatesAvailable,
+    );
+}
+let updateStatusTicket = 0;
+async function refreshUpdateStatus() {
+  const ticket = ++updateStatusTicket;
+  const automatic = $<HTMLInputElement>("automatic-updates");
+  updatesAvailable = false;
+  updateControls();
+  try {
+    const status = await Workbench.updateStatus();
+    if (ticket !== updateStatusTicket) return;
+    if (!status) throw new Error("updates are unavailable in this build");
+    setText($("update-version"), "Version {version}", {
+      version: status.version,
+    });
+    automatic.checked = status.automatic;
+    updatesAvailable = status.available;
+    updateControls();
+    setText(
+      $("update-message"),
+      status.available ? "" : "updates are unavailable in this build",
+    );
+  } catch (error) {
+    if (ticket !== updateStatusTicket) return;
+    setText(
+      $("update-message"),
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+$("automatic-updates").onchange = async () => {
+  if (updatingPreferences) return;
+  updatingPreferences = true;
+  const input = $<HTMLInputElement>("automatic-updates");
+  const previous = !input.checked;
+  input.disabled = true;
+  $<HTMLButtonElement>("check-updates").disabled = true;
+  try {
+    await Workbench.setAutomaticUpdates(input.checked);
+    setText($("update-message"), "");
+  } catch (error) {
+    input.checked = previous;
+    setText(
+      $("update-message"),
+      error instanceof Error ? error.message : String(error),
+    );
+  } finally {
+    updatingPreferences = false;
+    updateControls();
+  }
+};
+async function checkForUpdates() {
+  if (updatingPreferences) return;
+  updatingPreferences = true;
+  $<HTMLButtonElement>("check-updates").disabled = true;
+  $<HTMLInputElement>("automatic-updates").disabled = true;
+  try {
+    await Workbench.checkForUpdates();
+    setText($("update-message"), "");
+  } catch (error) {
+    setText(
+      $("update-message"),
+      error instanceof Error ? error.message : String(error),
+    );
+  } finally {
+    updatingPreferences = false;
+    updateControls();
+    void refreshUpdateReminder();
+  }
+}
+$("check-updates").onclick = checkForUpdates;
+$("update-reminder").onclick = async () => {
+  if (!reminderReady || busy) return;
+  await checkForUpdates();
+  if ($("update-message").textContent)
+    notify($("update-message").textContent!, true);
+};
 function showSettings() {
   closeSources();
   $("settings-message").hidden = true;
   settingsDialog.showModal();
   void refreshDiskLimits();
+  void refreshUpdateStatus();
   $("settings-title").focus();
   void refreshConnections();
 }
@@ -1592,6 +1712,7 @@ function controls() {
           n.id !== "r2-cancel" &&
           n.id !== "settings-cancel"),
     );
+  updateControls();
   $("previous").toggleAttribute(
     "disabled",
     busy || !result || request.offset === 0,
@@ -2101,3 +2222,10 @@ async function boot() {
   document.body.dataset.ready = "true";
 }
 void boot();
+// Reading status does not request a feed or start an install. Sparkle owns its
+// network schedule; refresh the in-app reminder when returning to the window.
+void refreshUpdateReminder();
+window.setInterval(() => void refreshUpdateReminder(), 60_000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") void refreshUpdateReminder();
+});

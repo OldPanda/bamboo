@@ -5,6 +5,7 @@ export GOTOOLCHAIN=go1.27.3
 # Reject invalid versions before doing any build work.
 python3 scripts/release_version.py >/dev/null
 python3 scripts/prepare-httpfs.py
+python3 scripts/prepare-sparkle.py
 # A tiny placeholder breaks the first-build embed/bindings dependency cycle.
 mkdir -p frontend/dist build
 if [ ! -f frontend/dist/index.html ]; then printf '<!doctype html><title>Bamboo</title>' > frontend/dist/index.html; fi
@@ -50,6 +51,9 @@ PLIST
   cp build/extensions/httpfs.duckdb_extension "$bundle/Contents/Resources/extensions/"
   cp -R licenses "$bundle/Contents/Resources/"
   cp LICENSE THIRD_PARTY.md "$bundle/Contents/Resources/"
+  mkdir -p "$bundle/Contents/Frameworks"
+  ditto build/sparkle/Sparkle.framework "$bundle/Contents/Frameworks/Sparkle.framework"
+  # Keep upstream nested helper signatures; seal our ad-hoc app around the framework.
   codesign --force --sign - "$bundle"
   codesign --verify --deep --strict "$bundle"
   python3 - "$bundle" "$PWD/build/Bamboo.app" "$stage_dir/previous.app" <<'PYTHON'

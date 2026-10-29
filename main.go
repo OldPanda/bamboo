@@ -4,6 +4,7 @@ package main
 import (
 	"bamboo/internal/cloudstorage"
 	"bamboo/internal/engine"
+	"bamboo/internal/updater"
 	"bamboo/internal/workspace"
 	"embed"
 	"io/fs"
@@ -45,7 +46,8 @@ func main() {
 		extension = filepath.Join(filepath.Dir(executable), "..", "Resources", "extensions", "httpfs.duckdb_extension")
 	}
 	e.SetHTTPFS(extension)
-	w := &Workbench{remote: remoteStoreFactory(config, cloudstorage.NewVault()), engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config), configDir: config}
+	updates := updater.New()
+	w := &Workbench{updates: updates, remote: remoteStoreFactory(config, cloudstorage.NewVault()), engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config), configDir: config}
 	mygo.Theme.SetSource(loadAppearance(config))
 	if len(os.Args) == 3 && os.Args[1] == "--workspace" {
 		if _, err := w.useWorkspace(os.Args[2]); err != nil {
@@ -65,6 +67,11 @@ func main() {
 		}
 		win.Page().OnWillNavigate(func(ev *mygo.NavigateEvent) { ev.PreventDefault() })
 		win.Page().SetWindowOpenHandler(func(mygo.WindowOpenRequest) *mygo.WindowOptions { return nil })
+		if os.Getenv("BAMBOO_SMOKE") == "" {
+			if err := updates.Start(); err != nil {
+				log.Printf("Automatic updates: %v", err)
+			}
+		}
 		if os.Getenv("BAMBOO_SMOKE") != "" {
 			go smoke(win)
 		}

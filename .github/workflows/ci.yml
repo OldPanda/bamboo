@@ -57,6 +57,8 @@ jobs:
         run: |
           npm run build
           git diff --exit-code -- frontend/src/mygo.ts
+      - name: Native updater integration (no windows or network checks)
+        run: python3 scripts/native-updater-smoke.py
       - name: Lint all maintained languages
         run: npm run lint
       - name: Test coverage gate failure handling

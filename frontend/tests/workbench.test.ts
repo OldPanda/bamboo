@@ -69,6 +69,7 @@ beforeEach(() => {
       this.dispatchEvent(new Event("close"));
     },
   });
+  vi.spyOn(window, "setInterval").mockReturnValue(0);
   vi.resetModules();
   bridge.call.mockReset();
   bridge.drop = undefined;
@@ -76,6 +77,14 @@ beforeEach(() => {
   delete document.body.dataset.ready;
   responses = {
     "Workbench.InitialFile": () => "",
+    "Workbench.UpdateStatus": () => ({
+      version: "0.1.0",
+      available: true,
+      automatic: true,
+      canCheck: true,
+    }),
+    "Workbench.SetAutomaticUpdates": () => undefined,
+    "Workbench.CheckForUpdates": () => undefined,
     "Workbench.Appearance": () => "system",
     "Workbench.Resources": () => ({
       memoryMiB: 256,
@@ -2764,5 +2773,329 @@ describe("automatic temporary disk", () => {
     expect($("query-disk-summary").textContent).toContain(
       "detection unavailable",
     );
+  });
+});
+
+describe("signed application updates", () => {
+  it("shows the installed version, checks updates and saves the automatic preference", async () => {
+    await boot();
+    await click("settings");
+    expect($("update-version").textContent).toBe("Version 0.1.0");
+    expect($<HTMLInputElement>("automatic-updates").checked).toBe(true);
+    await click("check-updates");
+    expect(bridge.call).toHaveBeenCalledWith("Workbench.CheckForUpdates");
+    const toggle = $<HTMLInputElement>("automatic-updates");
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event("change"));
+    await vi.waitFor(() =>
+      expect(bridge.call).toHaveBeenCalledWith(
+        "Workbench.SetAutomaticUpdates",
+        false,
+      ),
+    );
+    expect(toggle.checked).toBe(false);
+  });
+  it("keeps the saved preference after errors and prevents duplicate update requests", async () => {
+    await boot();
+    await click("settings");
+    responses["Workbench.SetAutomaticUpdates"] = () => {
+      throw new Error("could not start the updater");
+    };
+    const toggle = $<HTMLInputElement>("automatic-updates");
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(toggle.checked).toBe(true));
+    expect($("update-message").textContent).toBe("could not start the updater");
+    let finish!: () => void;
+    responses["Workbench.CheckForUpdates"] = () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    $("check-updates").click();
+    $("check-updates").click();
+    await vi.waitFor(() =>
+      expect($<HTMLButtonElement>("check-updates").disabled).toBe(true),
+    );
+    expect(
+      bridge.call.mock.calls.filter(
+        ([name]) => name === "Workbench.CheckForUpdates",
+      ),
+    ).toHaveLength(1);
+    finish();
+    await vi.waitFor(() =>
+      expect($<HTMLButtonElement>("check-updates").disabled).toBe(false),
+    );
+    responses["Workbench.CheckForUpdates"] = () => {
+      throw "an update check is already in progress";
+    };
+    await click("check-updates");
+    expect($("update-message").textContent).toBe(
+      "an update check is already in progress",
+    );
+  });
+  it("disables unsupported builds and renders version strings as plain text", async () => {
+    responses["Workbench.UpdateStatus"] = () => ({
+      version: "<img src=x>",
+      available: false,
+      automatic: false,
+      canCheck: false,
+    });
+    await boot();
+    await click("settings");
+    expect($<HTMLButtonElement>("check-updates").disabled).toBe(true);
+    expect($<HTMLInputElement>("automatic-updates").disabled).toBe(true);
+    expect($("update-version").querySelector("img")).toBeNull();
+    expect($("update-message").textContent).toBe(
+      "updates are unavailable in this build",
+    );
+    responses["Workbench.UpdateStatus"] = () => {
+      throw new Error("could not read update settings");
+    };
+    await click("settings-dismiss");
+    await click("settings");
+    expect($("update-message").textContent).toBe(
+      "could not read update settings",
+    );
+  });
+  it("translates update settings into Chinese", async () => {
+    responses["Workbench.Language"] = () => "zh-CN";
+    await boot();
+    await click("settings");
+    expect($("check-updates").textContent).toBe("检查更新");
+    expect($("update-version").textContent).toBe("版本 0.1.0");
+  });
+});
+
+describe("update status request races", () => {
+  it("ignores stale responses when settings is reopened", async () => {
+    let finish!: (value: unknown) => void;
+    responses["Workbench.UpdateStatus"] = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    await boot();
+    await click("settings");
+    await click("settings-dismiss");
+    responses["Workbench.UpdateStatus"] = () => ({
+      version: "2.0.0",
+      available: false,
+      automatic: false,
+      canCheck: false,
+    });
+    await click("settings");
+    finish({
+      version: "1.0.0",
+      available: true,
+      automatic: true,
+      canCheck: true,
+    });
+    await settled();
+    expect($("update-version").textContent).toBe("Version 2.0.0");
+    expect($<HTMLButtonElement>("check-updates").disabled).toBe(true);
+  });
+  it("ignores stale errors and fails closed for missing bridge results", async () => {
+    let reject!: (error: unknown) => void;
+    responses["Workbench.UpdateStatus"] = () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      });
+    await boot();
+    await click("settings");
+    await click("settings-dismiss");
+    responses["Workbench.UpdateStatus"] = () => ({
+      version: "2.0.0",
+      available: true,
+      automatic: false,
+      canCheck: true,
+    });
+    await click("settings");
+    reject("stale error");
+    await settled();
+    expect($("update-message").textContent).toBe("");
+    await click("settings-dismiss");
+    responses["Workbench.UpdateStatus"] = () => null;
+    await click("settings");
+    expect($("update-message").textContent).toBe(
+      "updates are unavailable in this build",
+    );
+    expect($<HTMLButtonElement>("check-updates").disabled).toBe(true);
+  });
+});
+
+describe("settings recovery and keyboard boundaries", () => {
+  it("keeps an empty welcome page usable when optional startup preferences are absent", async () => {
+    responses["Workbench.Resources"] = () => null;
+    responses["Workbench.Appearance"] = () => "invalid-saved-theme";
+    responses["Workbench.RestoreWorkspaces"] = () => null;
+    await boot();
+    expect($("welcome").hidden).toBe(false);
+    expect($("notification").hidden).toBe(true);
+    await click("settings");
+    expect($<HTMLDialogElement>("settings-dialog").open).toBe(true);
+  });
+
+  it("wraps settings navigation backwards and supports the final tab", async () => {
+    await boot();
+    await click("settings");
+    const general = $("settings-tab-general");
+    const unrelated = new KeyboardEvent("keydown", {
+      key: "x",
+      cancelable: true,
+    });
+    general.dispatchEvent(unrelated);
+    expect(unrelated.defaultPrevented).toBe(false);
+    general.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowLeft", cancelable: true }),
+    );
+    expect(document.activeElement?.id).toBe("settings-tab-performance");
+    $("settings-tab-performance").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Home", cancelable: true }),
+    );
+    expect(document.activeElement).toBe(general);
+    general.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "End", cancelable: true }),
+    );
+    expect(document.activeElement?.id).toBe("settings-tab-performance");
+  });
+
+  it("shows string-valued update errors and restores the saved toggle", async () => {
+    responses["Workbench.UpdateStatus"] = () => {
+      throw "native status unavailable";
+    };
+    await boot();
+    await click("settings");
+    expect($("update-message").textContent).toBe("native status unavailable");
+    await click("settings-dismiss");
+    responses["Workbench.UpdateStatus"] = () => ({
+      version: "0.1.0",
+      available: true,
+      automatic: true,
+      canCheck: true,
+    });
+    await click("settings");
+    responses["Workbench.SetAutomaticUpdates"] = () => {
+      throw "preferences are read-only";
+    };
+    const toggle = $<HTMLInputElement>("automatic-updates");
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(toggle.checked).toBe(true));
+    expect($("update-message").textContent).toBe("preferences are read-only");
+    responses["Workbench.CheckForUpdates"] = () => {
+      throw new Error("update service unavailable");
+    };
+    await click("check-updates");
+    expect($("update-message").textContent).toBe("update service unavailable");
+  });
+});
+
+describe("retained IPC compatibility", () => {
+  it("preserves export cancellation and rejects a failed saved-connection probe", async () => {
+    const { Workbench } = await import("../src/mygo");
+    responses["Workbench.ExportPage"] = () => "";
+    expect(await Workbench.exportPage()).toBe("");
+    responses["Workbench.ExportPage"] = () => "/exports/竹.parquet.json";
+    expect(await Workbench.exportPage()).toBe("/exports/竹.parquet.json");
+    responses["Workbench.TestR2Connection"] = () => {
+      throw new Error("saved connection is unavailable");
+    };
+    await expect(
+      Workbench.testR2Connection("s3://fixture-bucket/data"),
+    ).rejects.toThrow("saved connection is unavailable");
+    expect(
+      bridge.call.mock.calls.filter(
+        ([name]) => name === "Workbench.OpenConnection",
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("quiet sidebar update reminders", () => {
+  const pending = (version = "0.2.0") => ({
+    version: "0.1.0",
+    available: true,
+    automatic: true,
+    canCheck: true,
+    updateVersion: version,
+  });
+  const refresh = async () => {
+    const callback = vi
+      .mocked(window.setInterval)
+      .mock.calls.find(([, interval]) => interval === 60_000)![0];
+    if (typeof callback !== "function")
+      throw new Error("missing status refresh");
+    callback();
+    await vi.waitFor(() =>
+      expect(bridge.call).toHaveBeenCalledWith("Workbench.UpdateStatus"),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  it("announces a version without checking or installing until the user clicks", async () => {
+    responses["Workbench.UpdateStatus"] = () => pending();
+    await boot();
+    expect($("update-reminder").hidden).toBe(false);
+    expect($("update-reminder-label").textContent).toBe("Update to 0.2.0");
+    expect(
+      bridge.call.mock.calls.some(
+        ([name]) => name === "Workbench.CheckForUpdates",
+      ),
+    ).toBe(false);
+    let finish!: () => void;
+    responses["Workbench.CheckForUpdates"] = () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    $("update-reminder").click();
+    $("update-reminder").click();
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    expect(
+      bridge.call.mock.calls.filter(
+        ([name]) => name === "Workbench.CheckForUpdates",
+      ),
+    ).toHaveLength(1);
+    responses["Workbench.UpdateStatus"] = () => pending("");
+    finish();
+    await vi.waitFor(() => expect($("update-reminder").hidden).toBe(true));
+    expect($("welcome").hidden).toBe(false);
+  });
+  it("keeps failed checks recoverable and versions as translated plain text", async () => {
+    responses["Workbench.Language"] = () => "zh-CN";
+    responses["Workbench.UpdateStatus"] = () => pending("<img src=x>");
+    responses["Workbench.CheckForUpdates"] = () => {
+      throw new Error("network unavailable");
+    };
+    await boot();
+    expect($("update-reminder").querySelector("img")).toBeNull();
+    expect($("update-reminder-label").textContent).toBe("升级至 <img src=x>");
+    await click("update-reminder");
+    expect($("notification").textContent).toBe("network unavailable");
+    expect($("update-reminder").hidden).toBe(false);
+    responses["Workbench.UpdateStatus"] = () => {
+      throw new Error("status unavailable");
+    };
+    await refresh();
+    expect($("update-reminder").hidden).toBe(true);
+  });
+  it("ignores outdated status replies and does not start network checks during polling", async () => {
+    let finish!: (value: unknown) => void;
+    responses["Workbench.UpdateStatus"] = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    await boot();
+    responses["Workbench.UpdateStatus"] = () => pending("0.3.0");
+    await refresh();
+    finish(pending("0.2.0"));
+    await vi.waitFor(() =>
+      expect($("update-reminder-label").textContent).toBe("Update to 0.3.0"),
+    );
+    expect(
+      bridge.call.mock.calls.some(
+        ([name]) => name === "Workbench.CheckForUpdates",
+      ),
+    ).toBe(false);
+    responses["Workbench.UpdateStatus"] = () => null;
+    await refresh();
+    expect($("update-reminder").hidden).toBe(true);
   });
 });

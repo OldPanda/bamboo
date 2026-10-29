@@ -33,6 +33,7 @@ def main():
             "format" if write else "lint",
             "-i" if write else "--strict",
             "scripts/package-icon.swift",
+            "scripts/update-key.swift",
         ],
     ]
     if not write:
@@ -53,6 +54,16 @@ def main():
             [".venv/bin/ruff", "check", "scripts"],
             [".venv/bin/shellcheck", *map(str, sorted(Path("scripts").rglob("*.sh")))],
             ["bash", "-n", "scripts/build.sh"],
+            [
+                "clang",
+                "-fsyntax-only",
+                "-fobjc-arc",
+                "-fblocks",
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "internal/updater/native_darwin.m",
+            ],
             [
                 sys.executable,
                 "scripts/go-release.py",

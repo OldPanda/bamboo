@@ -2,6 +2,7 @@
 """Validate release versions and stamp macOS bundle metadata before signing."""
 
 import argparse
+import base64
 import json
 import os
 import plistlib
@@ -34,7 +35,18 @@ def stamp_bundle(path, value):
     version, core, _ = parse_version(value)
     with path.open("rb") as source:
         info = plistlib.load(source)
+    public_key = (ROOT / "assets/update-public-key.txt").read_text().strip()
+    if len(base64.b64decode(public_key, validate=True)) != 32:
+        raise ValueError("Invalid Sparkle public key")
     info.update(
+        SUFeedURL="https://github.com/OldPanda/bamboo/releases/latest/download/appcast.xml",
+        SUPublicEDKey=public_key,
+        SUEnableAutomaticChecks=True,
+        SUAutomaticallyUpdate=False,
+        SUAllowsAutomaticUpdates=False,
+        SUSendProfileInfo=False,
+        SUVerifyUpdateBeforeExtraction=True,
+        SURequireSignedFeed=True,
         CFBundleShortVersionString=core,
         CFBundleVersion=core,
         BambooReleaseVersion=version,

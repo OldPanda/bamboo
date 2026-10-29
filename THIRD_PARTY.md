@@ -28,3 +28,10 @@ AWS logo: https://press.aboutamazon.com/logos ; asset https://assets.aboutamazon
 These marks belong to their respective owners and are not covered by Bamboo's MIT license. No affiliation or endorsement is implied.
 
 Release builds select the pinned static libraries through the bindings' documented `duckdb_use_static_lib` path. The static registration loader omits only `autocomplete`, `tpch`, and `tpcds`; core functions, ICU, JSON, Parquet, httplib and loadable-extension support remain. The official httpfs binary is retained without modification. No upstream source or module-cache archives are changed.
+
+Automatic updates use **Sparkle 2.10.1**, including its native installer helpers.
+The official archive SHA-256 is pinned to
+`1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27`.
+Sparkle's complete license and bundled-component notices are preserved in
+`licenses/sparkle-LICENSE.txt`. See https://sparkle-project.org/ and
+https://github.com/sparkle-project/Sparkle/releases/tag/2.10.1.

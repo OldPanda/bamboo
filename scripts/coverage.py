@@ -27,18 +27,21 @@ def sources():
     paths = list(ROOT.glob("*.go"))
     for folder, pattern in [
         ("internal", "*.go"),
+        ("internal", "*.m"),
+        ("internal", "*.h"),
         ("cmd", "*.go"),
         ("frontend", "*.ts"),
         ("scripts", "*.py"),
         ("scripts", "*.mjs"),
         ("scripts", "*.js"),
         ("scripts", "*.sh"),
+        ("scripts", "*.swift"),
     ]:
         paths += list((ROOT / folder).rglob(pattern))
     paths += list((ROOT / "frontend/src").rglob("*.css"))
     for pattern in ["*.png", "*.svg"]:
         paths += list((ROOT / "frontend/src/assets").glob(pattern))
-    paths += [ROOT / "assets/bamboo.png"]
+    paths += [ROOT / "assets/bamboo.png", ROOT / "assets/update-public-key.txt"]
     paths += [
         ROOT / name
         for name in [
@@ -82,7 +85,7 @@ def smoke(
     frontend_url=None,
     launch_args=None,
     extra_env=None,
-    expected_checks=19,
+    expected_checks=24,
 ):
     """Run native desktop checks and validate the emitted IPC and layout report."""
     destination.mkdir(parents=True, exist_ok=True)
@@ -404,7 +407,14 @@ def main():
         run([sys.executable, "scripts/validate-s3.py"], "s3-native.log")
     run(["npm", "audit", "--json"], "npm-audit.json")
     run(
-        ["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.9.0", "./..."],
+        [
+            "go",
+            "run",
+            "golang.org/x/vuln/cmd/govulncheck@v1.9.0",
+            ".",
+            "./internal/...",
+            "./cmd/...",
+        ],
         "govulncheck.log",
     )
     assert sources() == source_hashes, (

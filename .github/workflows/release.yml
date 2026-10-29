@@ -54,6 +54,19 @@ jobs:
           npm run build
           git diff --exit-code -- frontend/src/mygo.ts
           npm run package:dmg
+      - name: Sign archive and update feed
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: python3 scripts/sign-appcast.py
+      - name: Prepare release overview
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ -s "docs/releases/$VERSION.md" ]; then
+            cp "docs/releases/$VERSION.md" build/releases/release-notes.md
+          else
+            printf '%s\n' "macOS Apple Silicon (arm64). This build is ad-hoc signed and is not Apple-notarized." > build/releases/release-notes.md
+          fi
       - name: Upload verified installer
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -88,6 +101,8 @@ jobs:
           set -euo pipefail
           name="Bamboo-${VERSION}-macOS-arm64.dmg"
           sha256sum --check "$name.sha256"
+          test -s appcast.xml
+          test -s release-notes.md
           if draft=$(gh release view "$TAG" --json isDraft --jq '.isDraft'); then
             if [ "$draft" != true ]; then
               echo "Release $TAG is already published; leaving its assets unchanged."
@@ -95,9 +110,9 @@ jobs:
             fi
           else
             gh release create "$TAG" --verify-tag --draft \
-              --title "Bamboo $VERSION" --generate-notes \
+              --title "Bamboo $VERSION" \
               --prerelease="$PRERELEASE" \
-              --notes "macOS Apple Silicon (arm64). This build is ad-hoc signed and is not Apple-notarized."
+              --notes-file release-notes.md
           fi
-          gh release upload "$TAG" "$name" "$name.sha256" --clobber
+          gh release upload "$TAG" "$name" "$name.sha256" appcast.xml --clobber
           gh release edit "$TAG" --draft=false --prerelease="$PRERELEASE"

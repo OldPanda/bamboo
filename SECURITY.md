@@ -27,3 +27,13 @@ Security regressions cover statement injection, independent native parsing, sour
 Publish explicitly selected source files and packaged applications. Do not distribute the development directory, local audit evidence or raw Git backups. Removing a sensitive file in a new commit does not remove it from Git history; check all branches/tags before publishing. Build release binaries with `-trimpath` and inspect the resulting package.
 
 The current packaging uses ad-hoc macOS signing. Developer ID signing, notarization, process isolation and full native dependency coverage remain separate release work. Dependency scanner results do not establish the absence of native or application logic vulnerabilities.
+
+## Application updates
+
+Bamboo bundles the checksum-pinned Sparkle framework. The app requires signed
+update feeds and signed archives, validated against its bundled Ed25519 public
+key before extraction. The update feed is fixed to the latest stable release of
+`OldPanda/bamboo`. The private signing seed belongs in Keychain and the repository
+Actions secret, never source control. Installing and relaunching require user
+confirmation. This mechanism does not provide Apple notarization. See
+[Automatic updates](docs/automatic-updates.md) for setup and validation limits.
