@@ -142,9 +142,15 @@ def main():
         else:
             remaining.append(arg)
         i += 1
+    # Distribution builds must not be MyGo development builds: a development
+    # build resolves the window's initial "/" against MYGO_DEV_URL and then
+    # trusts that origin (and localhost http(s)) for bridge calls.
+    ldflags = "-s -w -extldflags=-Wl,-dead_strip"
+    if not with_smoke:
+        ldflags = "-X github.com/egoist/mygo.production=1 " + ldflags
     command = ["go", args[0], "-tags=" + ",".join(tags)]
     if args[0] != "vet":
-        command.append("-ldflags=-s -w -extldflags=-Wl,-dead_strip")
+        command.append("-ldflags=" + ldflags)
     command.extend(remaining)
     raise SystemExit(subprocess.run(command, cwd=ROOT, env=env).returncode)
 
