@@ -82,7 +82,6 @@
     t28: { zh: "本地耗时", en: "Local time" },
     t29: { zh: "S3 耗时", en: "S3 time" },
     t30: { zh: "R2 耗时", en: "R2 time" },
-    t31: { zh: "待实测", en: "Not tested" },
     t32: { zh: "大文件，秒开预览。", en: "Big files. Fast previews." },
     t33: {
       zh: "按需读取需要的数据，不用先把整个文件塞进内存。GB 级文件也能快速看见首屏，内存与临时磁盘预算由你掌握。",

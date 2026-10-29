@@ -9,10 +9,7 @@
   --accent-hover: #245cae;
   --accent-soft: #eff6ff;
   --line: #e5e7eb;
-  --code: #f3f4f6;
   --sql-value: #9a4b10;
-  --blue: #1e73ba;
-  --shadow: 0 24px 90px -35px #11182720;
   --mark-filter: none;
   --brand-art: url("assets/artwork-2c3a3e5460a62e97.png");
   --sans:
@@ -33,10 +30,7 @@
     --accent-hover: #abcaff;
     --accent-soft: #303b4c;
     --line: #3d3d3d;
-    --code: #313131;
     --sql-value: #f0ba82;
-    --blue: #8bb4f7;
-    --shadow: 0 24px 90px -35px #0009;
     --mark-filter: brightness(0) invert(0.96);
     color-scheme: dark;
   }
@@ -52,10 +46,7 @@
   --accent-hover: #abcaff;
   --accent-soft: #303b4c;
   --line: #3d3d3d;
-  --code: #313131;
   --sql-value: #f0ba82;
-  --blue: #8bb4f7;
-  --shadow: 0 24px 90px -35px #0009;
   --mark-filter: brightness(0) invert(0.96);
   color-scheme: dark;
 }
@@ -86,9 +77,6 @@ button {
   font: inherit;
   color: inherit;
   cursor: pointer;
-}
-button:disabled {
-  cursor: wait;
 }
 button,
 a,
@@ -127,10 +115,6 @@ button {
 .shell {
   width: min(1060px, calc(100% - 48px));
   margin: auto;
-}
-.small {
-  font-size: 12px;
-  color: var(--muted);
 }
 .display-soft {
   font-family: var(--sans);
