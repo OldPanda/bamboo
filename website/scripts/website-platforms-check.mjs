@@ -1,6 +1,20 @@
 /** Exercise OS detection, manual choices and install disclosures in the actual built page. */
 import assert from "node:assert/strict";
 
+/** Browser readiness predicate, also tested against the empty document during navigation. */
+export function platformPageReady(marker) {
+  const root = document.documentElement;
+  const label = document.querySelector("[data-download-label]");
+  return Boolean(
+    root &&
+    !root.dataset.platformTestLeaving &&
+    new URLSearchParams(location.search).get("platform-test") === marker &&
+    document.readyState === "complete" &&
+    label?.textContent &&
+    label.textContent !== "选择下载平台",
+  );
+}
+
 export async function checkPlatforms({
   send,
   evaluate,
@@ -21,7 +35,7 @@ export async function checkPlatforms({
     for (let attempt = 0; attempt < 100; attempt++) {
       if (
         await evaluate(
-          `!document.documentElement.dataset.platformTestLeaving && location.search.includes("platform-test=${marker}") && document.readyState === 'complete' && document.querySelector('[data-download-label]')?.textContent !== '选择下载平台'`,
+          `(${platformPageReady.toString()})(${JSON.stringify(marker)})`,
         )
       )
         return;
