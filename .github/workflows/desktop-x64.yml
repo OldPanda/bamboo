@@ -87,7 +87,7 @@ jobs:
           python scripts/desktop-platform-smoke.py
       - name: Repeat native spill-budget regression
         if: ${{ !inputs.verify-published }}
-        run: python scripts/go-release.py test -p=1 -run '^TestSpillJoinAndGroup$' -count=5 -timeout=180s -v ./internal/engine
+        run: python scripts/go-release.py test -p=1 -run '^(TestSpillJoinAndGroup|TestDiskSpillAndRecovery|TestSpillFileSizeWhileWriterOpen)$' -count=5 -timeout=180s -v ./internal/engine
       - name: Package tested desktop binaries
         if: ${{ !inputs.verify-published }}
         run: python scripts/package-desktop.py

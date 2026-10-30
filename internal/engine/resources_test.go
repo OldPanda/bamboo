@@ -89,12 +89,8 @@ func TestDiskSpillAndRecovery(t *testing.T) {
 			}
 			running = false
 		case <-ticker.C:
-			entries, _ := os.ReadDir(dir)
-			for _, entry := range entries {
-				info, _ := entry.Info()
-				if info != nil && info.Size() > 0 {
-					observed = true
-				}
+			if !observed {
+				observed = observeSpill(t, dir)
 			}
 		}
 	}
@@ -231,8 +227,8 @@ func TestWorkspaceResourceBudget(t *testing.T) {
 func TestSpillJoinAndGroup(t *testing.T) {
 	for _, tc := range []struct{ name, sql string }{
 		{"join", `SELECT count(*) FROM (SELECT repeat(md5(i::VARCHAR),4) k FROM range(2000000) t(i)) a JOIN (SELECT repeat(md5(i::VARCHAR),4) k FROM range(2000000) t(i)) b USING(k)`},
-		// Keep the aggregate keys alone above the 128 MiB budget. The former
-		// 32-byte fixture did not reliably yield observable spill on Windows.
+		// Keep the aggregate keys alone above the 128 MiB budget, with enough
+		// pressure to exercise external aggregation on each native build.
 		{"group", `SELECT sum(n)::BIGINT FROM (SELECT repeat(md5(i::VARCHAR),4) k,count(*) n FROM range(2000000) t(i) GROUP BY k)`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -278,12 +274,8 @@ func TestSpillJoinAndGroup(t *testing.T) {
 					t.Log("real spill observed; exact result and cleanup verified")
 					return
 				case <-ticker.C:
-					entries, _ := os.ReadDir(dir)
-					for _, entry := range entries {
-						info, _ := entry.Info()
-						if info != nil && info.Size() > 0 {
-							observed = true
-						}
+					if !observed {
+						observed = observeSpill(t, dir)
 					}
 				}
 			}
@@ -313,5 +305,43 @@ func TestTemporaryDiskQuota(t *testing.T) {
 	}
 	if _, err = os.Stat(dir); !os.IsNotExist(err) {
 		t.Fatal("quota failure cleanup", err)
+	}
+}
+
+// observeSpill requires a nonempty real file while the query is running. Use
+// live file metadata rather than NTFS directory-entry sizes cached at creation.
+func observeSpill(t *testing.T, dir string) bool {
+	t.Helper()
+	entries, _ := os.ReadDir(dir)
+	for _, entry := range entries {
+		size, err := spillFileSize(filepath.Join(dir, entry.Name()))
+		if err == nil && size > 0 {
+			if cached, err := entry.Info(); err == nil && cached.Size() != size {
+				t.Logf("spill size: directory entry=%d, live file=%d", cached.Size(), size)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func TestSpillFileSizeWhileWriterOpen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "growing-spill")
+	writer, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	if size, err := spillFileSize(path); err != nil || size != 0 {
+		t.Fatal("new file", size, err)
+	}
+	if _, err := writer.Write([]byte("real spill bytes")); err != nil {
+		t.Fatal(err)
+	}
+	if size, err := spillFileSize(path); err != nil || size != 16 {
+		t.Fatal("live size while writer remains open", size, err)
+	}
+	if _, err := spillFileSize(path + "-missing"); err == nil {
+		t.Fatal("missing spill file accepted")
 	}
 }

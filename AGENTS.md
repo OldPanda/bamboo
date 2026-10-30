@@ -137,6 +137,9 @@ npm run build
   synthetic cloud tests and live-provider acceptance are separate evidence.
 - Concurrency/cache changes warrant targeted race checks. SQL, export and path
   changes warrant adversarial inputs and source-immutability checks.
+- On Windows, observe actively written spill-file sizes through live file-handle
+  metadata with read/write/delete sharing. NTFS directory-entry sizes can remain
+  stale while DuckDB's writer is open; presence alone does not prove nonempty spill.
 - Performance work uses real generated Parquet, including large and small-file
   cases, repeated reads, cancellation and low-memory spill. Start with
   `npm run test:perf -- --quick --runs 1`; run the full suite when relevant and
