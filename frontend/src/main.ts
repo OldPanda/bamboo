@@ -1357,6 +1357,7 @@ async function refreshUpdateStatus() {
   const ticket = ++updateStatusTicket;
   const automatic = $<HTMLInputElement>("automatic-updates");
   updatesAvailable = false;
+  manualUpdates = false;
   updateControls();
   try {
     const status = await Workbench.updateStatus();

@@ -2833,6 +2833,31 @@ describe("signed application updates", () => {
       "an update check is already in progress",
     );
   });
+  it("opens manual updates only on request and leaves automatic updates disabled", async () => {
+    responses["Workbench.UpdateStatus"] = () => ({
+      version: "0.1.0-x64.preview.1",
+      available: false,
+      automatic: false,
+      canCheck: true,
+    });
+    await boot();
+    await click("settings");
+    expect($<HTMLButtonElement>("check-updates").disabled).toBe(false);
+    expect($<HTMLInputElement>("automatic-updates").disabled).toBe(true);
+    expect($("update-message").textContent).toContain(
+      "Download and install manually",
+    );
+    expect(bridge.call).not.toHaveBeenCalledWith("Workbench.CheckForUpdates");
+    await click("check-updates");
+    expect(bridge.call).toHaveBeenCalledWith("Workbench.CheckForUpdates");
+    expect($<HTMLInputElement>("automatic-updates").disabled).toBe(true);
+    responses["Workbench.UpdateStatus"] = () => {
+      throw new Error("status failed");
+    };
+    await click("settings-dismiss");
+    await click("settings");
+    expect($<HTMLButtonElement>("check-updates").disabled).toBe(true);
+  });
   it("disables unsupported builds and renders version strings as plain text", async () => {
     responses["Workbench.UpdateStatus"] = () => ({
       version: "<img src=x>",

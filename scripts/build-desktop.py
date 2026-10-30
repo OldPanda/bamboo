@@ -31,7 +31,6 @@ def main():
         sys.executable,
         "scripts/go-release.py",
         "build",
-        "-trimpath",
         "-o",
         str(binary),
         ".",
