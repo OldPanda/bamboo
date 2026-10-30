@@ -128,6 +128,11 @@ See GitHub's [required status checks documentation](https://docs.github.com/en/r
 
 ## Version releases
 
+Every Bamboo version ships all three supported platforms together. Treat the
+macOS DMG, Windows setup EXE and ZIP, and Linux DEB and tar.gz as one release
+set, with a SHA-256 file for each package. All native gates must pass before
+publication. Refresh the website catalog only after verifying the hosted assets.
+
 Push a signed version tag such as `v0.1.1` to run
 [Release](.github/workflows/release.yml). The tagged commit must include the release, CI and reusable macOS
 workflow files. The release reuses the full CI quality gate, including the 95%

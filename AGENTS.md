@@ -148,6 +148,11 @@ npm run build
 
 ## Prepare changes for sharing
 
+- Every Bamboo version release ships macOS Apple Silicon, Windows x64 and Linux
+  x64 together: DMG, Windows setup EXE and ZIP, Linux DEB and tar.gz, each with
+  SHA-256. Require all native gates before publishing the complete release set;
+  update the website only after the actual hosted assets are verified.
+
 - Keep README concise: product logo, purpose, useful capabilities and a short
   start path. Put implementation detail in the relevant reference document.
 - Keep `licenses/`, dependency manifests and third-party notices in the repository

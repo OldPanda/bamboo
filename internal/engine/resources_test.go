@@ -231,10 +231,20 @@ func TestWorkspaceResourceBudget(t *testing.T) {
 func TestSpillJoinAndGroup(t *testing.T) {
 	for _, tc := range []struct{ name, sql string }{
 		{"join", `SELECT count(*) FROM (SELECT repeat(md5(i::VARCHAR),4) k FROM range(2000000) t(i)) a JOIN (SELECT repeat(md5(i::VARCHAR),4) k FROM range(2000000) t(i)) b USING(k)`},
-		{"group", `SELECT sum(n)::BIGINT FROM (SELECT md5(i::VARCHAR) k,count(*) n FROM range(2000000) t(i) GROUP BY k)`},
+		// Keep the aggregate keys alone above the 128 MiB budget. The former
+		// 32-byte fixture did not reliably yield observable spill on Windows.
+		{"group", `SELECT sum(n)::BIGINT FROM (SELECT repeat(md5(i::VARCHAR),4) k,count(*) n FROM range(2000000) t(i) GROUP BY k)`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, _ := setup(t)
+			// Prove this workload requires external memory before asserting that
+			// a nonempty spill file is observed with the same memory allowance.
+			if err := e.Configure(Resources{MemoryMiB: 128, TempGiB: 0, TimeoutSeconds: 60}, nil); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.Query(context.Background(), req(tc.sql)); err == nil || !strings.Contains(err.Error(), "Out of Memory") {
+				t.Fatal("expected memory exhaustion with disk spill disabled", err)
+			}
 			if err := e.Configure(Resources{MemoryMiB: 128, TempGiB: 1, TimeoutSeconds: 60}, nil); err != nil {
 				t.Fatal(err)
 			}
