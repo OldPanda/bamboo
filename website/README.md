@@ -38,7 +38,7 @@ The site includes bilingual capabilities, real native App screenshots, the [firs
 
 Use Cloudflare Pages **Git integration**, connected to `OldPanda/bamboo`. The website stays in this repository under `website/`; no separate repository or CI deployment token is required. GitHub Actions runs website tests and produces review artifacts. Cloudflare builds and deploys the website independently when matching changes reach `main`; it does not wait for GitHub Actions, so require the website check before merging to `main`.
 
-The Pages Git project is `bamboo`, with assigned address `bamboo-dhy.pages.dev`. Production Git builds are enabled; preview builds are disabled. The first deployment will occur after the website changes reach `main`. No custom domain is configured yet.
+The Pages Git project is `bamboo`, with assigned address `bamboo-dhy.pages.dev`. Production Git builds and branch previews are enabled. Cloudflare posts preview links on pull requests; website changes pushed to a PR branch update its preview. The first production deployment will occur after the website changes reach `main`. No custom domain is configured yet.
 
 The project uses:
 
@@ -53,7 +53,7 @@ The project uses:
 | Environment variables (production and preview) | `NODE_VERSION=22.23.4`, `SKIP_DEPENDENCY_INSTALL=1`                     |
 | Build watch paths                              | `website/*`, `.github/workflows/website.yml`                            |
 
-The build and its Node tests need no installed dependencies. Skipping automatic installation avoids installing or building the desktop App in Pages. Browser checks run in GitHub Actions, where Chrome is available. Enable PR preview builds deliberately when previews are wanted. Configure the production custom domain separately after the site is ready.
+The build and its Node tests need no installed dependencies. Skipping automatic installation avoids installing or building the desktop App in Pages. Browser checks run in GitHub Actions, where Chrome is available. Preview builds use the same website path filters and build command as production; they do not publish to the production address. Configure the production custom domain separately after the site is ready.
 
 The `Website` GitHub workflow validates website and workflow changes on pull requests and `main`, with a manual run option. It never receives Cloudflare credentials or publishes the site. The regular App CI also runs the complete website suite; App release/tag workflows are unchanged.
 
