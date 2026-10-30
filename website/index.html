@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Bamboo 是一款免费的开源 macOS Parquet 工作台。打开本地、Amazon S3 或 Cloudflare R2 文件，用 SQL 查询数据，大文件也能快速预览。"
+    />
+    <meta property="og:title" content="Bamboo · 让 Parquet 数据，触手可及。" />
+    <meta
+      property="og:description"
+      content="本地与云端的 Parquet 文件，一个轻巧的 SQL 工作台。免费开源，为 Mac 而生。"
+    />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>Bamboo · 让 Parquet 数据，触手可及。</title>
+    <link
+      rel="icon"
+      type="image/png"
+      href="assets/artwork-40a794af3f982760.png"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <svg class="icons" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M5 12h14m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="i-down" viewBox="0 0 24 24">
+          <path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" />
+        </symbol>
+        <symbol id="i-folder" viewBox="0 0 24 24">
+          <path d="M3 7h7l2-3h8v16H3zM3 8h18" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24">
+          <rect x="5" y="10" width="14" height="11" rx="2" />
+          <path d="M8 10V6a4 4 0 0 1 8 0v4m-4 5v2" />
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24">
+          <path d="M5 12h14M12 5v14" />
+        </symbol>
+        <symbol id="i-github" viewBox="0 0 24 24">
+          <path
+            d="M9 19c-4 1-4-2-6-2m15 5v-4a3.5 3.5 0 0 0-1-2.8c3.4-.4 7-1.7 7-7.5A5.8 5.8 0 0 0 22.4 4a5.4 5.4 0 0 0-.1-3.7s-1.3-.4-4.2 1.6a14.4 14.4 0 0 0-7.6 0C7.6-.1 6.3.3 6.3.3A5.4 5.4 0 0 0 6.2 4a5.8 5.8 0 0 0-1.6 4c0 5.7 3.5 7 6.9 7.5a3.5 3.5 0 0 0-1 2.8V22"
+            transform="translate(-1.5 1) scale(.91)"
+          />
+        </symbol>
+        <symbol id="i-message" viewBox="0 0 24 24">
+          <path
+            d="M21 11a8 8 0 0 1-8 8H7l-5 3 1-6a8 8 0 0 1-1-4 9 9 0 0 1 19-1z"
+          />
+        </symbol>
+        <symbol id="i-issue" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v6m0 4h.01" />
+        </symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24">
+          <path d="M20.5 13A9 9 0 0 1 11 3.5 9 9 0 1 0 20.5 13Z" />
+        </symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"
+          />
+        </symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </symbol>
+        <symbol id="i-apple" viewBox="0 0 24 24">
+          <path
+            fill="currentColor"
+            stroke="none"
+            d="M16.4 12.8c0-2 1.6-3 1.7-3.1-1-1.5-2.6-1.7-3.1-1.7-1.3-.2-2.5.8-3.2.8-.6 0-1.6-.8-2.7-.8-1.4 0-2.6.8-3.3 2-1.4 2.5-.4 6.2 1 8.2.6 1 1.3 2 2.3 1.9 1 0 1.3-.6 2.6-.6 1.2 0 1.6.6 2.7.6 1.1 0 1.8-1 2.4-1.9.8-1.1 1.1-2.3 1.1-2.3s-2.1-.8-2.1-3.1ZM14.2 6.7c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.8-1 2.8 1 .1 2.1-.5 2.8-1.3Z"
+          />
+        </symbol>
+      </defs>
+    </svg>
+    <a class="skip" href="#main"><span data-i18n="t0">跳转至正文</span></a>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a
+          class="brand"
+          href="#"
+          aria-label="Bamboo 首页"
+          data-i18n-aria-label="a135"
+          ><span class="mark" aria-hidden="true"></span>Bamboo</a
+        >
+        <nav
+          class="desktop-nav"
+          aria-label="主导航"
+          data-i18n-aria-label="a136"
+        >
+          <a href="#features"><span data-i18n="t1">功能介绍</span></a
+          ><a href="#install"><span data-i18n="t2">安装指引</span></a
+          ><a href="#faq"><span data-i18n="t3">常见问题</span></a>
+        </nav>
+        <div class="header-actions">
+          <label class="language-control" title="Language / 语言"
+            ><svg aria-hidden="true" viewBox="0 0 24 24">
+              <path
+                d="m5 8 6 6m-7 0 6-6 2-3M2 5h12M7 2h1m14 20-5-11-5 11m2-4h6"
+              /></svg
+            ><span class="sr-only">Language / 语言</span
+            ><select id="language-select" aria-label="Language / 语言">
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+            </select></label
+          >
+          <button
+            class="icon-button"
+            id="theme-toggle"
+            type="button"
+            aria-label="切换至深色主题"
+            data-i18n-aria-label="a137"
+            title="切换明暗主题"
+            data-i18n-title="a138"
+          >
+            <svg aria-hidden="true"><use href="#i-moon" /></svg></button
+          ><a
+            class="icon-button github-link"
+            aria-label="GitHub"
+            title="GitHub"
+            href="https://github.com/OldPanda/bamboo"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><svg aria-hidden="true"><use href="#i-github" /></svg></a
+          ><a class="header-download button-primary" href="#download"
+            ><span data-i18n="t4">下载</span></a
+          ><button
+            class="icon-button mobile-menu"
+            id="menu-toggle"
+            type="button"
+            aria-label="展开导航"
+            data-i18n-aria-label="a139"
+            aria-expanded="false"
+            aria-controls="mobile-nav"
+          >
+            <svg aria-hidden="true"><use href="#i-menu" /></svg>
+          </button>
+        </div>
+      </div>
+      <nav
+        class="mobile-nav"
+        id="mobile-nav"
+        aria-label="移动导航"
+        data-i18n-aria-label="a140"
+        hidden
+      >
+        <a href="#features"><span data-i18n="t1">功能介绍</span></a
+        ><a href="#install"><span data-i18n="t2">安装指引</span></a
+        ><a href="#faq"><span data-i18n="t3">常见问题</span></a
+        ><a
+          href="https://github.com/OldPanda/bamboo"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub ↗</a
+        >
+      </nav>
+    </header>
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="shell hero-copy">
+          <p class="eyebrow">A LITTLE BAMBOO. A LOT OF DATA.</p>
+          <h1 id="hero-heading">
+            <span data-i18n="t5">让 Parquet 数据，</span><br /><span
+              data-i18n="t6"
+              >变得</span
+            ><span class="accent"><span data-i18n="t7">触手可及。</span></span>
+          </h1>
+          <p class="hero-description">
+            <span data-i18n="t8">打开文件，看见数据，写下你的第一条 SQL。</span
+            ><br /><span data-i18n="t9"
+              >从本地到云端，把探索数据的时间，还给你。</span
+            >
+          </p>
+          <div class="hero-actions" id="download">
+            <a
+              class="button button-primary download-link"
+              href="https://github.com/OldPanda/bamboo/releases/download/v0.1.0/Bamboo-0.1.0-macOS-arm64.dmg"
+              ><svg aria-hidden="true"><use href="#i-apple" /></svg
+              ><span data-i18n="t10">免费下载 macOS 版</span
+              ><svg style="width: 16px; height: 16px" aria-hidden="true">
+                <use href="#i-down" /></svg></a
+            ><a class="text-link" href="#install"
+              ><span data-i18n="t11">首次安装指引</span>
+              <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <p class="platform-note">
+            <span class="version-note">v0.1.0</span>
+            <span data-i18n="t12">· Apple Silicon · macOS 12+ · MIT 协议</span>
+          </p>
+          <p class="download-hint" id="download-hint" role="status" hidden></p>
+        </div>
+        <figure
+          class="preview-wrap"
+          aria-label="Bamboo App 真实截图"
+          data-i18n-aria-label="a141"
+        >
+          <div class="app-window">
+            <img
+              class="native-shot native-shot-light"
+              src="assets/bamboo-zh-light-2a213558990ae26a.png"
+              alt="Bamboo App 浅色界面：打开 orders.parquet，用 SQL 筛选已完成订单，按金额降序查看结果。"
+              data-i18n-alt="a142"
+              width="2560"
+              height="1576"
+            /><img
+              class="native-shot native-shot-dark"
+              src="assets/bamboo-zh-dark-721eb8c4e8b4230f.png"
+              alt="Bamboo App 深色界面：打开 orders.parquet，用 SQL 筛选已完成订单，按金额降序查看结果。"
+              data-i18n-alt="a143"
+              width="2560"
+              height="1576"
+            />
+          </div>
+        </figure>
+      </section>
+      <div class="sources-band">
+        <div class="shell">
+          <p><span data-i18n="t15">文件在哪里，工作台就在哪里。</span></p>
+          <div class="source-logos">
+            <span class="source-logo"
+              ><svg aria-hidden="true"><use href="#i-folder" /></svg
+              ><span data-i18n="t16">本地文件与文件夹</span></span
+            ><span class="source-logo"
+              ><img
+                class="aws-logo"
+                src="assets/artwork-0762717e921e1cf1.png"
+                alt=""
+                aria-hidden="true"
+                width="34"
+                height="22"
+              />Amazon S3</span
+            ><span class="source-logo"
+              ><svg
+                class="cf-logo"
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 341 156"
+                fill="none"
+              >
+                <path
+                  d="M275.125 68.25C311.507 68.25 341 97.9335 341 134.55C341 141.077 340.063 147.385 338.317 153.343C337.848 154.943 336.363 156 334.706 156H243.056C241.697 156 240.76 154.628 241.247 153.351L242.999 148.76C248.595 134.03 264.56 121.963 279.331 121.256L307.33 119.813C308.826 119.736 310 118.492 310 116.985C310 115.485 308.838 114.245 307.351 114.157L281.059 112.601C266.924 111.877 260.018 99.2932 263.82 86.179L268.195 71.0866C268.64 69.5514 269.971 68.4343 271.557 68.3476C272.738 68.2831 273.928 68.25 275.125 68.25Z"
+                  fill="#FAAE40"
+                />
+                <path
+                  d="M184.062 0C222 0 253.868 26.1297 262.882 61.4824C263.26 62.967 263.142 64.5333 262.601 65.9662L255.383 85.0897C249.787 99.8196 235.406 112.593 219.134 112.593L93.7928 114.043C92.2801 114.061 91.063 115.3 91.0625 116.823C91.0625 118.344 92.2776 119.585 93.789 119.605L217.365 121.248C231.531 121.248 238.406 134.556 234.606 147.671L233.011 153.189C232.53 154.855 231.014 156 229.291 156H3.90889C1.98075 156 0.330745 154.574 0.17634 152.64C0.0594555 151.175 0 149.695 0 148.2C0 119.723 21.6617 96.3403 49.306 93.8266C48.7387 91.2419 48.4375 88.5564 48.4375 85.8C48.4375 65.3379 64.919 48.75 85.25 48.75C93.3413 48.75 100.822 51.3789 106.897 55.8321C117.716 23.3806 148.176 0 184.062 0Z"
+                  fill="#F38020"
+                />
+              </svg>
+              Cloudflare R2</span
+            >
+          </div>
+        </div>
+      </div>
+      <section
+        class="section shell"
+        id="features"
+        aria-labelledby="features-heading"
+      >
+        <div class="section-heading center">
+          <p class="section-kicker">
+            <span data-i18n="t17">少一点准备，多一点发现</span>
+          </p>
+          <h2 id="features-heading">
+            <span data-i18n="t18">你的文件，你的 SQL。</span><br /><span
+              class="display-soft"
+              ><span data-i18n="t19">一个轻巧的工作台。</span></span
+            >
+          </h2>
+          <p>
+            <span data-i18n="t20"
+              >不必先建库、写脚本。打开 Parquet，就能开始探索。</span
+            >
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-art sql-example-art">
+              <pre
+                class="sql-example"
+                aria-label="SQL"
+              ><code><span class="sql-keyword">SELECT</span> city, amount
+<span class="sql-keyword">FROM</span> data
+<span class="sql-keyword">WHERE</span> fulfilled = <span class="sql-value">true</span>
+<span class="sql-keyword">ORDER BY</span> amount <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">LIMIT</span> <span class="sql-value">12</span>;</code></pre>
+            </div>
+            <div class="feature-copy">
+              <h3><span data-i18n="t21">会写 SQL，就会用。</span></h3>
+              <p>
+                <span data-i18n="t22"
+                  >预览行、查看字段、筛选与排序。用熟悉的 SQL
+                  做关联和聚合，跨文件查询，再把结果导出为 CSV 或 JSON。</span
+                >
+              </p>
+            </div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-art">
+              <div
+                class="source-art"
+                role="img"
+                aria-label="Query 通过 Bamboo 查询本地、Amazon S3 和 Cloudflare R2 文件"
+                data-i18n-aria-label="a146"
+              >
+                <div class="source-node">
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="m9 6-6 6 6 6m6-12 6 6-6 6" />
+                  </svg>
+                  <span>Query</span>
+                </div>
+                <svg
+                  class="source-links"
+                  aria-hidden="true"
+                  viewBox="0 0 40 110"
+                  preserveAspectRatio="none"
+                >
+                  <path class="route" d="M3 55H35" />
+                  <path d="m30 51 5 4-5 4" />
+                </svg>
+                <div class="source-node source-bamboo">
+                  <span class="mark" aria-hidden="true"></span>
+                  <span>Bamboo</span>
+                </div>
+                <svg
+                  class="source-links"
+                  aria-hidden="true"
+                  viewBox="0 0 40 110"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    class="route"
+                    d="M3 55C21 55 17 18 35 18M3 55H35M3 55C21 55 17 92 35 92"
+                  />
+                  <path d="m30 14 5 4-5 4m0 29 5 4-5 4m0 29 5 4-5 4" />
+                </svg>
+                <div class="source-destinations">
+                  <span class="source-node"
+                    ><span data-i18n="t23">本地</span></span
+                  >
+                  <span class="source-node" title="Amazon S3"
+                    ><img
+                      class="aws-logo"
+                      src="assets/artwork-0762717e921e1cf1.png"
+                      alt="Amazon S3"
+                      width="30"
+                      height="18"
+                      draggable="false"
+                  /></span>
+                  <span class="source-node" title="Cloudflare R2"
+                    ><img
+                      class="source-cloudflare-logo"
+                      src="assets/artwork-c9ec1d5d5e4b0924.svg"
+                      alt="Cloudflare R2"
+                      width="34"
+                      height="16"
+                      draggable="false"
+                  /></span>
+                </div>
+              </div>
+            </div>
+            <div class="feature-copy">
+              <h3><span data-i18n="t24">本地、云端，一样顺手。</span></h3>
+              <p>
+                <span data-i18n="t25"
+                  >打开电脑上的文件或整个文件夹，也能直接连接 Amazon S3 和
+                  Cloudflare R2。多个工作区，在同一个窗口里切换。</span
+                >
+              </p>
+            </div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-art performance-art">
+              <table
+                class="performance-table"
+                aria-label="Parquet 文件打开耗时对比"
+                data-i18n-aria-label="a147"
+              >
+                <caption>
+                  <span data-i18n="t26"
+                    >打开并返回前 100 行，不含界面绘制。本地为历史 3
+                    次中位数；S3 / R2 均为随机顺序 5
+                    轮中位数。云端含连接初始化，未控制缓存与网络。</span
+                  >
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col"><span data-i18n="t27">文件大小</span></th>
+                    <th scope="col"><span data-i18n="t28">本地耗时</span></th>
+                    <th scope="col"><span data-i18n="t29">S3 耗时</span></th>
+                    <th scope="col"><span data-i18n="t30">R2 耗时</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">128 MiB</th>
+                    <td class="measured">37.0 ms</td>
+                    <td class="measured">1.50 s</td>
+                    <td class="measured">1.57 s</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">511 MiB</th>
+                    <td class="measured">36.2 ms</td>
+                    <td class="measured">1.38 s</td>
+                    <td class="measured">1.76 s</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">1,023 MiB</th>
+                    <td class="measured">38.0 ms</td>
+                    <td class="measured">1.16 s</td>
+                    <td class="measured">1.57 s</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">2,046 MiB</th>
+                    <td class="measured">39.8 ms</td>
+                    <td class="measured">1.34 s</td>
+                    <td class="measured">1.63 s</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="feature-copy">
+              <h3><span data-i18n="t32">大文件，秒开预览。</span></h3>
+              <p>
+                <span data-i18n="t33"
+                  >按需读取需要的数据，不用先把整个文件塞进内存。GB
+                  级文件也能快速看见首屏，内存与临时磁盘预算由你掌握。</span
+                >
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section
+        class="section install-section"
+        id="install"
+        aria-labelledby="install-heading"
+      >
+        <div class="shell">
+          <div class="install-top">
+            <div class="section-heading">
+              <p class="section-kicker">
+                <span data-i18n="t34">从下载，到第一条查询</span>
+              </p>
+              <h2 id="install-heading">
+                <span data-i18n="t35">几步，开始读懂你的数据。</span>
+              </h2>
+              <p>
+                <span data-i18n="t36">不需要终端，不需要安装开发工具。</span>
+              </p>
+            </div>
+          </div>
+          <ol class="install-steps">
+            <li>
+              <span class="step-number" aria-hidden="true">01</span>
+              <h3><span data-i18n="t38">下载 Bamboo</span></h3>
+              <p>
+                <span data-i18n="t39">点击</span
+                ><a
+                  class="inline-link download-link"
+                  href="https://github.com/OldPanda/bamboo/releases/download/v0.1.0/Bamboo-0.1.0-macOS-arm64.dmg"
+                  ><span data-i18n="t10">免费下载 macOS 版</span></a
+                ><span data-i18n="t40">，获取</span> <strong>.dmg</strong>
+                <span data-i18n="t41"
+                  >安装文件。M1、M2、M3、M4 等 Apple 芯片 Mac 均属于 Apple
+                  Silicon；目前不提供 Intel 版。</span
+                >
+              </p>
+            </li>
+            <li>
+              <span class="step-number" aria-hidden="true">02</span>
+              <h3><span data-i18n="t42">拖入「应用程序」</span></h3>
+              <p>
+                <span data-i18n="t43">双击下载的 DMG，把</span>
+                <strong>Bamboo</strong> <span data-i18n="t44">拖到</span>
+                <strong
+                  ><span data-i18n="t45">Applications（应用程序）</span></strong
+                ><span data-i18n="t46"
+                  >。复制完成后，推出安装磁盘，从「应用程序」打开 Bamboo。</span
+                >
+              </p>
+            </li>
+            <li>
+              <span class="step-number" aria-hidden="true">03</span>
+              <h3><span data-i18n="t47">打开文件，写下 SQL</span></h3>
+              <p>
+                <span data-i18n="t48">将</span> <strong>.parquet</strong>
+                <span data-i18n="t49">文件拖进欢迎页的大框，或点击</span>
+                <strong
+                  ><span data-i18n="t50">Open data（打开数据）</span></strong
+                ><span data-i18n="t51"
+                  >。也可以选择文件夹，或连接 S3 / R2 工作区。</span
+                >
+              </p>
+            </li>
+          </ol>
+          <details class="first-open" id="first-open">
+            <summary>
+              <svg aria-hidden="true"><use href="#i-lock" /></svg
+              ><span
+                ><span data-i18n="t52"
+                  >第一次打开被 macOS 拦住？看这里。</span
+                ></span
+              ><svg class="expand-icon" aria-hidden="true">
+                <use href="#i-plus" />
+              </svg>
+            </summary>
+            <p class="first-open-intro">
+              <span data-i18n="t53"
+                >当前版本尚未经过 Apple
+                公证，首次打开时可能提示“无法验证开发者”或“Apple
+                无法检查其是否包含恶意软件”。确认你从本页链接的 GitHub Release
+                下载后，可以按以下步骤允许打开。</span
+              >
+            </p>
+            <div class="permission-layout">
+              <ol class="permission-steps">
+                <li>
+                  <span data-i18n="t54"
+                    >先从「应用程序」打开一次
+                    Bamboo；若出现验证提示，关闭该提示。</span
+                  >
+                </li>
+                <li>
+                  <span data-i18n="t55">打开</span>
+                  <strong
+                    ><span data-i18n="t56"
+                      >系统设置 → 隐私与安全性</span
+                    ></strong
+                  ><span data-i18n="t57"
+                    >，向下滚动到“安全性”（旧版系统可能在“安全性与隐私 →
+                    通用”）。</span
+                  >
+                </li>
+                <li>
+                  <span data-i18n="t58">找到关于 Bamboo 的提示，点击</span>
+                  <strong
+                    ><span data-i18n="t59"
+                      >仍要打开（Open Anyway）</span
+                    ></strong
+                  ><span data-i18n="period">。</span>
+                </li>
+                <li>
+                  <span data-i18n="t60"
+                    >按系统要求验证身份，再在确认窗口点击</span
+                  >
+                  <strong><span data-i18n="t61">打开（Open）</span></strong
+                  ><span data-i18n="period">。</span>
+                </li>
+              </ol>
+              <figure class="permission-screenshot">
+                <img
+                  width="1430"
+                  height="1196"
+                  src="assets/macos-security-zh-f1d34417f67cbfa7.png"
+                  alt="macOS 隐私与安全性真实截图：安全性区域中，被阻止的应用右侧有“仍要打开”按钮"
+                  data-i18n-alt="a148"
+                  loading="lazy"
+                />
+                <figcaption class="permission-caption">
+                  <span data-i18n="t62">macOS 真实界面 ·</span>
+                  <a
+                    class="inline-link"
+                    href="https://support.apple.com/zh-cn/102445"
+                    data-apple-support
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    ><span data-i18n="t63">图片来源：Apple 支持</span></a
+                  ><span data-i18n="t64"
+                    >。图中的“示例 App”在安装时对应 Bamboo。</span
+                  >
+                </figcaption>
+              </figure>
+            </div>
+            <p class="guide-note">
+              <span data-i18n="t65"
+                >如果没有出现“仍要打开”，先确认刚刚尝试过打开
+                Bamboo；受单位管理的 Mac
+                可能需要管理员协助。若系统提示“会损坏电脑”或文件已损坏，请停止打开，重新从
+                Release 下载，仍有问题可到 GitHub Issues 反馈。</span
+              ><a
+                href="https://support.apple.com/zh-cn/102445"
+                data-apple-support
+                target="_blank"
+                rel="noopener noreferrer"
+                ><span data-i18n="t66">查看 Apple 官方说明 ↗</span></a
+              >
+            </p>
+          </details>
+        </div>
+      </section>
+      <section
+        class="section shell faq-shell"
+        id="faq"
+        aria-labelledby="faq-heading"
+      >
+        <div class="section-heading center">
+          <p class="section-kicker">
+            <span data-i18n="t67">你可能还想知道</span>
+          </p>
+          <h2 id="faq-heading">
+            <span data-i18n="t68">常见问题，有问有答</span>
+          </h2>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>
+              <span data-i18n="t69">支持哪些 Mac 和文件格式？</span
+              ><svg aria-hidden="true">
+                <use href="#i-plus" />
+              </svg>
+            </summary>
+            <p>
+              <span data-i18n="t70"
+                >目前支持搭载 Apple Silicon 的 Mac（macOS 12
+                及以上），主要用于读取和查询 Parquet 文件。结果可导出为 CSV 或
+                JSON。可在  → 关于本机查看芯片与系统版本，目前没有
+                Intel、Windows 或 Linux 安装包。</span
+              >
+            </p>
+          </details>
+          <details>
+            <summary>
+              <span data-i18n="t71">文件需要上传吗？云端凭据放在哪里？</span
+              ><svg aria-hidden="true">
+                <use href="#i-plus" />
+              </svg>
+            </summary>
+            <p>
+              <span data-i18n="t72"
+                >Bamboo
+                没有后端服务器，不会接收或存储你的文件、SQL、查询结果或云端凭据。所有查询和数据处理都在你的
+                Mac 本地完成，应用配置也保存在本机。连接 S3 或 R2 时，由你的 Mac
+                直接按需读取你自己的云端存储；访问凭据仅保存在本机的 macOS
+                钥匙串中。</span
+              >
+            </p>
+          </details>
+          <details>
+            <summary>
+              <span data-i18n="t73">打开文件后，第一条 SQL 怎么写？</span
+              ><svg aria-hidden="true">
+                <use href="#i-plus" />
+              </svg>
+            </summary>
+            <p>
+              <span data-i18n="t74">对当前文件，输入</span>
+              <code>SELECT * FROM data LIMIT 100;</code
+              ><span data-i18n="t75"
+                >，点击 Run
+                query（运行查询）即可。文件夹工作区支持跨文件查询，例如</span
+              >
+              <code>SELECT * FROM workspace."orders.parquet" LIMIT 100;</code
+              ><span data-i18n="t76"
+                >。你也可以直接预览、筛选和排序，不必先写 SQL。</span
+              >
+            </p>
+          </details>
+          <details>
+            <summary>
+              <span data-i18n="t79">会修改打开的 Parquet 文件吗？</span
+              ><svg aria-hidden="true">
+                <use href="#i-plus" />
+              </svg>
+            </summary>
+            <p>
+              <span data-i18n="t80"
+                >不会。Bamboo 以只读方式打开和查询 Parquet
+                文件，预览、筛选、排序和 SQL
+                查询都不会修改原文件。导出结果会创建新文件。</span
+              >
+            </p>
+          </details>
+          <details>
+            <summary>
+              <span data-i18n="faqUpdateQuestion">如何更新 Bamboo？</span
+              ><svg aria-hidden="true"><use href="#i-plus" /></svg>
+            </summary>
+            <p>
+              <span data-i18n="faqUpdateAnswer"
+                >Bamboo
+                可以在后台检查更新，有新版本时会在左下角提示。点击更新提示，按提示确认安装并重新启动即可；你也可以在「设置
+                →
+                通用」中手动检查更新。安装和重启都需要你主动确认，不会在使用过程中自动升级。更新从本项目的
+                GitHub Releases 获取。</span
+              >
+            </p>
+          </details>
+          <details>
+            <summary>
+              <span data-i18n="t81">Bamboo 收费吗？遇到问题在哪里反馈？</span
+              ><svg aria-hidden="true">
+                <use href="#i-plus" />
+              </svg>
+            </summary>
+            <p>
+              <span data-i18n="t82"
+                >Bamboo 免费开源，采用 MIT 许可证。发现 Bug 可以到</span
+              >
+              <a
+                class="inline-link"
+                href="https://github.com/OldPanda/bamboo/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                >GitHub Issues</a
+              ><span data-i18n="t83">；使用问题、想法和建议欢迎到</span>
+              <a
+                class="inline-link"
+                href="https://github.com/OldPanda/bamboo/discussions"
+                target="_blank"
+                rel="noopener noreferrer"
+                >GitHub Discussions</a
+              >
+              <span data-i18n="t84"
+                >讨论。反馈时请注明应用版本、macOS
+                版本和重现步骤，并隐去密钥、私人路径和业务数据。</span
+              >
+            </p>
+          </details>
+        </div>
+      </section>
+      <section
+        class="section shell community"
+        id="community"
+        aria-labelledby="community-heading"
+      >
+        <div class="community-inner">
+          <div class="community-copy">
+            <p class="section-kicker">
+              <span data-i18n="t85">一起，让它更好用</span>
+            </p>
+            <h2 id="community-heading">
+              <span data-i18n="t86">有问题，或有个好主意？</span>
+            </h2>
+            <p>
+              <span data-i18n="t87">到 GitHub 留下你的反馈。</span><br /><span
+                data-i18n="t88"
+                >一次讨论，也可能成为 Bamboo 的下一个小进步。</span
+              >
+            </p>
+          </div>
+          <div class="community-links">
+            <a
+              class="community-link"
+              href="https://github.com/OldPanda/bamboo/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              ><span
+                ><svg aria-hidden="true"><use href="#i-issue" /></svg>GitHub
+                Issues <span aria-hidden="true">↗</span></span
+              ><small
+                ><span data-i18n="t89">报告 Bug · 提交具体问题</span></small
+              ></a
+            ><a
+              class="community-link"
+              href="https://github.com/OldPanda/bamboo/discussions"
+              target="_blank"
+              rel="noopener noreferrer"
+              ><span
+                ><svg aria-hidden="true"><use href="#i-message" /></svg
+                >Discussions <span aria-hidden="true">↗</span></span
+              ><small
+                ><span data-i18n="t90">提问交流 · 分享想法</span></small
+              ></a
+            >
+          </div>
+        </div>
+      </section>
+      <section
+        class="closing"
+        aria-label="下载 Bamboo"
+        data-i18n-aria-label="a149"
+      >
+        <span class="mark" aria-hidden="true"></span>
+        <p class="section-kicker">
+          <span data-i18n="t91">下一份数据，已经准备好了</span>
+        </p>
+        <a
+          class="button button-primary download-link"
+          href="https://github.com/OldPanda/bamboo/releases/download/v0.1.0/Bamboo-0.1.0-macOS-arm64.dmg"
+          ><svg aria-hidden="true"><use href="#i-apple" /></svg
+          ><span data-i18n="t38">下载 Bamboo</span>
+          <svg aria-hidden="true"><use href="#i-arrow" /></svg
+        ></a>
+        <p>
+          <span data-i18n="t92">免费开源。为你的 Mac，也为你的好奇心。</span>
+        </p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="shell">
+        <div class="footer-top">
+          <a class="brand footer-brand" href="#"
+            ><span class="mark" aria-hidden="true"></span>Bamboo</a
+          >
+          <nav
+            class="footer-links"
+            aria-label="页脚导航"
+            data-i18n-aria-label="a150"
+          >
+            <a href="#terms">Terms</a><a href="#privacy">Privacy</a>
+            <a href="#features"><span data-i18n="t1">功能介绍</span></a
+            ><a href="#install"><span data-i18n="t2">安装指引</span></a
+            ><a
+              href="https://github.com/OldPanda/bamboo/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+              ><span data-i18n="t93">版本记录 ↗</span></a
+            ><a
+              href="https://github.com/OldPanda/bamboo"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub ↗</a
+            >
+          </nav>
+        </div>
+        <div class="footer-bottom">
+          <span>© 2026 Bamboo &nbsp;·&nbsp; Open source, under MIT.</span
+          ><span class="made-with"
+            >Made with <span class="heart">♡</span> by
+            <a
+              href="https://x.com/OldPanda"
+              target="_blank"
+              rel="noopener noreferrer"
+              >OldPanda</a
+            ></span
+          >
+        </div>
+      </div>
+    </footer>
+    <dialog id="terms" class="legal-dialog" aria-labelledby="terms-title">
+      <div class="legal-header">
+        <h2 id="terms-title"><span data-i18n="t94">使用条款</span></h2>
+        <button
+          class="legal-close"
+          type="button"
+          data-close-legal
+          aria-label="关闭Terms · 使用条款"
+          data-i18n-aria-label="a151"
+        >
+          <span data-i18n="t95">关闭 ×</span>
+        </button>
+      </div>
+      <div class="legal-body">
+        <p class="legal-date">
+          <span data-i18n="t96">生效日期：2026 年 10 月 29 日</span>
+        </p>
+        <p>
+          <span data-i18n="t97"
+            >本条款适用于 OldPanda 维护的 Bamboo 官网及其分发的 Bamboo
+            应用。使用前请阅读以下说明。Bamboo 是一个用于打开和查询 Parquet
+            数据的开源桌面工具。</span
+          >
+        </p>
+        <h3><span data-i18n="t98">1. 开源许可</span></h3>
+        <p>
+          <span data-i18n="t99">Bamboo 软件按</span>
+          <a
+            class="inline-link"
+            href="https://github.com/OldPanda/bamboo/blob/main/LICENSE"
+            target="_blank"
+            rel="noopener noreferrer"
+            >MIT License</a
+          >
+          <span data-i18n="t100"
+            >提供。使用、修改和分发软件的权利以该许可证为准；本条款不限制 MIT
+            授予的权利。第三方组件、商标及图片保留各自的许可和权利，不因 Bamboo
+            的开源许可而一并授权。</span
+          >
+        </p>
+        <h3><span data-i18n="t101">2. 数据与使用责任</span></h3>
+        <p>
+          <span data-i18n="t102"
+            >请仅打开你有权访问的文件和云存储，并遵守适用法律以及存储服务商的条款。你负责管理访问凭据、授权范围、数据备份及导出文件。云服务商可能对请求、存储和数据传输收费，相关费用由你的服务协议决定。</span
+          >
+        </p>
+        <h3><span data-i18n="t103">3. 功能、性能与更新</span></h3>
+        <p>
+          <span data-i18n="t104"
+            >功能和支持范围以当前发布版本为准。文件结构、设备、缓存和网络会影响性能；网站中的测试数据并非对所有文件或环境的速度承诺。Bamboo
+            可以自动检查新版本，安装更新和重启始终需要你主动确认。</span
+          >
+        </p>
+        <h3><span data-i18n="t105">4. 按现状提供</span></h3>
+        <p>
+          <span data-i18n="t106"
+            >在适用法律允许的范围内，Bamboo
+            按现状提供，不承诺持续可用、完全无错误或适合特定用途；软件相关的保证及责任限制以
+            MIT License
+            为准。请独立核验重要查询结果。本条款不排除法律规定不可放弃的权利或责任。</span
+          >
+        </p>
+        <h3><span data-i18n="t107">5. 外部服务</span></h3>
+        <p>
+          <span data-i18n="t108"
+            >GitHub、Amazon S3、Cloudflare R2、Apple
+            及其他外部服务由各自运营者提供，其条款与隐私政策另行适用。列出这些服务不代表双方存在合作或背书关系。</span
+          >
+        </p>
+        <h3><span data-i18n="t109">6. 变更与联系</span></h3>
+        <p>
+          <span data-i18n="t110"
+            >条款调整会在此更新日期，新的说明不追溯削减已取得的开源许可权利。关于网站或产品的问题，请通过</span
+          >
+          <a
+            class="inline-link"
+            href="https://github.com/OldPanda/bamboo/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub Issues</a
+          >
+          <span data-i18n="t111">或</span>
+          <a
+            class="inline-link"
+            href="https://github.com/OldPanda/bamboo/discussions"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Discussions</a
+          >
+          <span data-i18n="t112"
+            >联系维护者。公开反馈中请勿附带密码、密钥或个人数据。</span
+          >
+        </p>
+      </div>
+    </dialog>
+    <dialog id="privacy" class="legal-dialog" aria-labelledby="privacy-title">
+      <div class="legal-header">
+        <h2 id="privacy-title"><span data-i18n="t113">隐私政策</span></h2>
+        <button
+          class="legal-close"
+          type="button"
+          data-close-legal
+          aria-label="关闭Privacy · 隐私政策"
+          data-i18n-aria-label="a152"
+        >
+          <span data-i18n="t95">关闭 ×</span>
+        </button>
+      </div>
+      <div class="legal-body">
+        <p class="legal-date">
+          <span data-i18n="t96">生效日期：2026 年 10 月 29 日</span>
+        </p>
+        <p>
+          <span data-i18n="t114"
+            >本说明描述 OldPanda 维护的 Bamboo 官网和当前 Bamboo
+            桌面应用如何处理信息。Bamboo
+            不要求注册账号，当前应用没有使用情况统计、广告追踪或自动上传诊断报告的功能。</span
+          >
+        </p>
+        <h3><span data-i18n="t115">1. 浏览官网</span></h3>
+        <p>
+          <span data-i18n="t116"
+            >官网不包含统计脚本、广告、追踪像素或反馈表单，也不设置追踪
+            Cookie。浏览器的 localStorage
+            仅用于保存你选择的语言与浅色或深色主题，不会由页面发送给维护者；你可以通过浏览器清除本站数据来删除这些偏好。</span
+          >
+        </p>
+        <p>
+          <span data-i18n="t117"
+            >在线访问仍需要网络请求。网站托管商、CDN 或网络服务商可能处理 IP
+            地址、访问时间、请求网址、浏览器信息等常规请求元数据，用于内容交付、安全和运维；具体处理与留存取决于实际托管服务的配置和政策。这与页面是否加载统计脚本是不同的。</span
+          >
+        </p>
+        <h3><span data-i18n="t118">2. 文件、查询与本地保存</span></h3>
+        <p>
+          <span data-i18n="t119"
+            >本地 Parquet 数据和 SQL 在你的设备上处理，不会上传给 Bamboo
+            维护者。应用会在本地保存设置、工作区路径、连接配置和 SQL
+            草稿；这些内容可能包含敏感信息。查询可能使用本地缓存及临时磁盘，导出结果保存在你选择的位置。异常退出后可能遗留临时数据。</span
+          >
+        </p>
+        <p>
+          <span data-i18n="t120"
+            >关闭工作区或卸载应用不一定清除已保存的配置、凭据、临时文件和导出结果。你可以在设置中删除不需要的云连接，并按需清理本机应用数据、钥匙串和自行导出的文件。删除云连接不会删除云端对象。</span
+          >
+        </p>
+        <h3><span data-i18n="t121">3. 云存储连接</span></h3>
+        <p>
+          <span data-i18n="t122"
+            >只有连接你配置的 Amazon S3 或 Cloudflare R2
+            时，应用才会向相应服务发送经过身份验证的列举、元数据和文件读取请求。服务商会收到这些请求及必要的网络元数据，处理方式受你的云服务协议约束。文件查询在本机执行。</span
+          >
+        </p>
+        <p>
+          <span data-i18n="t123"
+            >macOS 版本将云访问凭据保存在系统钥匙串；连接配置和 SQL
+            草稿保存在本机。凭据不发送给 Bamboo
+            维护者。请按最小权限配置只读凭据，并在不再需要时删除连接及撤销相应授权。</span
+          >
+        </p>
+        <h3><span data-i18n="t124">4. 版本检查和下载</span></h3>
+        <p>
+          <span data-i18n="t125"
+            >应用默认启用自动检查更新，可在 Settings → General
+            中关闭。检查和下载通过 HTTPS 访问 GitHub Releases
+            及其下载基础设施；服务方会收到 IP 地址及版本检查所需的常规 HTTP
+            元数据。应用不会在检查中发送文件路径、查询内容、云凭据或 Sparkle
+            系统概况。安装和重启须由你主动确认。</span
+          >
+        </p>
+        <h3><span data-i18n="t126">5. 主动反馈与外部链接</span></h3>
+        <p>
+          <span data-i18n="t127"
+            >如果你在 GitHub Issues 或 Discussions
+            发布反馈，维护者及其他访客可能看到你的公开账号、文字和附件；内容可能被长期保留或被他人复制。请先移除密钥、私有路径和真实业务数据。不要公开提交安全漏洞的利用细节，请先阅读仓库的</span
+          >
+          <a
+            class="inline-link"
+            href="https://github.com/OldPanda/bamboo/blob/main/SECURITY.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><span data-i18n="t128">安全说明</span></a
+          ><span data-i18n="period">。</span>
+        </p>
+        <p>
+          <span data-i18n="t129"
+            >点击 GitHub、X、Apple
+            等外部链接后，相应网站按自己的政策处理你的访问。GitHub
+            下载和反馈服务适用</span
+          >
+          <a
+            class="inline-link"
+            href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><span data-i18n="t130">GitHub 隐私声明</span></a
+          ><span data-i18n="period">。</span>
+        </p>
+        <h3><span data-i18n="t131">6. 选择、联系与变更</span></h3>
+        <p>
+          <span data-i18n="t132"
+            >你可以不连接云服务、关闭自动检查更新、清除网站语言与主题偏好，并决定是否分享反馈。对于你主动提供给维护者的信息，如需请求访问、更正或删除，请通过项目的
+            GitHub
+            联系入口发起请求；请先仅描述请求，不要公开发布敏感信息。第三方平台的记录需同时通过其提供的渠道处理。</span
+          >
+        </p>
+        <p>
+          <span data-i18n="t133"
+            >本说明随产品实际行为更新，并在此标注日期。如果今后加入统计、账号或其他数据处理功能，会先更新本说明，并在适用时提供相应告知与选择。</span
+          >
+        </p>
+      </div>
+    </dialog>
+    <script src="site.js" defer></script>
+  </body>
+</html>

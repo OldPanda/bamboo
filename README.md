@@ -13,7 +13,7 @@ Query with DuckDB, without importing your data into a database.
 ![macOS Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon-111111?logo=apple&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE)
 
-**[Quick start](#quick-start)** · **[Documentation](#documentation)** · **[Contributing](CONTRIBUTING.md)** · **[Security](SECURITY.md)**
+**[Download](https://github.com/OldPanda/bamboo/releases/latest)** · **[Installation guide](docs/first-install.md)** · **[Website source & deployment](website/README.md)** · **[Documentation](#documentation)** · **[Contributing](CONTRIBUTING.md)** · **[Security](SECURITY.md)**
 
 </div>
 
@@ -25,6 +25,10 @@ Query with DuckDB, without importing your data into a database.
 - **Pick up where you left off.** Keep multiple files open and restore saved query drafts.
 
 ## Quick start
+
+Download the DMG from [GitHub Releases](https://github.com/OldPanda/bamboo/releases/latest), drag Bamboo into Applications, then open a Parquet file. See the [first-install guide](docs/first-install.md) if macOS blocks the first launch.
+
+## Build from source
 
 **1 · Build.** On an Apple Silicon Mac, install Xcode Command Line Tools,
 Node.js 22.12+, Python 3.12+ and Go. From the repository root:

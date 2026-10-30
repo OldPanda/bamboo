@@ -11,3 +11,5 @@ licenses/
 fixtures/
 # Async function bodies, parsed and linted by ESLint instead.
 scripts/*-smoke.js
+
+website/scripts/*-smoke.js

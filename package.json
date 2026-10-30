@@ -16,7 +16,9 @@
     "lint": "python3 scripts/lint.py",
     "format": "python3 scripts/lint.py --format",
     "coverage:ci": "python3 scripts/coverage.py --ci",
-    "package:dmg": "bash scripts/package-dmg.sh"
+    "package:dmg": "bash scripts/package-dmg.sh",
+    "build:website": "node website/scripts/website-build.mjs",
+    "test:website": "npm --prefix website test"
   },
   "dependencies": {
     "mygo-runtime": "0.6.4"

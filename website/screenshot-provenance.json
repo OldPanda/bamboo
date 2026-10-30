@@ -1,0 +1,65 @@
+{
+  "revision": "31552a0808fed478fc0dd14ef686b4ddab4e341e",
+  "capture": "MyGo Window.CapturePage from native App and real DuckDB query",
+  "mockedIPC": false,
+  "privateConfig": true,
+  "fixtureSHA256": "622fcca1c92112d7e608d34b1768e9f8ded7dd4bb694bdd821c3ccc882c5a5cf",
+  "result": {
+    "firstRow": [
+      "1",
+      "1240",
+      "Copenhagen",
+      "Customer 239",
+      "327.43",
+      "2026-03-01"
+    ],
+    "mockedIPC": false,
+    "nativeIPC": true,
+    "personalPaths": false,
+    "resultRows": 12,
+    "sampleRows": "240",
+    "sql": "SELECT order_id, city, customer, amount, ordered_on\nFROM data WHERE fulfilled = true\nORDER BY amount DESC LIMIT 12;"
+  },
+  "images": {
+    "bamboo-sql.png": "2a213558990ae26a5fe4e3bc54794b9db87630bc70a42cafff5218d3b889a88b",
+    "bamboo-sql-dark.png": "721eb8c4e8b4230fdbeefe3994812de976443c650fe7c1292b61addb0a6123fb"
+  },
+  "note": "Captured without mocking IPC or modifying rendered App contents; the fixture is synthetic, but the Parquet file, DuckDB query and native UI are real.",
+  "localizedCaptures": {
+    "zh": {
+      "language": "zh-CN",
+      "images": {
+        "bamboo-sql.png": "2a213558990ae26a5fe4e3bc54794b9db87630bc70a42cafff5218d3b889a88b",
+        "bamboo-sql-dark.png": "721eb8c4e8b4230fdbeefe3994812de976443c650fe7c1292b61addb0a6123fb"
+      }
+    },
+    "en": {
+      "capture": "MyGo Window.CapturePage from native App and real DuckDB query",
+      "language": "en",
+      "mockedIPC": false,
+      "privateConfig": true,
+      "fixtureSHA256": "622fcca1c92112d7e608d34b1768e9f8ded7dd4bb694bdd821c3ccc882c5a5cf",
+      "result": {
+        "firstRow": [
+          "1",
+          "1240",
+          "Copenhagen",
+          "Customer 239",
+          "327.43",
+          "2026-03-01"
+        ],
+        "language": "en",
+        "mockedIPC": false,
+        "nativeIPC": true,
+        "personalPaths": false,
+        "resultRows": 12,
+        "sampleRows": "240",
+        "sql": "SELECT order_id, city, customer, amount, ordered_on\nFROM data WHERE fulfilled = true\nORDER BY amount DESC LIMIT 12;"
+      },
+      "images": {
+        "bamboo-sql.png": "f277933fc4b586f1cc86a5b87717b609392894be40e7164e274c17b04159a0d2",
+        "bamboo-sql-dark.png": "2560126fc2435be5ca2fb6c14ae801b03c6276cc624eb9eb425547cd6ee9eae7"
+      }
+    }
+  }
+}

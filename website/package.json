@@ -1,0 +1,14 @@
+{
+  "name": "bamboo-website",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/website-build.mjs",
+    "build:preview": "node scripts/website-build.mjs --standalone",
+    "test": "npm run test:build && node scripts/website-build.mjs && node scripts/website-smoke.mjs",
+    "test:build": "node --test tests/*.test.mjs"
+  }
+}

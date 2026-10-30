@@ -1,0 +1,29 @@
+{
+  "sourcePage": "https://support.apple.com/zh-cn/102445",
+  "sourceImage": "https://cdsassets.apple.com/live/7WUAS350/images/macos/sequoia/locale/zh-cn/macos-sequoia-system-settings-privacy-and-security-open-app-anyway.png",
+  "description": "Official Apple macOS Sequoia Chinese Privacy & Security screenshot. The original uses 示例 App; it has not been changed to Bamboo.",
+  "sha256": "f1d34417f67cbfa73ce689c048561dd69698ca5f3aa5d52b7505c6579a44ab7d",
+  "width": 1430,
+  "height": 1196,
+  "modified": false,
+  "localizedImages": {
+    "zh": {
+      "sourcePage": "https://support.apple.com/zh-cn/102445",
+      "sourceImage": "https://cdsassets.apple.com/live/7WUAS350/images/macos/sequoia/locale/zh-cn/macos-sequoia-system-settings-privacy-and-security-open-app-anyway.png",
+      "description": "Official Apple macOS Sequoia Chinese Privacy & Security screenshot. The original uses 示例 App; it has not been changed to Bamboo.",
+      "sha256": "f1d34417f67cbfa73ce689c048561dd69698ca5f3aa5d52b7505c6579a44ab7d",
+      "width": 1430,
+      "height": 1196,
+      "modified": false
+    },
+    "en": {
+      "sourcePage": "https://support.apple.com/en-us/102445",
+      "sourceImage": "https://cdsassets.apple.com/live/7WUAS350/images/macos/sequoia/macos-sequoia-system-settings-privacy-and-security-open-app-anyway.png",
+      "description": "Original Apple English macOS Sequoia Privacy & Security screenshot; Example App text unchanged.",
+      "sha256": "3048b460a1e0d94325c17d91e80c196b95c267c3df7b7b1257900f3304061edb",
+      "width": 1430,
+      "height": 1226,
+      "modified": false
+    }
+  }
+}
