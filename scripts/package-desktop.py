@@ -53,6 +53,7 @@ def main():
         }
         (stage / "build-info.json").write_text(json.dumps(metadata, indent=2) + "\n")
         if system == "Windows":
+            shutil.copy2(ROOT / "build/bamboo.ico", stage / "bamboo.ico")
             shutil.make_archive(str(releases / name), "zip", temp, "Bamboo")
             makensis = (
                 shutil.which("makensis") or r"C:\Program Files (x86)\NSIS\makensis.exe"

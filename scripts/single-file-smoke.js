@@ -127,12 +127,12 @@ await mygo.call("Workbench.SetAppearance", "system");
 const updateStatus = await mygo.call("Workbench.UpdateStatus");
 assert(
   updateStatus.available === false &&
-    updateStatus.canCheck === false &&
+    updateStatus.canCheck === (smokePlatform !== "darwin") &&
     typeof updateStatus.automatic === "boolean",
-  "smoke updater reports unavailable with boolean preferences",
+  "smoke updater reports platform-appropriate manual checks and boolean preferences",
 );
 for (const [method, args] of [
-  ["Workbench.CheckForUpdates", []],
+  ...(smokePlatform === "darwin" ? [["Workbench.CheckForUpdates", []]] : []),
   ["Workbench.SetAutomaticUpdates", [true]],
   ["Workbench.SetAutomaticUpdates", [false]],
 ]) {

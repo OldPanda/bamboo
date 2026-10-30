@@ -5,6 +5,8 @@ Name "Bamboo"
 OutFile "${OUTFILE}"
 InstallDir "$LOCALAPPDATA\Programs\Bamboo"
 RequestExecutionLevel user
+!define MUI_ICON "${APPDIR}\bamboo.ico"
+!define MUI_UNICON "${APPDIR}\bamboo.ico"
 !define MUI_ABORTWARNING
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "..\LICENSE"
@@ -38,6 +40,7 @@ Section "Uninstall"
  RMDir "$SMPROGRAMS\Bamboo"
  ; Delete only installed application files, never the user's configuration/data.
  Delete "$INSTDIR\bamboo.exe"
+ Delete "$INSTDIR\bamboo.ico"
  Delete "$INSTDIR\build-info.json"
  Delete "$INSTDIR\LICENSE"
  Delete "$INSTDIR\THIRD_PARTY.md"

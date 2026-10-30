@@ -44,7 +44,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-0 libsecret-1-dev gnome-keyring dbus-x11 xvfb xdg-utils
+          sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-0 libsecret-1-dev gnome-keyring dbus-x11 xvfb xdg-utils xdotool
       - name: Windows native compiler and installer
         if: runner.os == 'Windows'
         run: |
@@ -60,14 +60,20 @@ jobs:
       - name: Linux release tests and native acceptance
         if: runner.os == 'Linux'
         run: |
-          dbus-run-session -- bash scripts/test-linux-desktop.sh
+          xvfb-run -a dbus-run-session -- bash scripts/test-linux-desktop.sh
       - name: Windows release tests and native acceptance
         if: runner.os == 'Windows'
         run: |
-          python scripts/go-release.py test -p=1 -count=1 -timeout=300s . ./internal/... ./cmd/...
+          python scripts/go-release.py test -v -p=1 -count=1 -timeout=180s . ./internal/... ./cmd/...
           python scripts/desktop-platform-smoke.py
       - name: Package tested desktop binaries
         run: python scripts/package-desktop.py
+      - name: Verify Linux packages and installed startup
+        if: runner.os == 'Linux'
+        run: xvfb-run -a dbus-run-session -- python scripts/verify-desktop-package.py
+      - name: Verify Windows packages and installed startup
+        if: runner.os == 'Windows'
+        run: python scripts/verify-desktop-package.py
       - name: Upload native packages and evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -80,3 +86,5 @@ jobs:
             artifacts/platform-smoke/desktop-smoke.json
             artifacts/platform-smoke/process.log
             artifacts/platform-smoke/*.png
+            artifacts/package-smoke/*.json
+            artifacts/package-smoke/*.log

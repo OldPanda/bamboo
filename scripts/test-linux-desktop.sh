@@ -8,5 +8,5 @@ fi
 export XDG_DATA_HOME="$RUNNER_TEMP/bamboo-keyring"
 mkdir -p "$XDG_DATA_HOME"
 printf 'bamboo-synthetic-ci-password' | gnome-keyring-daemon --unlock --components=secrets
-python scripts/go-release.py test -p=1 -count=1 -timeout=300s . ./internal/... ./cmd/...
-xvfb-run -a python scripts/desktop-platform-smoke.py
+python scripts/go-release.py test -v -p=1 -count=1 -timeout=180s . ./internal/... ./cmd/...
+python scripts/desktop-platform-smoke.py

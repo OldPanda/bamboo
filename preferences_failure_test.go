@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bamboo/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,10 +50,7 @@ func TestPreferencePersistenceFailureIsAtomic(t *testing.T) {
 					if err := os.WriteFile(filepath.Join(dir, name), []byte("preserve"), 0600); err != nil {
 						t.Fatal(err)
 					}
-					if err := os.Chmod(dir, 0500); err != nil {
-						t.Fatal(err)
-					}
-					t.Cleanup(func() { _ = os.Chmod(dir, 0700) })
+					testutil.DenyWrite(t, dir)
 				} else {
 					if err := os.Mkdir(filepath.Join(dir, name), 0700); err != nil {
 						t.Fatal(err)

@@ -40,6 +40,17 @@ func Private(t *testing.T, path string, _ os.FileMode) {
 // DenyRead denies directory listing to this user and restores its original ACL.
 func DenyRead(t *testing.T, path string) {
 	t.Helper()
+	denyAccess(t, path, "FR")
+}
+
+// DenyWrite blocks file creation in a generated directory using a native ACL.
+func DenyWrite(t *testing.T, path string) {
+	t.Helper()
+	denyAccess(t, path, "FW")
+}
+
+func denyAccess(t *testing.T, path, access string) {
+	t.Helper()
 	original, err := windows.GetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +64,7 @@ func DenyRead(t *testing.T, path string) {
 	if index < 0 {
 		t.Fatal("directory has no ACL")
 	}
-	deny, err := windows.SecurityDescriptorFromString(old[:index] + "(D;;FR;;;" + user.User.Sid.String() + ")" + old[index:])
+	deny, err := windows.SecurityDescriptorFromString(old[:index] + "(D;;" + access + ";;;" + user.User.Sid.String() + ")" + old[index:])
 	if err != nil {
 		t.Fatal(err)
 	}

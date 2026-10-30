@@ -109,7 +109,8 @@ func New(dir string) *Store {
 	return s
 }
 func relative(p string) bool {
-	return p != "" && !filepath.IsAbs(p) && filepath.Clean(p) == p && p != ".." && !strings.HasPrefix(p, ".."+string(os.PathSeparator))
+	p = filepath.FromSlash(p)
+	return filepath.IsLocal(p) && filepath.Clean(p) == p && p != ".." && !strings.HasPrefix(p, ".."+string(os.PathSeparator))
 }
 func validQuery(q Query) bool { return len(q.Draft) <= 32768 && len(q.Applied) <= 32768 }
 func (s *Store) write(d state) error {
@@ -320,7 +321,7 @@ func (s *Store) List(root, rel string, offset int) (*Page, error) {
 			continue
 		}
 		if e.IsDir() || e.Type().IsRegular() && strings.EqualFold(filepath.Ext(e.Name()), ".parquet") {
-			p.Entries = append(p.Entries, Entry{Name: e.Name(), Path: filepath.Join(rel, e.Name()), Directory: e.IsDir()})
+			p.Entries = append(p.Entries, Entry{Name: e.Name(), Path: filepath.ToSlash(filepath.Join(rel, e.Name())), Directory: e.IsDir()})
 		}
 	}
 	return p, nil

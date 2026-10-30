@@ -18,8 +18,8 @@ targets = {
         "77e6c429aa04f25da7962572f12b19113e0ce46080fa1365ad66017aadcdb68d",
     ),
     ("Windows", "amd64"): (
-        "windows_amd64",
-        "fc9bca12ff438f944c7d08ec424fce0d09e6b04379502ac9a7d8ee53df8a15c6",
+        "windows_amd64_mingw",
+        "f243c4fb236dac6b5722373cf2ff1b85c95d2ae59212986309e32cc0e8d59967",
     ),
 }
 try:
@@ -31,10 +31,14 @@ if target.exists() and hashlib.sha256(target.read_bytes()).hexdigest() == sha:
     raise SystemExit(0)
 url = f"https://extensions.duckdb.org/v2.0.0/{extension_platform}/httpfs.duckdb_extension.gz"
 compressed_limit = (
-    24 * 1024 * 1024 if extension_platform == "windows_amd64" else 16 * 1024 * 1024
+    24 * 1024 * 1024
+    if extension_platform == "windows_amd64_mingw"
+    else 16 * 1024 * 1024
 )
 expanded_limit = (
-    64 * 1024 * 1024 if extension_platform == "windows_amd64" else 32 * 1024 * 1024
+    96 * 1024 * 1024
+    if extension_platform == "windows_amd64_mingw"
+    else 32 * 1024 * 1024
 )
 compressed = subprocess.run(
     [

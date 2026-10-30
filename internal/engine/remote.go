@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -26,11 +27,14 @@ type RemoteResolver func(context.Context, []string) (*RemoteScope, error)
 func (e *Engine) SetHTTPFS(p string) { e.httpfs = p }
 
 func verifyHTTPFS(extension string) error {
-	b, err := os.ReadFile(extension)
+	file, err := os.Open(extension)
 	if err != nil {
 		return errors.New("Cloud reader is not installed; rebuild Bamboo with scripts/build.sh")
 	}
-	if fmt.Sprintf("%x", sha256.Sum256(b)) != HTTPFSSHA256 {
+	defer file.Close()
+	digest := sha256.New()
+	n, err := io.Copy(digest, io.LimitReader(file, httpfsMaxBytes+1))
+	if err != nil || n > httpfsMaxBytes || fmt.Sprintf("%x", digest.Sum(nil)) != HTTPFSSHA256 {
 		return errors.New("Cloud reader integrity check failed")
 	}
 	return nil

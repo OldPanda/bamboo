@@ -32,3 +32,16 @@ func DenyRead(t *testing.T, path string) {
 		}
 	})
 }
+
+// DenyWrite prevents creating files in a generated directory until cleanup.
+func DenyWrite(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Chmod(path, 0500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(path, 0700); err != nil {
+			t.Error(err)
+		}
+	})
+}

@@ -1,4 +1,9 @@
 import {
+  workspacePath,
+  workspaceRelative,
+  workspaceContains,
+} from "./workspace-path";
+import {
   Workbench,
   type File as DataFile,
   type Result,
@@ -206,11 +211,10 @@ const documents = new Map<string, DocumentState>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSave = Promise.resolve();
 const displayRoot = (info: Info) => info.location || info.root;
-const prefix = (root: string) => (root.endsWith("/") ? root : root + "/");
 function owner(path: string) {
   return (
     [...folders.values()]
-      .filter((f) => path.startsWith(prefix(f.root)))
+      .filter((f) => workspaceContains(f.root, path))
       .sort((a, b) => b.root.length - a.root.length)[0] || null
   );
 }
@@ -237,7 +241,7 @@ function updateFolder() {
   folder = file ? owner(file.path) : folders.get(workspaceRoot) || null;
   relativeFile =
     folder && file
-      ? file.path.slice(prefix(folder.root).length)
+      ? workspaceRelative(folder.root, file.path)
       : folder
         ? "."
         : "";
@@ -428,7 +432,7 @@ async function directory(
       "",
       entry.directory ? "tree-entry" : "tree-entry tree-file-row",
     );
-    row.dataset.path = prefix(info.root) + entry.path;
+    row.dataset.path = workspacePath(info.root, entry.path);
     const button = el(
       "button",
       `${entry.directory ? "▸" : "▧"} ${entry.name}`,
@@ -439,7 +443,7 @@ async function directory(
       : `${entry.path} — SQL: ${tableReference(entry.path)}`;
     button.dataset.path = entry.path;
     button.dataset.root = info.root;
-    button.dataset.fullPath = prefix(info.root) + entry.path;
+    button.dataset.fullPath = workspacePath(info.root, entry.path);
     row.append(button);
     container.append(row);
     if (entry.directory) {
@@ -550,7 +554,7 @@ async function openFolderFile(info: Info, path: string) {
 }
 async function switchFile(path: string) {
   const info = owner(path);
-  if (info) await openFolderFile(info, path.slice(prefix(info.root).length));
+  if (info) await openFolderFile(info, workspaceRelative(info.root, path));
   else {
     const f = await Workbench.openPath(path);
     if (!f) throw new Error("No file returned");
@@ -674,7 +678,7 @@ async function closeDocument(path: string) {
   if (info)
     await Workbench.closeWorkspaceFile(
       info.root,
-      path.slice(prefix(info.root).length),
+      workspaceRelative(info.root, path),
     );
   const paths = [...documents.keys()],
     index = paths.indexOf(path),
@@ -1652,7 +1656,7 @@ const sqlCompletion = attachSQLGhost(
             paths.add(button.dataset.path!);
         });
       for (const path of paths) {
-        const opened = documents.get(prefix(folder.root) + path)?.file;
+        const opened = documents.get(workspacePath(folder.root, path))?.file;
         tables.push({
           name: tableReference(path),
           columns: opened?.columns.map((c) => c.name),
@@ -1979,7 +1983,7 @@ async function open(path?: string) {
     if (f) {
       const info = owner(f.path);
       if (info)
-        await openFolderFile(info, f.path.slice(prefix(info.root).length));
+        await openFolderFile(info, workspaceRelative(info.root, f.path));
       else await activate(f);
     }
   });
