@@ -1,5 +1,6 @@
 /** Verify the built website over HTTP in headless Chrome without opening the app. */
 import assert from "node:assert/strict";
+import { checkPlatforms } from "./website-platforms-check.mjs";
 import { checkPreferences } from "./website-preferences-check.mjs";
 import { checkSEO } from "./website-seo-check.mjs";
 import { createHash } from "node:crypto";
@@ -203,6 +204,7 @@ try {
       throw Error(JSON.stringify(result.exceptionDetails));
     return result.result.value;
   };
+  await send("Page.enable");
   await send("Runtime.enable");
   await send("Log.enable");
   await send("Network.enable");
@@ -214,6 +216,10 @@ try {
     { width: 390, height: 844, mode: "light" },
     { width: 320, height: 780, mode: "dark" },
   ];
+  await send("Emulation.setUserAgentOverride", {
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    platform: "MacIntel",
+  });
   const results = [];
   for (const scenario of cases) {
     const { width, height, mode } = scenario;
@@ -561,16 +567,23 @@ try {
   const seoChecks = await checkSEO({ send, evaluate, origin });
   console.log(`SEO browser regressions passed: ${seoChecks.length}`);
   console.log(`Preference regressions passed: ${preferenceChecks.length}`);
-  await send("Emulation.setUserAgentOverride", {
-    userAgent:
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
-  });
-  assert.equal(
-    await evaluate(
-      "(() => { const event = new MouseEvent('click', {bubbles:true, cancelable:true}); const allowed = document.querySelector('.download-link').dispatchEvent(event); return !allowed && !document.getElementById('download-hint').hidden; })()",
+  const platformChecks = await checkPlatforms({
+    send,
+    evaluate,
+    origin,
+    catalog: JSON.parse(
+      await readFile(join(root, "website/downloads.json"), "utf8"),
     ),
-    true,
-    "Phone download must explain the Mac requirement instead of downloading a DMG",
+    screenshot: async (name) => {
+      const shot = await send("Page.captureScreenshot", { format: "png" });
+      await writeFile(
+        join(output, `${name}.png`),
+        Buffer.from(shot.data, "base64"),
+      );
+    },
+  });
+  console.log(
+    `Platform detection cases passed: ${platformChecks.length}; platform/language/theme/width matrix passed`,
   );
   assert.deepEqual(
     remoteRequests,
@@ -583,7 +596,7 @@ try {
     JSON.stringify(
       {
         results,
-        phoneDownload: "passed",
+        platformChecks,
         preferenceChecks,
         seoChecks,
         externalRequests: remoteRequests,

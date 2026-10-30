@@ -27,11 +27,6 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
   const languageSelect = document.getElementById("language-select");
   let language = "zh";
   const ui = (zh, en) => (language === "en" ? en : zh);
-  const phoneHint = () =>
-    ui(
-      "Bamboo 是 Mac 应用。请在 Apple Silicon Mac 上打开本页下载安装；手机上也可以先阅读下方的安装指引。",
-      "Bamboo is a Mac app. Open this page on an Apple Silicon Mac to download and install it. You can read the installation guide on your phone.",
-    );
   const setLanguage = (next, path = `/${next === "en" ? "en" : "zh"}/`) => {
     language = next === "en" ? "en" : "zh";
     document.documentElement.lang = language === "en" ? "en" : "zh-CN";
@@ -107,7 +102,7 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
         ? ui("展开导航", "Open navigation")
         : ui("收起导航", "Close navigation"),
     );
-    if (!hint.hidden) hint.textContent = phoneHint();
+    updateDownloads();
   };
   const legalDialogs = [...document.querySelectorAll(".legal-dialog")];
   const syncLegalRoute = () => {
@@ -194,7 +189,116 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
     if (event.matches) closeMenu();
   });
 
-  const hint = document.getElementById("download-hint");
+  const catalog = /* DOWNLOAD_CATALOG */ null;
+  const platformNames = { macos: "macOS", windows: "Windows", linux: "Linux" };
+  const platformIcons = { macos: "apple", windows: "windows", linux: "linux" };
+  // iPadOS can advertise itself as a Mac; mobile systems must not auto-select a desktop build.
+  const detectPlatform = () => {
+    const ua = navigator.userAgent;
+    const platform =
+      navigator.userAgentData?.platform || navigator.platform || "";
+    if (
+      navigator.userAgentData?.mobile ||
+      /Android|iPhone|iPad|iPod|CrOS/i.test(ua) ||
+      (/Mac/i.test(platform) && navigator.maxTouchPoints > 1)
+    )
+      return "";
+    if (/Windows|Win32|Win64/i.test(platform + " " + ua)) return "windows";
+    if (/Mac/i.test(platform + " " + ua)) return "macos";
+    if (/Linux/i.test(platform + " " + ua)) return "linux";
+    return "";
+  };
+  const detectedPlatform = detectPlatform();
+  let guidePlatform = detectedPlatform;
+  const guideSelect = document.getElementById("install-platform-select");
+  const packagesFor = {
+    macos: ["macosDmg"],
+    windows: ["windowsSetup", "windowsZip"],
+    linux: ["linuxDeb", "linuxTar"],
+  };
+  const primaryAsset = (platform) =>
+    packagesFor[platform]?.map((key) => catalog?.packages[key]).find(Boolean);
+  const updateDownloads = () => {
+    const name = platformNames[detectedPlatform];
+    const asset = primaryAsset(detectedPlatform);
+    const link = document.querySelector(".download-link");
+    link.href =
+      asset?.url || (name ? `#download-${detectedPlatform}` : "#downloads");
+    link.querySelector("[data-download-label]").textContent = !name
+      ? translations.downloadChooseLabel[language]
+      : asset
+        ? ui(`免费下载 ${name} 版`, `Download for ${name}`)
+        : ui(`查看 ${name} 下载`, `${name} downloads`);
+    link
+      .querySelector("[data-download-action-icon]")
+      .setAttribute("href", asset ? "#i-down" : "#i-arrow");
+    link
+      .querySelector("[data-platform-icon]")
+      .setAttribute("href", `#i-${platformIcons[detectedPlatform] || "down"}`);
+    const requirements = {
+      macos: ui(
+        "Apple Silicon · macOS 12+ · 不支持 Intel Mac",
+        "Apple Silicon · macOS 12+ · Intel Macs not supported",
+      ),
+      windows: "Windows 10/11 · x64 · WebView2",
+      linux: "Ubuntu 22.04 · x64 · GTK 3 / WebKitGTK 4.1",
+    };
+    document.getElementById("download-status").textContent = name
+      ? requirements[detectedPlatform]
+      : ui(
+          "桌面应用 · 请选择目标电脑的安装包",
+          "Desktop app · Choose a package for your computer",
+        );
+    document.getElementById("other-platforms-label").textContent =
+      translations[name ? "otherPlatforms" : "allPlatforms"][language];
+    document.querySelectorAll("[data-other-platform]").forEach((other) => {
+      other.hidden = other.dataset.otherPlatform === detectedPlatform;
+    });
+    guideSelect.value = guidePlatform;
+    const guideName = platformNames[guidePlatform];
+    document.getElementById("install-availability").textContent = !guideName
+      ? ui(
+          "请先选择目标电脑的系统。",
+          "Choose the target computer’s platform first.",
+        )
+      : primaryAsset(guidePlatform)
+        ? requirements[guidePlatform]
+        : ui(
+            `${guideName} 安装包尚未正式发布。以下为安装前提。`,
+            `No published ${guideName} package yet. Installation requirements are below.`,
+          );
+    document.querySelectorAll("[data-install-platform]").forEach((panel) => {
+      panel.hidden = panel.dataset.installPlatform !== guidePlatform;
+    });
+    document.querySelectorAll("[data-macos-download]").forEach((link) => {
+      link.href = primaryAsset("macos")?.url || "#download-macos";
+      link.querySelector("span").textContent = primaryAsset("macos")
+        ? translations.t10[language]
+        : ui("查看 macOS 下载", "macOS downloads");
+    });
+    document.documentElement.dataset.downloadReady = "true";
+  };
+  guideSelect.addEventListener("change", () => {
+    guidePlatform = Object.hasOwn(platformNames, guideSelect.value)
+      ? guideSelect.value
+      : "";
+    updateDownloads();
+  });
+  document.querySelectorAll("[data-guide-platform]").forEach((link) => {
+    link.addEventListener("click", () => {
+      guidePlatform = link.dataset.guidePlatform;
+      updateDownloads();
+      guideSelect.focus({ preventScroll: true });
+    });
+  });
+  // Keep native anchor navigation/history while moving keyboard focus with the viewport.
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a");
+    const hash = link?.getAttribute("href");
+    if (!/^#downloads?$|^#download-(macos|windows|linux)$/.test(hash || ""))
+      return;
+    document.getElementById(hash.slice(1))?.focus({ preventScroll: true });
+  });
   const applyPreferredLanguage = () => {
     let preferredLanguage = navigator.language.toLowerCase().startsWith("zh")
       ? "zh"
@@ -235,20 +339,4 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
     if (location.protocol !== "file:") url.pathname = `/${language}/`;
     history.replaceState(null, "", url);
   });
-  document.querySelectorAll(".download-link").forEach((link) =>
-    link.addEventListener("click", (event) => {
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        event.preventDefault();
-        hint.textContent = phoneHint();
-        hint.hidden = false;
-        hint.scrollIntoView({
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-            .matches
-            ? "instant"
-            : "smooth",
-          block: "center",
-        });
-      }
-    }),
-  );
 })();
