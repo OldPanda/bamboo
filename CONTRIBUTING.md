@@ -133,14 +133,14 @@ macOS DMG, Windows setup EXE and ZIP, and Linux DEB and tar.gz as one release
 set, with a SHA-256 file for each package. All native gates must pass before
 publication. Refresh the website catalog only after verifying the hosted assets.
 
-Push a signed version tag such as `v0.1.1` to run
+Push a signed version tag such as `v0.1.2` to run
 [Release](.github/workflows/release.yml). The tagged commit must include the release, CI and reusable macOS
 workflow files. The release reuses the full CI quality gate, including the 95%
 coverage thresholds; failed checks prevent packaging and publication.
 
 ```sh
-git tag -s v0.1.1 -m "Bamboo 0.1.1"
-git push origin v0.1.1
+git tag -s v0.1.2 -m "Bamboo 0.1.2"
+git push origin v0.1.2
 ```
 
 Tags use `vMAJOR.MINOR.PATCH`, optionally followed by a prerelease identifier
@@ -177,8 +177,8 @@ signing/notarization process before distributing as a notarized application.
 For a local installer, use the same version for both commands:
 
 ```sh
-BAMBOO_VERSION=v0.1.1 npm run build
-BAMBOO_VERSION=v0.1.1 npm run package:dmg
+BAMBOO_VERSION=v0.1.2 npm run build
+BAMBOO_VERSION=v0.1.2 npm run package:dmg
 ```
 
 Outputs stay in the ignored `build/releases/` directory. Never move an existing

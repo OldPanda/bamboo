@@ -33,7 +33,7 @@ jobs:
     env:
       GOTOOLCHAIN: go1.27.3
       GOMAXPROCS: "3"
-      BAMBOO_VERSION: ${{ inputs.version || '0.1.1' }}
+      BAMBOO_VERSION: ${{ inputs.version || '0.1.2' }}
       BAMBOO_VAULT_TEST: "1"
     defaults:
       run:
