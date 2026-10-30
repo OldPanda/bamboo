@@ -1,21 +1,32 @@
 # Bamboo 首次安装指引
 
-Bamboo 是一款免费的 Mac Parquet 数据工作台。你可以查看数据、运行 SQL，或连接 Amazon S3、Cloudflare R2；不需要安装数据库或开发工具。
+Bamboo 是一款免费的 Parquet 数据工作台，支持 macOS Apple Silicon、Windows x64 和 Linux x64。你可以查看数据、运行 SQL，或连接 Amazon S3、Cloudflare R2；不需要安装数据库或开发工具。
 
-## 1. 确认你的 Mac 可以使用
+## 1. 选择适合系统的安装包
 
-- **芯片：Apple Silicon**，例如 M1、M2、M3、M4 等。
-- **系统：macOS 12 或更新版本**。
+- **macOS 12+ / Apple Silicon**：选择 `macOS-arm64.dmg`。可在 ** → 关于本机** 查看芯片与系统版本。
+- **Windows 10/11 x64**：选择 `windows-x64-setup.exe` 安装包或 `windows-x64.zip` 便携包，需要 Microsoft Edge WebView2 Evergreen x64 Runtime。
+- **Ubuntu 22.04+ / 兼容 Debian 的 x64 桌面系统**：选择 `linux-x64.deb` 或 `linux-x64.tar.gz`。需要 GTK 3、WebKitGTK 4.1、libsecret、libstdc++、glibc 2.35+ 和 xdg-utils；其他发行版尚未验证。
 
-点击屏幕左上角 ** → 关于本机**，查看“芯片”和 macOS 版本。目前的安装包不支持 Intel Mac、Windows 或 Linux。
+不提供 Intel Mac 或 Windows/Linux ARM64 安装包。下载以 [官方 Release](https://github.com/OldPanda/bamboo/releases/latest) 的实际资源为准；每个包都有 SHA-256 校验文件。
 
 ## 2. 下载并安装
+
+### macOS
 
 1. 打开 [Bamboo 官方 GitHub 下载页](https://github.com/OldPanda/bamboo/releases/latest)。
 2. 在 **Assets（资源）** 中下载以 **`.dmg`** 结尾的文件。不要下载 `Source code`，那是开发者使用的源代码。
 3. 双击下载的 DMG，把 **Bamboo** 图标拖到 **Applications（应用程序）** 文件夹。
 4. 等待复制完成，在 Finder 侧栏推出 Bamboo 安装磁盘。
 5. 打开 Finder 的“应用程序”，双击 **Bamboo**。
+
+### Windows
+
+从官方 Release 下载并运行 `windows-x64-setup.exe`，或完整解压 `windows-x64.zip` 后运行 Bamboo。先安装 [Microsoft Edge WebView2 Evergreen x64 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)。安装包尚未签名，可能显示 SmartScreen 提示；请核对下载来源及校验和，不要关闭系统保护。受管理的电脑请联系管理员。
+
+### Linux
+
+下载 `.deb` 后，在下载目录执行 `sudo apt install ./Bamboo-<版本>-linux-x64.deb`，把 `<版本>` 替换为实际版本号。便携 `.tar.gz` 需完整解压，并自行安装上述系统依赖。云连接还需要用户 D-Bus 会话及已解锁的 Secret Service（例如 GNOME Keyring）。
 
 ## 3. 如果 macOS 提示无法验证开发者
 
@@ -60,13 +71,13 @@ SELECT * FROM workspace."orders.parquet" LIMIT 100;
 
 ### 云端文件
 
-点击 **Open data（打开数据）→ 云存储**，选择 **Amazon S3** 或 **Cloudflare R2**，填写对应的连接信息。建议使用限定到所需存储桶或前缀的只读凭据；凭据保存在 Mac 钥匙串中。
+点击 **Open data（打开数据）→ 云存储**，选择 **Amazon S3** 或 **Cloudflare R2**，填写对应的连接信息。建议使用限定到所需存储桶或前缀的只读凭据；凭据保存在系统凭据库中：macOS 钥匙串、Windows 凭据管理器或 Linux Secret Service。
 
 连接配置说明：[Amazon S3](../S3_WORKSPACES.md) · [Cloudflare R2](../R2_WORKSPACES.md)。
 
 ## 后续更新和常用设置
 
-- **更新**：Bamboo 可以后台检查新版本，在左下角提示。点击后按提示确认安装和重启；应用不会在使用过程中替你静默升级。也可以在 **设置 → 通用** 中手动检查。更新通过官方 GitHub Releases 提供。
+- **更新**：macOS 版 Bamboo 可以后台检查新版本，在左下角提示。点击后按提示确认安装和重启；应用不会在使用过程中替你静默升级。也可以在 **设置 → 通用** 中手动检查。更新通过官方 GitHub Releases 提供。Windows/Linux 的“检查更新”打开版本页面，由你手动下载和安装。
 - **语言和外观**：在 **设置 → 通用** 中选择中文或英文，以及浅色、深色或跟随系统。
 - **大文件**：按需读取可以快速显示首屏，不代表所有完整扫描或复杂查询都同样快。可在 **设置 → 性能** 中调整查询内存、临时磁盘预算和超时。
 - **原文件**：数据查询是只读的；导出 CSV 或 JSON 会创建新文件。
@@ -76,4 +87,4 @@ SELECT * FROM workspace."orders.parquet" LIMIT 100;
 - 发现 Bug：[GitHub Issues](https://github.com/OldPanda/bamboo/issues)。
 - 使用问题、建议和想法：[GitHub Discussions](https://github.com/OldPanda/bamboo/discussions)。
 
-反馈时写清 **Bamboo 版本、macOS 版本、芯片型号、操作步骤和报错文字**。截图前请隐去个人路径、密钥和业务数据，不要上传私人文件。
+反馈时写清 **Bamboo 版本、操作系统版本、芯片型号、操作步骤和报错文字**。截图前请隐去个人路径、密钥和业务数据，不要上传私人文件。
