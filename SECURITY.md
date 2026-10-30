@@ -16,7 +16,7 @@ JSON retains column types, exact textual values and NULL. CSV protects headers a
 
 CSV protection reduces formula interpretation on import; it is not a guarantee across every spreadsheet application or saving/reopening workflow. See [OWASP CSV Injection](https://community.owasp.org/attacks/CSV_Injection). No spreadsheet application is invoked by Bamboo.
 
-Export uses a native save dialog and creates a new file with mode 0600 and `O_EXCL`; existing files are never overwritten. Failed exports attempt to remove the partial file. Private query spill directories are cleaned up after normal database closure; crashes or deletion failures can leave local data behind. SQL drafts and saved workspace paths can also contain sensitive information.
+Export uses a native save dialog and creates a new private file with mode 0600 and `O_EXCL` on Unix, or a protected current-user/System ACL and `CREATE_NEW` on Windows; existing files are never overwritten. Failed exports attempt to remove the partial file. Private query spill directories are cleaned up after normal database closure; crashes or deletion failures can leave local data behind. SQL drafts and saved workspace paths can also contain sensitive information.
 
 The frontend uses text rendering for data/errors, a restricted CSP and a trusted MyGo bridge. External navigation and new windows are denied.
 
@@ -37,3 +37,11 @@ key before extraction. The update feed is fixed to the latest stable release of
 Actions secret, never source control. Installing and relaunching require user
 confirmation. This mechanism does not provide Apple notarization. See
 [Automatic updates](docs/automatic-updates.md) for setup and validation limits.
+
+Windows query spill directories use protected inheritable ACLs allowing only
+the current user and Local System. Settings/export files receive explicit
+protected ACLs even when their parent directory grants broader access. Linux
+uses Unix owner-only modes and stores credentials via libsecret/Secret Service.
+A missing or locked Secret Service fails cloud credential operations without
+a plaintext fallback. Windows/Linux update checks are explicit release-page
+links; there is no background installation or relaunch.

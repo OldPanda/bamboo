@@ -56,6 +56,12 @@ def main():
     ):
         raise SystemExit("Use a native runner; cross compilation is not supported")
     env = {**os.environ, "GOTOOLCHAIN": "go1.27.3", "CGO_ENABLED": "1"}
+    subprocess.run(
+        ["go", "mod", "download", "go.duckdb.org/libduckdb/" + target],
+        cwd=ROOT,
+        env=env,
+        check=True,
+    )
     module = Path(
         subprocess.check_output(
             [
