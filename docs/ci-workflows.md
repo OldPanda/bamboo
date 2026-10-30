@@ -25,8 +25,11 @@ required: skipped workflows can leave required checks pending. See GitHub's
 
 The existing macOS `PR quality gate`, its native acceptance, security checks and
 95% Go/frontend coverage thresholds are unchanged. The release workflow still
-calls `ci.yml`; this desktop workflow does not publish releases or add tag
-triggers. If checks are selected in a branch ruleset, require both desktop
+calls `ci.yml` and reuses this desktop workflow with the validated tag version.
+Desktop has no direct tag trigger and no publication permission. Only after all
+platforms pass does Release publish their five packages together. Release then
+calls desktop again to download and install the actual public assets on fresh
+native runners. If checks are selected in a branch ruleset, require both desktop
 matrix jobs as well as the quality gate. Changing this workflow does not edit
 repository rulesets.
 

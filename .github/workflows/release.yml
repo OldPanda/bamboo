@@ -16,6 +16,13 @@ jobs:
     name: Release quality gate
     uses: ./.github/workflows/ci.yml
 
+  desktop:
+    name: Build Windows and Linux packages
+    needs: quality
+    uses: ./.github/workflows/desktop-x64.yml
+    with:
+      version: ${{ github.ref_name }}
+
   build:
     name: Build macOS DMG
     needs: quality
@@ -76,9 +83,17 @@ jobs:
           retention-days: 7
           compression-level: 0
 
+  verify-published:
+    name: Verify hosted Windows and Linux installers
+    needs: publish
+    uses: ./.github/workflows/desktop-x64.yml
+    with:
+      version: ${{ github.ref_name }}
+      verify-published: true
+
   publish:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, desktop]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -87,6 +102,11 @@ jobs:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: macos-installer
+          path: installer
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          pattern: release-*-x64
+          merge-multiple: true
           path: installer
       - name: Verify and publish installer
         env:
@@ -99,8 +119,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          name="Bamboo-${VERSION}-macOS-arm64.dmg"
-          sha256sum --check "$name.sha256"
+          assets=()
+          for suffix in macOS-arm64.dmg windows-x64-setup.exe windows-x64.zip linux-x64.deb linux-x64.tar.gz; do
+            name="Bamboo-${VERSION}-${suffix}"
+            test -s "$name"
+            sha256sum --check "$name.sha256"
+            assets+=("$name" "$name.sha256")
+          done
           test -s appcast.xml
           test -s release-notes.md
           if draft=$(gh release view "$TAG" --json isDraft --jq '.isDraft'); then
@@ -114,5 +139,5 @@ jobs:
               --prerelease="$PRERELEASE" \
               --notes-file release-notes.md
           fi
-          gh release upload "$TAG" "$name" "$name.sha256" appcast.xml --clobber
+          gh release upload "$TAG" "${assets[@]}" appcast.xml --clobber
           gh release edit "$TAG" --draft=false --prerelease="$PRERELEASE"
