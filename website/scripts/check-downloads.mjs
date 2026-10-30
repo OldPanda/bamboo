@@ -16,7 +16,7 @@ if (!response.ok && response.status !== 404)
 const catalog = catalogFromRelease(
   response.status === 404 ? null : await response.json(),
 );
-for (const [platform, asset] of Object.entries(catalog.platforms)) {
+for (const [platform, asset] of Object.entries(catalog.packages)) {
   if (!asset) {
     console.log(
       `${platform}: no published installer in the latest stable release`,

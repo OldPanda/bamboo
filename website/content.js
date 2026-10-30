@@ -20,7 +20,7 @@ export const pageMetadata = {
   },
 };
 export const translations = {
-  downloadChooseLabel: { zh: "选择下载平台", en: "Choose a platform" },
+  downloadChooseLabel: { zh: "查看所有下载", en: "View all downloads" },
   t0: { zh: "跳转至正文", en: "Skip to content" },
   t1: { zh: "功能介绍", en: "Features" },
   t2: { zh: "安装指引", en: "Installation" },
@@ -181,8 +181,8 @@ export const translations = {
     en: "Which platforms and file formats are supported?",
   },
   t70: {
-    zh: "Bamboo 支持 macOS Apple Silicon、Windows x64 和 Linux x64。正式下载以本页平台选择和 GitHub Releases 为准；预览构建不等于正式发布。不提供 Intel Mac 或 Windows/Linux ARM64 安装包。macOS 要求 12 及以上，可在  → 关于本机查看芯片与系统版本。支持读取 Parquet，并将结果导出为 CSV 或 JSON。",
-    en: "Bamboo supports macOS on Apple Silicon, Windows x64 and Linux x64. Published downloads are shown in the platform selector and GitHub Releases; preview builds are not stable releases. No Intel Mac or Windows/Linux ARM64 packages are provided. macOS requires version 12 or later; check your chip and OS under  → About This Mac. Read Parquet files and export results as CSV or JSON.",
+    zh: "Bamboo 支持 macOS Apple Silicon、Windows x64 和 Linux x64。正式下载以页面底部下载区和 GitHub Releases 为准；预览构建不等于正式发布。不提供 Intel Mac 或 Windows/Linux ARM64 安装包。macOS 要求 12 及以上，可在  → 关于本机查看芯片与系统版本。支持读取 Parquet，并将结果导出为 CSV 或 JSON。",
+    en: "Bamboo supports macOS on Apple Silicon, Windows x64 and Linux x64. Published downloads are shown in the downloads section at the bottom of this page and GitHub Releases; preview builds are not stable releases. No Intel Mac or Windows/Linux ARM64 packages are provided. macOS requires version 12 or later; check your chip and OS under  → About This Mac. Read Parquet files and export results as CSV or JSON.",
   },
   t71: {
     zh: "文件需要上传吗？云端凭据放在哪里？",
@@ -422,9 +422,30 @@ export const translations = {
   a152: { zh: "关闭Privacy · 隐私政策", en: "Close Privacy Policy" },
   platformLabel: { zh: "选择电脑系统", en: "Choose your computer" },
   platformChoose: { zh: "请选择平台", en: "Choose a platform" },
-  platformHint: {
-    zh: "Bamboo 是桌面应用。请选择目标电脑的系统，并确认下方要求。",
-    en: "Bamboo is a desktop app. Choose the target computer’s platform and check the requirements below.",
+  otherPlatforms: { zh: "其他平台：", en: "Other platforms:" },
+  allPlatforms: { zh: "选择电脑系统：", en: "Choose your computer:" },
+  downloadsHeading: { zh: "下载 Bamboo", en: "Download Bamboo" },
+  packagemacosDmg: { zh: "DMG 安装包", en: "DMG installer" },
+  packagewindowsSetup: { zh: "EXE 安装包", en: "EXE installer" },
+  packagewindowsZip: { zh: "ZIP 便携包", en: "Portable ZIP" },
+  packagelinuxDeb: { zh: "DEB 安装包", en: "DEB package" },
+  packagelinuxTar: { zh: "tar.gz 便携包", en: "Portable tar.gz" },
+  packageUnavailable: { zh: "尚未正式发布", en: "Not published yet" },
+  macosPackageRequirements: {
+    zh: "macOS 12+ · 不支持 Intel Mac",
+    en: "macOS 12+ · Intel Macs not supported",
+  },
+  windowsPackageRequirements: {
+    zh: "Windows 10/11 · 需要 WebView2",
+    en: "Windows 10/11 · Requires WebView2",
+  },
+  linuxPackageRequirements: {
+    zh: "Ubuntu 22.04 · GTK 3 / WebKitGTK 4.1",
+    en: "Ubuntu 22.04 · GTK 3 / WebKitGTK 4.1",
+  },
+  releaseNotes: {
+    zh: "版本说明与发布状态",
+    en: "Release notes and availability",
   },
   windowsRequirementsTitle: { zh: "检查系统要求", en: "Check requirements" },
   windowsRequirements: {

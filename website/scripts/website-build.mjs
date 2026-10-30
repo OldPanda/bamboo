@@ -1,5 +1,5 @@
 /** Build only public website files; optionally emit a standalone review copy. */
-import { validateCatalog } from "./download-catalog.mjs";
+import { validateCatalog, renderPackages } from "./download-catalog.mjs";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -14,11 +14,12 @@ const hash = (bytes) =>
   createHash("sha256").update(bytes).digest("hex").slice(0, 16);
 await rm(output, { recursive: true, force: true });
 await mkdir(join(output, "assets"), { recursive: true });
-const template = await readFile(join(source, "index.html"), "utf8");
+const sourceTemplate = await readFile(join(source, "index.html"), "utf8");
 const css = await readFile(join(source, "styles.css"), "utf8");
 const catalog = validateCatalog(
   JSON.parse(await readFile(join(source, "downloads.json"), "utf8")),
 );
+const template = renderPackages(sourceTemplate, catalog);
 // Bundle shared copy and the verified catalog without runtime network requests.
 const content = (await readFile(join(source, "content.js"), "utf8")).replaceAll(
   "export const ",

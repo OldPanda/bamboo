@@ -325,7 +325,7 @@ test("invalid download targets stop the real build", async (t) => {
   const catalog = JSON.parse(
     await readFile(join(source, "downloads.json"), "utf8"),
   );
-  catalog.platforms.macos.url = "https://example.com/installer.dmg";
+  catalog.packages.macosDmg.url = "https://example.com/installer.dmg";
   await writeFile(
     join(f.root, "website/downloads.json"),
     JSON.stringify(catalog),
@@ -333,4 +333,27 @@ test("invalid download targets stop the real build", async (t) => {
   const result = f.build();
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Invalid download catalog/);
+});
+
+test("static locale pages expose every package and truthful availability without a hero selector", async (t) => {
+  const f = await fixture(t);
+  success(f.build());
+  const catalog = JSON.parse(
+    await readFile(join(source, "downloads.json"), "utf8"),
+  );
+  for (const lang of ["en", "zh"]) {
+    const html = await readFile(join(f.site, lang, "index.html"), "utf8");
+    assert(!html.includes('id="platform-select"'));
+    assert(!html.includes("<!-- PACKAGE:"));
+    assert.equal([...html.matchAll(/data-package="/g)].length, 5);
+    for (const platform of ["macos", "windows", "linux"]) {
+      assert(html.includes(`href="#download-${platform}"`));
+      assert(html.includes(`id="download-${platform}"`));
+    }
+    assert(html.includes(catalog.packages.macosDmg.url));
+    assert.match(html, lang === "en" ? /Portable ZIP/ : /ZIP 便携包/);
+    assert.match(html, lang === "en" ? /Portable tar.gz/ : /tar.gz 便携包/);
+    assert.equal([...html.matchAll(/class="package-unavailable"/g)].length, 4);
+    assert(!/href="[^"]+(windows-x64|linux-x64)/.test(html));
+  }
 });

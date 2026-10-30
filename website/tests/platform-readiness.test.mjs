@@ -6,7 +6,7 @@ import { platformPageReady } from "../scripts/website-platforms-check.mjs";
 
 test("platform polling waits for the new document and initialized download controls", () => {
   const check = ({
-    root = { dataset: {} },
+    root = { dataset: { downloadReady: "true" } },
     label = { textContent: "Choose a platform" },
     state = "complete",
     search = "?platform-test=1",
@@ -32,7 +32,7 @@ test("platform polling waits for the new document and initialized download contr
   );
   assert.equal(check({ label: null }), false, "Wait for controls to exist");
   assert.equal(
-    check({ label: { textContent: "选择下载平台" } }),
+    check({ root: { dataset: {} } }),
     false,
     "Wait for site initialization",
   );

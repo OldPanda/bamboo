@@ -11,7 +11,7 @@ export function platformPageReady(marker) {
     new URLSearchParams(location.search).get("platform-test") === marker &&
     document.readyState === "complete" &&
     label?.textContent &&
-    label.textContent !== "选择下载平台",
+    root.dataset.downloadReady === "true",
   );
 }
 
@@ -103,13 +103,54 @@ export async function checkPlatforms({
       expected: "",
     },
   ];
+
+  const names = { macos: "macOS", windows: "Windows", linux: "Linux" };
+  const keys = {
+    macos: ["macosDmg"],
+    windows: ["windowsSetup", "windowsZip"],
+    linux: ["linuxDeb", "linuxTar"],
+  };
+  const assetFor = (platform) =>
+    keys[platform]?.map((key) => catalog.packages[key]).find(Boolean);
+  const press = async (key) => {
+    const code = key === "Enter" ? 13 : 9;
+    await send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key,
+      code: key,
+      windowsVirtualKeyCode: code,
+    });
+    await send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key,
+      code: key,
+      windowsVirtualKeyCode: code,
+    });
+  };
+  const anchor = async (selector, target) => {
+    await evaluate(
+      `document.querySelector(${JSON.stringify(selector)}).focus()`,
+    );
+    await press("Enter");
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (
+        await evaluate(
+          `location.hash === '#${target}' && document.activeElement.id === '${target}'`,
+        )
+      )
+        break;
+      await new Promise((done) => setTimeout(done, 30));
+    }
+    assert.deepEqual(
+      await evaluate(`({hash:location.hash, focus:document.activeElement.id})`),
+      { hash: `#${target}`, focus: target },
+    );
+  };
   for (const scenario of cases) {
     const { identifier } = await send("Page.addScriptToEvaluateOnNewDocument", {
       source: `Object.defineProperties(navigator, {
-      userAgent: {get:()=>${JSON.stringify(scenario.ua)}},
-      platform: {get:()=>${JSON.stringify(scenario.platform)}},
-      maxTouchPoints: {get:()=>${scenario.touch || 0}},
-      userAgentData: {get:()=>(${JSON.stringify(scenario.hints || null)})}
+      userAgent: {get:()=>${JSON.stringify(scenario.ua)}}, platform: {get:()=>${JSON.stringify(scenario.platform)}},
+      maxTouchPoints: {get:()=>${scenario.touch || 0}}, userAgentData: {get:()=>(${JSON.stringify(scenario.hints || null)})}
     });`,
     });
     try {
@@ -117,42 +158,56 @@ export async function checkPlatforms({
       assert.equal(
         await evaluate("navigator.userAgent"),
         scenario.ua,
-        "Platform emulation must be active before checking detection",
+        "Platform emulation must be active",
+      );
+      const state = await evaluate(`({
+        select: !!document.getElementById('platform-select'),
+        href: document.querySelector('.download-link').getAttribute('href'),
+        icon: document.querySelector('[data-platform-icon]').getAttribute('href'),
+        label: document.querySelector('[data-download-label]').textContent,
+        others: [...document.querySelectorAll('[data-other-platform]')].filter(a=>!a.hidden).map(a=>a.dataset.otherPlatform),
+      })`);
+      assert.equal(state.select, false);
+      const platform = scenario.expected;
+      assert.equal(
+        state.href,
+        assetFor(platform)?.url ||
+          (platform ? `#download-${platform}` : "#downloads"),
       );
       assert.equal(
-        await evaluate("document.getElementById('platform-select').value"),
-        scenario.expected,
-        scenario.name,
+        state.icon,
+        `#i-${{ macos: "apple", windows: "windows", linux: "linux" }[platform] || "down"}`,
       );
-      if (!scenario.expected) {
-        assert.equal(
-          await evaluate(
-            "document.querySelector('.download-link').getAttribute('href')",
-          ),
-          "#platform-select",
-        );
+      assert(state.label.includes(names[platform] || "View all downloads"));
+      assert.deepEqual(
+        state.others,
+        Object.keys(names).filter((p) => p !== platform),
+      );
+      const other = state.others[0];
+      await anchor(`[data-other-platform="${other}"]`, `download-${other}`);
+      await press("Tab");
+      assert.equal(
+        await evaluate(`document.activeElement.closest('.download-card')?.id`),
+        `download-${other}`,
+      );
+      assert.equal(
         await evaluate(
-          "document.querySelector('.closing .download-link').click()",
-        );
-        assert.equal(
-          await evaluate("document.activeElement.id"),
-          "platform-select",
-        );
-        assert.equal(
-          await evaluate("document.getElementById('download-hint').hidden"),
-          false,
-        );
-      }
+          "document.querySelector('.download-link').getAttribute('href')",
+        ),
+        state.href,
+        "Other-platform link never changes detected CTA",
+      );
+      if (!platform) await anchor(".download-link", "downloads");
       results.push(scenario.name);
     } finally {
       await send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
     }
   }
-  // A phone visitor can deliberately select a desktop download; choices survive language/theme changes.
+  // Each package remains visible in either locale/theme, independently of the installation guide.
   for (const width of [1280, 320]) {
     await send("Emulation.setDeviceMetricsOverride", {
       width,
-      height: 900,
+      height: 1000,
       deviceScaleFactor: 1,
       mobile: false,
     });
@@ -160,62 +215,53 @@ export async function checkPlatforms({
       await evaluate(`document.documentElement.dataset.theme = '${mode}'`);
       for (const language of ["zh", "en"]) {
         await evaluate(
-          `(() => {const s=document.getElementById('language-select'); s.value='${language}'; s.dispatchEvent(new Event('change'));})()`,
+          `(() => {const s=document.getElementById('language-select');s.value='${language}';s.dispatchEvent(new Event('change'));})()`,
         );
-        for (const platform of ["macos", "windows", "linux"]) {
+        for (const platform of Object.keys(names)) {
+          await anchor(
+            `[data-other-platform="${platform}"]`,
+            `download-${platform}`,
+          );
+          for (const key of keys[platform]) {
+            const state = await evaluate(
+              `(() => {const item=document.querySelector('[data-package="${key}"]');return {tag:item.tagName,href:item.getAttribute('href'),text:item.textContent,disabled:item.classList.contains('package-unavailable')};})()`,
+            );
+            const asset = catalog.packages[key];
+            assert.equal(state.tag, asset ? "A" : "SPAN");
+            assert.equal(state.href, asset?.url || null);
+            assert.equal(state.disabled, !asset);
+            if (!asset)
+              assert.match(
+                state.text,
+                language === "en" ? /Not published yet/ : /尚未正式发布/,
+              );
+          }
           await evaluate(
-            `(() => {const s=document.getElementById('platform-select'); s.value='${platform}'; s.dispatchEvent(new Event('change'));})()`,
-          );
-          const state = await evaluate(`(() => {
-            const panel = document.querySelector('[data-install-platform="${platform}"]');
-            const select = document.getElementById('install-platform-select');
-            const links = [...document.querySelectorAll('.download-link')];
-            return {selected:select.value, visible:[...document.querySelectorAll('[data-install-platform]')].filter(p=>!p.hidden).map(p=>p.dataset.installPlatform), urls:links.map(a=>a.href), labels:links.map(a=>a.textContent.trim()), icons:links.map(a=>a.querySelector('[data-platform-icon]').getAttribute('href')), status:document.getElementById('download-status').textContent, overflow:document.documentElement.scrollWidth > innerWidth, language:document.documentElement.lang, background:getComputedStyle(select).backgroundColor, panelText:panel.textContent};
-          })()`);
-          assert.equal(state.selected, platform);
-          assert.deepEqual(state.visible, [platform]);
-          const asset = catalog.platforms[platform];
-          assert(
-            state.urls.every(
-              (url) =>
-                url ===
-                (asset?.url || "https://github.com/OldPanda/bamboo/releases"),
-            ),
-          );
-          assert(
-            state.icons.every(
-              (icon) =>
-                icon ===
-                `#i-${{ macos: "apple", windows: "windows", linux: "linux" }[platform]}`,
-            ),
-          );
-          assert(
-            state.labels.every((label) =>
-              label.includes(
-                { macos: "macOS", windows: "Windows", linux: "Linux" }[
-                  platform
-                ],
-              ),
-            ),
-          );
-          assert.match(
-            state.status,
-            asset
-              ? /Apple Silicon|x64/
-              : language === "en"
-                ? /No published .* installer yet/
-                : /尚未正式发布/,
+            `document.querySelector('[data-guide-platform="${platform}"]').click()`,
           );
           assert.equal(
-            state.overflow,
+            await evaluate(
+              "document.getElementById('install-platform-select').value",
+            ),
+            platform,
+          );
+          assert.deepEqual(
+            await evaluate(
+              "[...document.querySelectorAll('[data-install-platform]')].filter(p=>!p.hidden).map(p=>p.dataset.installPlatform)",
+            ),
+            [platform],
+          );
+          assert.equal(
+            await evaluate(
+              "document.querySelector('.download-link').getAttribute('href')",
+            ),
+            "#downloads",
+            "Guide selection is independent of device detection",
+          );
+          assert.equal(
+            await evaluate("document.documentElement.scrollWidth > innerWidth"),
             false,
-            `${width} ${mode} ${language} ${platform}`,
           );
-          assert.equal(
-            /[\u4e00-\u9fff]/.test(state.panelText),
-            language === "zh",
-          );
-          assert.notEqual(state.background, "rgba(0, 0, 0, 0)");
           await evaluate(
             `document.querySelector('[data-install-platform="${platform}"] summary').click()`,
           );
@@ -232,56 +278,35 @@ export async function checkPlatforms({
             await screenshot(`platform-${platform}-${width}-${mode}-install`);
           }
           await evaluate(
-            `document.querySelector('[data-install-platform="${platform}"] summary').click(); window.scrollTo({top:0,behavior:'instant'})`,
+            `document.querySelector('[data-install-platform="${platform}"] summary').click()`,
           );
-          if (language === "en")
-            await screenshot(`platform-${platform}-${width}-${mode}`);
         }
+        await evaluate(
+          "document.getElementById('downloads').scrollIntoView({behavior:'instant'})",
+        );
+        await screenshot(`downloads-${language}-${width}-${mode}`);
+        await evaluate("window.scrollTo({top:0,behavior:'instant'})");
+        await screenshot(`hero-${language}-${width}-${mode}`);
       }
     }
   }
-  await evaluate(
-    "(() => {const s=document.getElementById('install-platform-select'); s.value='windows'; s.dispatchEvent(new Event('change')); document.getElementById('theme-toggle').click(); const l=document.getElementById('language-select');l.value='zh';l.dispatchEvent(new Event('change'));})()",
-  );
-  assert.equal(
-    await evaluate("document.getElementById('platform-select').value"),
-    "windows",
-  );
-  assert.match(
-    await evaluate(
-      "document.querySelector('[data-download-label]').textContent",
-    ),
-    /Windows/,
-  );
-  // Combining SEO routes with downloads must preserve the manual platform choice.
+  // Locale routing retains the guide choice and the download anchor, without changing OS detection.
   for (const language of ["en", "zh"]) {
-    await navigate(`/${language}/?integration=platform#install`);
-    assert.equal(
-      await evaluate("document.documentElement.lang"),
-      language === "en" ? "en" : "zh-CN",
-    );
+    await navigate(`/${language}/?integration=platform#download-linux`);
     const other = language === "en" ? "zh" : "en";
-    await evaluate(`(() => {
-      const platform = document.getElementById('platform-select');
-      platform.value = 'linux'; platform.dispatchEvent(new Event('change'));
-      const locale = document.getElementById('language-select');
-      locale.value = '${other}'; locale.dispatchEvent(new Event('change'));
-    })()`);
+    await evaluate(
+      `(() => {const s=document.getElementById('install-platform-select');s.value='linux';s.dispatchEvent(new Event('change'));const l=document.getElementById('language-select');l.value='${other}';l.dispatchEvent(new Event('change'));})()`,
+    );
     assert.deepEqual(
-      await evaluate(`({
-      platform: document.getElementById('install-platform-select').value,
-      path: location.pathname, hash: location.hash,
-      query: new URLSearchParams(location.search).get('integration'),
-      canonical: document.querySelector('link[rel="canonical"]').href,
-      label: document.querySelector('[data-download-label]').textContent.includes('Linux'),
-    })`),
+      await evaluate(
+        `({guide:document.getElementById('install-platform-select').value,path:location.pathname,hash:location.hash,query:new URLSearchParams(location.search).get('integration'),canonical:document.querySelector('link[rel="canonical"]').href})`,
+      ),
       {
-        platform: "linux",
+        guide: "linux",
         path: `/${other}/`,
-        hash: "#install",
+        hash: "#download-linux",
         query: "platform",
         canonical: `https://getbamboo.app/${other}/`,
-        label: true,
       },
     );
   }

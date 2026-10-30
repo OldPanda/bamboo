@@ -4,10 +4,9 @@ import test from "node:test";
 import {
   catalogFromRelease,
   validateCatalog,
+  packageSuffixes,
 } from "../scripts/download-catalog.mjs";
-const release = (
-  suffixes = ["macOS-arm64.dmg", "windows-x64-setup.exe", "linux-x64.deb"],
-) => ({
+const release = (suffixes = Object.values(packageSuffixes)) => ({
   tag_name: "v1.2.3",
   draft: false,
   prerelease: false,
@@ -21,12 +20,12 @@ const release = (
 test("stable release selects only uploaded supported installers and preserves actual URLs", () => {
   const catalog = catalogFromRelease(release());
   assert.deepEqual(
-    Object.values(catalog.platforms).map((a) => a.name),
+    Object.values(catalog.packages).map((a) => a.name),
     release().assets.map((a) => a.name),
   );
   assert.deepEqual(validateCatalog(catalog), catalog);
 });
-test("missing desktop assets remain unavailable; archives and checksums are not installers", () => {
+test("installers and portable archives have independent availability; checksums are excluded", () => {
   const catalog = catalogFromRelease(
     release([
       "macOS-arm64.dmg",
@@ -35,9 +34,11 @@ test("missing desktop assets remain unavailable; archives and checksums are not 
       "linux-x64.deb.sha256",
     ]),
   );
-  assert(catalog.platforms.macos);
-  assert.equal(catalog.platforms.windows, null);
-  assert.equal(catalog.platforms.linux, null);
+  assert(catalog.packages.macosDmg);
+  assert.equal(catalog.packages.windowsSetup, null);
+  assert.equal(catalog.packages.linuxDeb, null);
+  assert(catalog.packages.windowsZip);
+  assert(catalog.packages.linuxTar);
 });
 test("preview, draft, absent or malformed releases never become stable downloads", () => {
   for (const input of [
@@ -49,7 +50,9 @@ test("preview, draft, absent or malformed releases never become stable downloads
   ]) {
     assert.deepEqual(catalogFromRelease(input), {
       tag: null,
-      platforms: { macos: null, windows: null, linux: null },
+      packages: Object.fromEntries(
+        Object.keys(packageSuffixes).map((key) => [key, null]),
+      ),
     });
   }
 });
@@ -65,16 +68,16 @@ test("wrong host, wrong release, zero-length and incomplete uploads fail closed"
   ]) {
     const input = release(["macOS-arm64.dmg"]);
     Object.assign(input.assets[0], change);
-    assert.equal(catalogFromRelease(input).platforms.macos, null);
+    assert.equal(catalogFromRelease(input).packages.macosDmg, null);
   }
 });
 test("build rejects edited catalog URLs, unexpected fields and wrong platform assignments", () => {
   for (const mutate of [
     (c) => {
-      c.platforms.macos.url = "javascript:alert(1)";
+      c.packages.macosDmg.url = "javascript:alert(1)";
     },
     (c) => {
-      c.platforms.linux = c.platforms.macos;
+      c.packages.linuxDeb = c.packages.macosDmg;
     },
     (c) => {
       c.extra = "</script>";

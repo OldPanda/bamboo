@@ -190,7 +190,6 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
   });
 
   const catalog = /* DOWNLOAD_CATALOG */ null;
-  const releasesURL = "https://github.com/OldPanda/bamboo/releases";
   const platformNames = { macos: "macOS", windows: "Windows", linux: "Linux" };
   const platformIcons = { macos: "apple", windows: "windows", linux: "linux" };
   // iPadOS can advertise itself as a Mac; mobile systems must not auto-select a desktop build.
@@ -209,92 +208,97 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
     if (/Linux/i.test(platform + " " + ua)) return "linux";
     return "";
   };
-  let selectedPlatform = detectPlatform();
-  const selectors = [...document.querySelectorAll("[data-platform-select]")];
+  const detectedPlatform = detectPlatform();
+  let guidePlatform = detectedPlatform;
+  const guideSelect = document.getElementById("install-platform-select");
+  const packagesFor = {
+    macos: ["macosDmg"],
+    windows: ["windowsSetup", "windowsZip"],
+    linux: ["linuxDeb", "linuxTar"],
+  };
+  const primaryAsset = (platform) =>
+    packagesFor[platform]?.map((key) => catalog?.packages[key]).find(Boolean);
   const updateDownloads = () => {
-    const name = platformNames[selectedPlatform];
-    const asset = catalog?.platforms[selectedPlatform];
-    const label = !name
-      ? ui("选择下载平台", "Choose a platform")
+    const name = platformNames[detectedPlatform];
+    const asset = primaryAsset(detectedPlatform);
+    const link = document.querySelector(".download-link");
+    link.href =
+      asset?.url || (name ? `#download-${detectedPlatform}` : "#downloads");
+    link.querySelector("[data-download-label]").textContent = !name
+      ? translations.downloadChooseLabel[language]
       : asset
         ? ui(`免费下载 ${name} 版`, `Download for ${name}`)
-        : ui(`查看 ${name} 发布状态`, `${name} release status`);
-    document.querySelectorAll(".download-link").forEach((link) => {
-      link.href = !name ? "#platform-select" : asset?.url || releasesURL;
-      link.querySelector("[data-download-label]").textContent = label;
-      link
-        .querySelector("[data-download-action-icon]")
-        .setAttribute("href", asset ? "#i-down" : "#i-arrow");
-      link
-        .querySelector("[data-platform-icon]")
-        .setAttribute(
-          "href",
-          `#i-${platformIcons[selectedPlatform] || "down"}`,
-        );
-    });
-    selectors.forEach((select) => {
-      select.value = selectedPlatform;
-    });
+        : ui(`查看 ${name} 下载`, `${name} downloads`);
+    link
+      .querySelector("[data-download-action-icon]")
+      .setAttribute("href", asset ? "#i-down" : "#i-arrow");
+    link
+      .querySelector("[data-platform-icon]")
+      .setAttribute("href", `#i-${platformIcons[detectedPlatform] || "down"}`);
     const requirements = {
       macos: ui(
         "Apple Silicon · macOS 12+ · 不支持 Intel Mac",
         "Apple Silicon · macOS 12+ · Intel Macs not supported",
       ),
       windows: "Windows 10/11 · x64 · WebView2",
-      linux: "Ubuntu 22.04 / Debian · x64 · GTK 3 / WebKitGTK 4.1",
+      linux: "Ubuntu 22.04 · x64 · GTK 3 / WebKitGTK 4.1",
     };
-    const unavailable = name
-      ? ui(
-          `${name} 安装包尚未正式发布。可前往 GitHub Releases 查看发布状态；以下为安装前提。`,
-          `No published ${name} installer yet. Check GitHub Releases for availability; installation requirements are below.`,
-        )
-      : "";
-    document.getElementById("download-status").textContent = asset
-      ? `${catalog.tag} · ${requirements[selectedPlatform]}`
-      : unavailable;
-    document.getElementById("install-availability").textContent = !name
+    document.getElementById("download-status").textContent = name
+      ? requirements[detectedPlatform]
+      : ui(
+          "桌面应用 · 请选择目标电脑的安装包",
+          "Desktop app · Choose a package for your computer",
+        );
+    document.getElementById("other-platforms-label").textContent =
+      translations[name ? "otherPlatforms" : "allPlatforms"][language];
+    document.querySelectorAll("[data-other-platform]").forEach((other) => {
+      other.hidden = other.dataset.otherPlatform === detectedPlatform;
+    });
+    guideSelect.value = guidePlatform;
+    const guideName = platformNames[guidePlatform];
+    document.getElementById("install-availability").textContent = !guideName
       ? ui(
           "请先选择目标电脑的系统。",
           "Choose the target computer’s platform first.",
         )
-      : asset
-        ? `${catalog.tag} · ${requirements[selectedPlatform]}`
-        : unavailable;
-    document.getElementById("download-hint").hidden = Boolean(name);
+      : primaryAsset(guidePlatform)
+        ? requirements[guidePlatform]
+        : ui(
+            `${guideName} 安装包尚未正式发布。以下为安装前提。`,
+            `No published ${guideName} package yet. Installation requirements are below.`,
+          );
     document.querySelectorAll("[data-install-platform]").forEach((panel) => {
-      panel.hidden = panel.dataset.installPlatform !== selectedPlatform;
+      panel.hidden = panel.dataset.installPlatform !== guidePlatform;
     });
     document.querySelectorAll("[data-macos-download]").forEach((link) => {
-      link.href = catalog?.platforms.macos?.url || releasesURL;
-      link.querySelector("span").textContent = catalog?.platforms.macos
+      link.href = primaryAsset("macos")?.url || "#download-macos";
+      link.querySelector("span").textContent = primaryAsset("macos")
         ? translations.t10[language]
-        : ui("查看 macOS 发布状态", "macOS release status");
+        : ui("查看 macOS 下载", "macOS downloads");
     });
-    document.querySelector("#platform-availability").textContent =
-      Object.entries(platformNames)
-        .map(
-          ([key, title]) =>
-            `${title}: ${catalog?.platforms[key] ? ui("可下载", "available") : ui("尚未发布", "not published")}`,
-        )
-        .join(" · ");
+    document.documentElement.dataset.downloadReady = "true";
   };
-  selectors.forEach((select) =>
-    select.addEventListener("change", () => {
-      selectedPlatform = Object.hasOwn(platformNames, select.value)
-        ? select.value
-        : "";
+  guideSelect.addEventListener("change", () => {
+    guidePlatform = Object.hasOwn(platformNames, guideSelect.value)
+      ? guideSelect.value
+      : "";
+    updateDownloads();
+  });
+  document.querySelectorAll("[data-guide-platform]").forEach((link) => {
+    link.addEventListener("click", () => {
+      guidePlatform = link.dataset.guidePlatform;
       updateDownloads();
-    }),
-  );
-  document.querySelectorAll(".download-link").forEach((link) =>
-    link.addEventListener("click", (event) => {
-      if (!selectedPlatform) {
-        event.preventDefault();
-        selectors[0].focus();
-        selectors[0].scrollIntoView({ block: "center", behavior: "instant" });
-      }
-    }),
-  );
+      guideSelect.focus({ preventScroll: true });
+    });
+  });
+  // Keep native anchor navigation/history while moving keyboard focus with the viewport.
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a");
+    const hash = link?.getAttribute("href");
+    if (!/^#downloads?$|^#download-(macos|windows|linux)$/.test(hash || ""))
+      return;
+    document.getElementById(hash.slice(1))?.focus({ preventScroll: true });
+  });
   const applyPreferredLanguage = () => {
     let preferredLanguage = navigator.language.toLowerCase().startsWith("zh")
       ? "zh"
