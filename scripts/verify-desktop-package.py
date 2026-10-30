@@ -13,6 +13,8 @@ import time
 import zipfile
 from pathlib import Path
 
+from release_version import parse_version
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -196,6 +198,34 @@ def main():
     ):
         if not (app / name).is_file():
             raise SystemExit("Missing packaged resource: " + name)
+    version = parse_version(os.environ["BAMBOO_VERSION"])[0]
+    metadata = json.loads((app / "build-info.json").read_text())
+    expected = {
+        "version": version,
+        "platform": platform.system().lower(),
+        "architecture": "amd64",
+        "commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip(),
+    }
+    if metadata != expected:
+        raise SystemExit("Package metadata does not match the checked-out release")
+    build = subprocess.check_output(["go", "version", "-m", str(binary)], text=True)
+    if f"vcs.revision={expected['commit']}\n" not in build:
+        raise SystemExit("Executable source commit does not match the release")
+    if windows:
+        resource_version = subprocess.check_output(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "(Get-Item -LiteralPath $env:BAMBOO_VERIFY_EXE).VersionInfo.ProductVersion",
+            ],
+            env={**os.environ, "BAMBOO_VERIFY_EXE": str(binary)},
+            text=True,
+        ).strip()
+        if resource_version != version:
+            raise SystemExit("Windows executable resource version mismatch")
     if not windows:
         for native in (binary, app / "extensions/httpfs.duckdb_extension"):
             dependencies = subprocess.check_output(["ldd", str(native)], text=True)
@@ -225,7 +255,7 @@ def main():
         "checksums": "passed",
         "portableLaunchAndClose": "passed",
         "installerLaunchAndClose": "passed",
-        "metadata": json.loads((app / "build-info.json").read_text()),
+        "metadata": metadata,
     }
     (output / "package-smoke.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))

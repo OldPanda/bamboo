@@ -4,6 +4,15 @@ on:
     # Feature branches are covered by pull_request, without a second push run.
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      verify-published:
+        description: Download and install the public assets instead of building
+        type: boolean
+        default: false
   pull_request:
   merge_group:
 permissions:
@@ -24,7 +33,7 @@ jobs:
     env:
       GOTOOLCHAIN: go1.27.3
       GOMAXPROCS: "3"
-      BAMBOO_VERSION: 0.1.0-x64.preview.1
+      BAMBOO_VERSION: ${{ inputs.version || '0.1.1' }}
       BAMBOO_VAULT_TEST: "1"
     defaults:
       run:
@@ -57,6 +66,7 @@ jobs:
           printf '%s\n' 'C:\msys64\mingw64\bin' >> "$GITHUB_PATH"
           choco install nsis --yes --no-progress
       - name: Build release and separate acceptance binaries
+        if: ${{ !inputs.verify-published }}
         run: |
           npm ci --prefer-offline
           python scripts/build-desktop.py
@@ -64,30 +74,43 @@ jobs:
       - name: Frontend regression tests
         # These jsdom tests have no native/platform dependencies. Both runners
         # still build the frontend, check generated IPC and test their WebView.
-        if: runner.os == 'Linux'
+        if: ${{ runner.os == 'Linux' && !inputs.verify-published }}
         run: npm run test:web
       - name: Linux release tests and native acceptance
-        if: runner.os == 'Linux'
+        if: ${{ runner.os == 'Linux' && !inputs.verify-published }}
         run: |
           xvfb-run -a dbus-run-session -- bash scripts/test-linux-desktop.sh
       - name: Windows release tests and native acceptance
-        if: runner.os == 'Windows'
+        if: ${{ runner.os == 'Windows' && !inputs.verify-published }}
         run: |
           python scripts/go-release.py test -v -p=1 -count=1 -timeout=180s . ./internal/... ./cmd/...
           python scripts/desktop-platform-smoke.py
       - name: Package tested desktop binaries
+        if: ${{ !inputs.verify-published }}
         run: python scripts/package-desktop.py
+      - name: Download published packages
+        if: ${{ inputs.verify-published }}
+        run: python scripts/download-desktop-release.py
       - name: Verify Linux packages and installed startup
         if: runner.os == 'Linux'
         run: xvfb-run -a dbus-run-session -- python scripts/verify-desktop-package.py
       - name: Verify Windows packages and installed startup
         if: runner.os == 'Windows'
         run: python scripts/verify-desktop-package.py
+      - name: Upload verified release assets
+        if: ${{ !inputs.verify-published }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-${{ runner.os }}-x64
+          path: build/releases/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
       - name: Upload native packages and evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: bamboo-${{ runner.os }}-x64-${{ github.run_attempt }}
+          name: bamboo-${{ runner.os }}-x64-${{ inputs.verify-published && 'published' || 'build' }}-${{ github.run_attempt }}
           retention-days: 14
           if-no-files-found: error
           path: |

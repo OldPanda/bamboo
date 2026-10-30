@@ -1,7 +1,6 @@
 # Contributing to Bamboo
 
-Bamboo builds on **macOS arm64**, with native **Windows x64 and Linux x64**
-preview packaging on `feat/windows-linux-x64`. See [Windows/Linux](docs/windows-linux.md)
+Bamboo builds on **macOS arm64**, with native **Windows x64 and Linux x64** packages. See [Windows/Linux](docs/windows-linux.md)
 for native toolchains, installation requirements and acceptance commands.
 For macOS, install Xcode Command Line Tools,
 Node.js 22 or newer, Python 3.12 or newer, and Go with toolchain download support.
@@ -129,41 +128,52 @@ See GitHub's [required status checks documentation](https://docs.github.com/en/r
 
 ## Version releases
 
-Push a signed version tag such as `v0.1.0` to run
+Push a signed version tag such as `v0.1.1` to run
 [Release](.github/workflows/release.yml). The tagged commit must include the release, CI and reusable macOS
 workflow files. The release reuses the full CI quality gate, including the 95%
 coverage thresholds; failed checks prevent packaging and publication.
 
 ```sh
-git tag -s v0.1.0 -m "Bamboo 0.1.0"
-git push origin v0.1.0
+git tag -s v0.1.1 -m "Bamboo 0.1.1"
+git push origin v0.1.1
 ```
 
 Tags use `vMAJOR.MINOR.PATCH`, optionally followed by a prerelease identifier
 such as `-rc.1`. Prerelease tags produce GitHub prereleases. Other tag names are
 not release versions; malformed matching tags fail version validation.
 
-The workflow builds **macOS Apple Silicon (arm64)**, stamps the version into the
-app before signing, and attaches `Bamboo-<version>-macOS-arm64.dmg` and its
-`.sha256` checksum to an automatically generated release. The DMG contains
-`Bamboo.app` (including third-party licenses) and an Applications shortcut.
+The workflow builds from one tagged commit on native **macOS Apple Silicon
+(arm64)**, **Windows x64** and **Linux x64** runners. The full macOS quality gate
+and both desktop test/install suites must succeed before publication. It attaches
+five packages, each with a `.sha256` checksum:
+
+- `Bamboo-<version>-macOS-arm64.dmg`
+- `Bamboo-<version>-windows-x64-setup.exe` and `Bamboo-<version>-windows-x64.zip`
+- `Bamboo-<version>-linux-x64.deb` and `Bamboo-<version>-linux-x64.tar.gz`
+
+The DMG contains Bamboo.app, third-party licenses and an Applications shortcut.
 Numeric Apple bundle versions use the tag's three numeric components; the full
-prerelease version is preserved in `BambooReleaseVersion`.
+prerelease version is preserved in `BambooReleaseVersion`. Windows resources,
+updater versions and desktop package metadata also use the validated tag version.
+After publication, disposable Windows/Linux runners download the public assets
+and repeat checksum, version, architecture and installed-startup verification.
+These post-publication checks report delivery failures; they do not replace the
+pre-publication gates or modify published assets.
 
 Build/test jobs have read-only permissions. Only the separate publishing job
 receives `contents: write`, using GitHub's automatic token; no personal token is
 needed. Assets upload to a draft before publication. Rerunning a failed upload
 can finish that draft; an already published release is left unchanged.
 
-Current packages use ad-hoc signing, **not Developer ID signing or Apple
-notarization**. The release notes state this explicitly. Configure a separate
+macOS packages use ad-hoc signing, **not Developer ID signing or Apple
+notarization**. Windows packages are unsigned. The release notes state this explicitly. Configure a separate
 signing/notarization process before distributing as a notarized application.
 
 For a local installer, use the same version for both commands:
 
 ```sh
-BAMBOO_VERSION=v0.1.0 npm run build
-BAMBOO_VERSION=v0.1.0 npm run package:dmg
+BAMBOO_VERSION=v0.1.1 npm run build
+BAMBOO_VERSION=v0.1.1 npm run package:dmg
 ```
 
 Outputs stay in the ignored `build/releases/` directory. Never move an existing

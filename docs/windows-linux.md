@@ -1,9 +1,9 @@
-# Windows and Linux x64 preview
+# Windows and Linux x64
 
 These packages extend Bamboo to Windows x64 and Linux x64. The macOS arm64
 release and Sparkle update process are unchanged. No Intel Mac or ARM64 Windows/
-Linux package is provided. Preview artifacts are built for PRs and `main`;
-they are not a stable GitHub Release.
+Linux package is provided. Version-tagged releases include both installers and
+portable archives; PR and `main` builds remain temporary CI artifacts.
 
 ## Installation
 
