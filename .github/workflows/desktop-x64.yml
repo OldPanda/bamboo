@@ -1,13 +1,17 @@
 name: Desktop x64 packages
 on:
   push:
-    branches: [feat/windows-linux-x64]
+    # Feature branches are covered by pull_request, without a second push run.
+    branches: [main]
   workflow_dispatch:
   pull_request:
+  merge_group:
 permissions:
   contents: read
 concurrency:
-  group: desktop-x64-${{ github.ref }}
+  # Supersede old commits within an event, but never let a manual branch run
+  # cancel the checks requested by a PR, main push or merge queue.
+  group: desktop-x64-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   desktop:
@@ -39,6 +43,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
+          # setup-go caches the entire module/build caches, including large
+          # native archives. Keep npm caching without caching DuckDB binaries.
           cache: false
       - name: Linux desktop dependencies
         if: runner.os == 'Linux'
@@ -52,10 +58,13 @@ jobs:
           choco install nsis --yes --no-progress
       - name: Build release and separate acceptance binaries
         run: |
-          npm ci
+          npm ci --prefer-offline
           python scripts/build-desktop.py
           git diff --exit-code -- frontend/src/mygo.ts
       - name: Frontend regression tests
+        # These jsdom tests have no native/platform dependencies. Both runners
+        # still build the frontend, check generated IPC and test their WebView.
+        if: runner.os == 'Linux'
         run: npm run test:web
       - name: Linux release tests and native acceptance
         if: runner.os == 'Linux'
