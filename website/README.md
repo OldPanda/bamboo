@@ -12,7 +12,7 @@ website/
   tests/                 # Isolated build regression tests
   _headers               # Cloudflare Pages security and cache headers
   *-provenance.json      # Capture and benchmark evidence; not deployed
-  package.json           # Deployment CLI only; separate from App dependencies
+  package.json           # Dependency-free website commands
 ```
 
 The site uses system fonts with no external runtime dependencies, analytics or build framework. Source images stay as separate files for review and caching. The build emits only public HTML/CSS/JS/images and `_headers`; maintenance docs, deployment dependencies and provenance are excluded.
@@ -36,22 +36,28 @@ The site includes bilingual capabilities, real native App screenshots, the [firs
 
 ## Cloudflare Pages deployment
 
-Use a **Direct Upload** Pages project with production branch `main`. GitHub Actions owns deployment; do not also enable Pages Git builds, which would duplicate deployments. The production domain is configured separately in Pages after the project is created. No site has been published by preparing these files.
+Use Cloudflare Pages **Git integration**, connected to `OldPanda/bamboo`. The website stays in this repository under `website/`; no separate repository or CI deployment token is required. GitHub Actions runs website tests and produces review artifacts. Cloudflare builds and deploys the website independently when matching changes reach `main`; it does not wait for GitHub Actions, so require the website check before merging to `main`.
 
-One-time setup:
+Configure the Pages Git project with:
 
-1. Install the locked CLI with `npm ci --prefix website` (App dependencies are separate).
-2. Create a Pages project in the intended Cloudflare account, or reuse an existing Direct Upload project whose production branch is `main`. If using the CLI, authenticate locally with `website/node_modules/.bin/wrangler login`, then run `website/node_modules/.bin/wrangler pages project create <project-name> --production-branch main`. Replace `<project-name>` with the actual chosen name.
-3. Create a Cloudflare API token with **Account → Cloudflare Pages → Edit**, scoped to that account. R2 access keys do not grant Pages deployment access.
-4. In GitHub repository Settings → Environments, create `cloudflare-pages`. Add secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, and variable `CLOUDFLARE_PAGES_PROJECT` containing the project name. Limit deployment branches to `main`; reviewers are optional. Do not put token values in source files, workflow inputs or chat.
-5. Merge the site changes into `main`. The `Website` workflow builds and checks the site before production deployment. The workflow can also be run manually from `main`.
-6. Configure the chosen custom domain in that Pages project and verify both language choices, download links and Terms/Privacy on its HTTPS URL.
+| Setting                                        | Value                                                                   |
+| ---------------------------------------------- | ----------------------------------------------------------------------- |
+| Repository                                     | `OldPanda/bamboo`                                                       |
+| Production branch                              | `main`                                                                  |
+| Framework preset                               | None                                                                    |
+| Root directory                                 | Repository root (blank)                                                 |
+| Build command                                  | `npm --prefix website run test:build && npm --prefix website run build` |
+| Build output directory                         | `build/website`                                                         |
+| Environment variables (production and preview) | `NODE_VERSION=22.23.4`, `SKIP_DEPENDENCY_INSTALL=1`                     |
+| Build watch paths                              | `website/*`, `.github/workflows/website.yml`                            |
 
-`.github/workflows/website.yml` runs only for website/build-check/workflow changes (or a manual run). PRs, including forks, only build and verify; they never receive Cloudflare credentials or deploy. The production job runs only on `main`, uses a locked Wrangler version and its own concurrency group, and fails clearly if account/project/token configuration is missing. Deployment uploads `build/website/`, not the repository or App. Successful checks and a standalone review copy are available as CI artifacts. The regular App CI also verifies the site; App release/tag workflows are unchanged.
+The build and its Node tests need no installed dependencies. Skipping automatic installation avoids installing or building the desktop App in Pages. Browser checks run in GitHub Actions, where Chrome is available. Keep PR preview builds disabled until the website branch has been pushed; enable them deliberately when previews are wanted. The production domain is configured separately after the site is ready.
+
+The `Website` GitHub workflow validates website and workflow changes on pull requests and `main`, with a manual run option. It never receives Cloudflare credentials or publishes the site. The regular App CI also runs the complete website suite; App release/tag workflows are unchanged.
 
 All public assets have content-hashed filenames and long-lived immutable caching. HTML revalidates. The Pages CSP permits same-origin scripts and images, blocks network calls from page scripts, and prevents framing; local HTTP checks exercise these headers. The standalone review copy is for direct opening and does not inherit HTTP headers.
 
-Official references: [Direct Upload with CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/), [Wrangler Pages commands](https://developers.cloudflare.com/workers/wrangler/commands/pages/), [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/).
+Official references: [Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/), [Build environment](https://developers.cloudflare.com/pages/configuration/build-image/), [Build watch paths](https://developers.cloudflare.com/pages/configuration/build-watch-paths/), [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/).
 
 The download buttons currently point at the verified `v0.1.0` Apple Silicon DMG. When a later release changes the supported architecture, minimum OS, signing status or asset name, update the page and guide together. The version-history link always opens GitHub Releases.
 
