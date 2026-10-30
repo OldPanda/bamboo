@@ -24,14 +24,14 @@ export async function checkPlatforms({
 }) {
   const results = [];
   let navigation = 0;
-  const navigate = async () => {
+  const navigate = async (path = "/?lang=en") => {
     const marker = String(++navigation);
     await evaluate(
       "document.documentElement.dataset.platformTestLeaving = 'true'",
     );
-    await send("Page.navigate", {
-      url: origin + "/?lang=en&platform-test=" + marker,
-    });
+    const url = new URL(path, origin);
+    url.searchParams.set("platform-test", marker);
+    await send("Page.navigate", { url: url.href });
     for (let attempt = 0; attempt < 100; attempt++) {
       if (
         await evaluate(
@@ -253,5 +253,37 @@ export async function checkPlatforms({
     ),
     /Windows/,
   );
+  // Combining SEO routes with downloads must preserve the manual platform choice.
+  for (const language of ["en", "zh"]) {
+    await navigate(`/${language}/?integration=platform#install`);
+    assert.equal(
+      await evaluate("document.documentElement.lang"),
+      language === "en" ? "en" : "zh-CN",
+    );
+    const other = language === "en" ? "zh" : "en";
+    await evaluate(`(() => {
+      const platform = document.getElementById('platform-select');
+      platform.value = 'linux'; platform.dispatchEvent(new Event('change'));
+      const locale = document.getElementById('language-select');
+      locale.value = '${other}'; locale.dispatchEvent(new Event('change'));
+    })()`);
+    assert.deepEqual(
+      await evaluate(`({
+      platform: document.getElementById('install-platform-select').value,
+      path: location.pathname, hash: location.hash,
+      query: new URLSearchParams(location.search).get('integration'),
+      canonical: document.querySelector('link[rel="canonical"]').href,
+      label: document.querySelector('[data-download-label]').textContent.includes('Linux'),
+    })`),
+      {
+        platform: "linux",
+        path: `/${other}/`,
+        hash: "#install",
+        query: "platform",
+        canonical: `https://getbamboo.app/${other}/`,
+        label: true,
+      },
+    );
+  }
   return results;
 }

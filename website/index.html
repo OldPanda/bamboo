@@ -4,18 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta
-      name="description"
-      content="Bamboo 是一款免费的开源 macOS Parquet 工作台。打开本地、Amazon S3 或 Cloudflare R2 文件，用 SQL 查询数据，大文件也能快速预览。"
-    />
-    <meta property="og:title" content="Bamboo · 让 Parquet 数据，触手可及。" />
-    <meta
-      property="og:description"
-      content="本地与云端的 Parquet 文件，一个轻巧的 SQL 工作台。免费开源，为 Mac 而生。"
-    />
-    <meta property="og:type" content="website" />
     <meta name="theme-color" content="#ffffff" />
-    <title>Bamboo · 让 Parquet 数据，触手可及。</title>
+    <!-- SEO_HEAD -->
     <link
       rel="icon"
       type="image/png"
@@ -202,7 +192,8 @@
               href="https://github.com/OldPanda/bamboo/releases"
               ><svg aria-hidden="true">
                 <use data-platform-icon href="#i-down" /></svg
-              ><span data-download-label>选择下载平台</span
+              ><span data-download-label data-i18n="downloadChooseLabel"
+                >选择下载平台</span
               ><svg style="width: 16px; height: 16px" aria-hidden="true">
                 <use data-download-action-icon href="#i-arrow" /></svg></a
             ><a class="text-link" href="#install"
@@ -939,7 +930,9 @@
           href="https://github.com/OldPanda/bamboo/releases"
           ><svg aria-hidden="true">
             <use data-platform-icon href="#i-down" /></svg
-          ><span data-download-label>选择下载平台</span>
+          ><span data-download-label data-i18n="downloadChooseLabel"
+            >选择下载平台</span
+          >
           <svg aria-hidden="true">
             <use data-download-action-icon href="#i-arrow" /></svg
         ></a>
@@ -959,6 +952,9 @@
             aria-label="页脚导航"
             data-i18n-aria-label="a150"
           >
+            <a href="/en/" hreflang="en" lang="en">English</a>
+            <a href="/zh/" hreflang="zh-CN" lang="zh-CN">中文</a>
+
             <a href="#terms">Terms</a><a href="#privacy">Privacy</a>
             <a href="#features"><span data-i18n="t1">功能介绍</span></a
             ><a href="#install"><span data-i18n="t2">安装指引</span></a
@@ -1205,6 +1201,6 @@
         </p>
       </div>
     </dialog>
-    <script src="site.js" defer></script>
+    <script type="module" src="site.js"></script>
   </body>
 </html>

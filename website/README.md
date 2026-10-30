@@ -4,10 +4,12 @@ The official website lives in the Bamboo repository but builds and deploys indep
 
 ```text
 website/
-  index.html             # Semantic markup and initial Chinese content
+  index.html             # Shared semantic HTML template
   styles.css             # App-matching light/dark theme
-  site.js                # English/Chinese copy and interactions
+  content.js             # Shared English/Chinese copy and metadata
+  site.js                # Browser interactions and language switching
   downloads.json         # Verified stable-release installer catalog
+
   assets/                # Original screenshots and artwork, named by content hash
   scripts/               # Website build, browser checks and capture helpers
   tests/                 # Isolated build regression tests
@@ -16,7 +18,7 @@ website/
   package.json           # Dependency-free website commands
 ```
 
-The site uses system fonts with no external runtime dependencies, analytics or build framework. Source images stay as separate files for review and caching. The build emits only public HTML/CSS/JS/images and `_headers`; maintenance docs, deployment dependencies and provenance are excluded.
+The site uses system fonts with no external runtime dependencies, analytics or build framework. Source images stay as separate files for review and caching. The build emits only public HTML/CSS/JS/images, `robots.txt`, `sitemap.xml` and `_headers`; maintenance docs, deployment dependencies and provenance are excluded. Use the build output when previewing: `index.html` is a template, and the builder bundles the shared copy into the browser entry.
 
 ## Build and preview
 
@@ -39,7 +41,7 @@ The site includes bilingual capabilities, real native App screenshots, the [firs
 
 Use Cloudflare Pages **Git integration**, connected to `OldPanda/bamboo`. The website stays in this repository under `website/`; no separate repository or CI deployment token is required. GitHub Actions runs website tests and produces review artifacts. Cloudflare builds and deploys the website independently when matching changes reach `main`; it does not wait for GitHub Actions, so require the website check before merging to `main`.
 
-The Pages Git project is `bamboo`, with assigned address `bamboo-dhy.pages.dev`. Production Git builds and branch previews are enabled. Cloudflare posts preview links on pull requests; website changes pushed to a PR branch update its preview. The first production deployment will occur after the website changes reach `main`. No custom domain is configured yet.
+The Pages Git project is `bamboo`, with assigned address `bamboo-dhy.pages.dev`. Production Git builds and branch previews are enabled. Cloudflare posts preview links on pull requests; website changes pushed to a PR branch update its preview. The production custom domain is [getbamboo.app](https://getbamboo.app/). SEO URLs always use this domain, including in branch previews.
 
 The project uses:
 
@@ -54,7 +56,7 @@ The project uses:
 | Environment variables (production and preview) | `NODE_VERSION=22.23.4`, `SKIP_DEPENDENCY_INSTALL=1`                     |
 | Build watch paths                              | `website/*`, `.github/workflows/website.yml`                            |
 
-The build and its Node tests need no installed dependencies. Skipping automatic installation avoids installing or building the desktop App in Pages. Browser checks run in GitHub Actions, where Chrome is available. Preview builds use the same website path filters and build command as production; they do not publish to the production address. Configure the production custom domain separately after the site is ready.
+The build and its Node tests need no installed dependencies. Skipping automatic installation avoids installing or building the desktop App in Pages. Browser checks run in GitHub Actions, where Chrome is available. Preview builds use the same website path filters and build command as production; they do not publish to the production address. This build does not change Cloudflare project or domain settings.
 
 The `Website` GitHub workflow validates website and workflow changes on pull requests and `main`, with a manual run option. It never receives Cloudflare credentials or publishes the site. The regular App CI also runs the complete website suite; App release/tag workflows are unchanged.
 
@@ -86,7 +88,7 @@ Normal builds/tests are offline and deterministic. The website makes no release 
 
 `npm --prefix website run test:build` runs dependency-free Node tests in disposable directories: public-file allowlisting, stale-output cleanup, asset hashes and references, reproducible builds, self-contained preview assets, and rejection of modified or unexpected images. These tests never modify the source assets or use cloud credentials.
 
-Run `npm run test:website` from the repository root (requires Node 22+ and Chrome; set `BAMBOO_CHROME` to override the executable). It first runs the isolated build tests, then exercises the actual page at five viewport/theme combinations, verifies its screenshot appearance, navigation and mobile download behavior, rejects external runtime requests and private paths, and writes evidence to ignored `artifacts/website/`. It also checks 10 browser platform-detection cases, all three manual platform choices at 320/1280 px in both themes and languages, synchronized installation guidance, published/missing download targets, shared language/legal URLs, theme persistence, invalid preference fallback, unavailable browser storage, and the header icon order/style. Both website and App CI run the complete suite.
+Run `npm run test:website` from the repository root (requires Node 22+ and Chrome; set `BAMBOO_CHROME` to override the executable). It first runs the isolated build tests, then exercises the actual page at five viewport/theme combinations, verifies its screenshot appearance, navigation and mobile download behavior, rejects external runtime requests and private paths, and writes evidence to ignored `artifacts/website/`. It also checks 10 browser platform-detection cases, all three manual platform choices at 320/1280 px in both themes and languages, synchronized installation guidance, published/missing download targets, platform selection preserved across locale-route switches, shared language/legal URLs, theme persistence, invalid preference fallback, unavailable browser storage, and the header icon order/style. Both website and App CI run the complete suite.
 
 - Format `website/index.html`, this document, and the installation guide with the repository's Prettier version.
 - Open the page at desktop and mobile widths, including 320 px, in light and dark appearances.
@@ -119,8 +121,20 @@ Footer links open the Chinese Terms and Privacy documents in accessible native d
 
 ## Languages
 
-The header's translation icon opens a native language dropdown for Chinese and English, with keyboard focus and an accessible language label. Navigation, product copy, installation steps, FAQ, benchmark labels, accessibility text, document metadata and both legal documents are translated through the dictionary in `site.js`. Actual screenshots remain unmodified; native App screenshots switch to matching English or Chinese captures and follow the selected light/dark appearance. The first visit follows the browser language (Chinese for `zh`, English otherwise), with explicit choices remembered in `bamboo-site-language` localStorage. `?lang=zh` or `?lang=en` takes priority for shared links; legal hashes can be combined with these links. Language switching preserves the existing page controls and open documents. Keep both dictionary entries updated when editing copy. Browser verification exercises both languages at every tested viewport/theme and checks restoration after reload.
+The header's translation icon opens a native language dropdown for Chinese and English, with keyboard focus and an accessible language label. Navigation, product copy, installation steps, FAQ, benchmark labels, accessibility text, document metadata and both legal documents use the shared dictionary in `content.js`. The build renders this copy into complete static English (`/en/`) and Chinese (`/zh/`) pages; the browser uses the same copy for language switching. Actual screenshots remain unmodified; native App screenshots switch to matching English or Chinese captures and follow the selected light/dark appearance. At `/`, the first visit follows the browser language (Chinese for `zh`, English otherwise), with explicit choices remembered in `bamboo-site-language` localStorage. A locale route overrides saved and browser preferences. Legacy `?lang=zh` or `?lang=en` takes priority over either route; legal hashes can be combined with both forms. The dropdown updates the locale path without reloading and preserves unrelated query parameters, page controls and open documents. Footer language links work without JavaScript. The standalone preview keeps query-based switching within its single file. Keep both dictionary entries updated when editing copy. Browser verification exercises both languages at every tested viewport/theme and checks restoration after reload.
 
 The SQL feature card shows a text-based SQL example with theme-aware keyword and literal highlighting. It is an illustrative code sample, not an App screenshot or an interactive editor. The main product image remains an actual native App capture.
 
 The English native captures are recorded under `localizedCaptures.en` in the screenshot provenance. They use the same generated fixture and real SQL result as the Chinese captures, in a separate temporary English configuration. Website verification compares all displayed native screenshot bytes against the correct language/theme hashes after each language switch.
+
+## Search and sharing
+
+`content.js` owns bilingual titles, descriptions and sharing images. `scripts/website-render.mjs` generates the head and translates text/accessible attributes before deployment. Translated elements must contain only text; missing keys or nested markup fail the build instead of silently discarding controls. Images remain the original native captures.
+
+- `/en/` and `/zh/` have self-canonical URLs and reciprocal `en`, `zh-CN` and `x-default` alternates. `/` is the self-canonical language-adaptive fallback and initially serves Chinese HTML. Locale pages render their own language without JavaScript, cookies or an Accept-Language header.
+- Share `/en/` or `/zh/` for language-specific link cards. Legacy query links still work in the browser, but static hosting cannot vary raw HTML by query string. Tracking parameters and dialog hashes are excluded from canonicals and the sitemap.
+- Open Graph and Twitter cards use localized copy, absolute production URLs, and unchanged 2560 × 1576 product screenshots with descriptive alternative text. Client-side language changes keep the metadata in sync.
+- JSON-LD describes the WebSite, WebPage and free, MIT-licensed SoftwareApplication. It includes no ratings, reviews, user counts, release version or unverified download information. This does not claim eligibility for a search rich result.
+- `robots.txt` allows crawling and references the three-URL sitemap. The sitemap has no fabricated modification dates or ranking priorities. HTML and crawler files revalidate; hashed assets retain immutable caching.
+
+The Node build tests inspect raw HTML, language copy, asset/image dimensions, canonical/alternate URLs, sharing fields, JSON-LD and crawler files. The browser suite checks both locale routes with scripts disabled, explicit-route preference precedence, legacy legal links, switching/reload, and matching runtime metadata under the production CSP. Existing responsive, theme and screenshot checks remain in place. These checks establish the output's behavior, not indexing or search rankings. Production changes take effect only after an authorized merge and successful Pages deployment; no Search Console submission or production configuration change is part of this build.

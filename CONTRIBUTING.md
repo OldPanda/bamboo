@@ -70,7 +70,12 @@ access boundaries and [docs/artifacts.md](docs/artifacts.md) for local test outp
 [CI](.github/workflows/ci.yml) runs for every pull request (including drafts),
 pushes to `main`, merge-queue groups and manual dispatches. There are no path
 filters or allowed-failure test steps. The required check name is
-**`PR quality gate`**.
+**`PR quality gate`**. CI calls the reusable [macOS checks](.github/workflows/macos.yml)
+workflow once, shown as **`macOS / macOS arm64 checks`** in the PR checks list.
+The existing `PR quality gate` is a small aggregation job: it passes only after
+the macOS suite succeeds, and fails if that suite fails, is cancelled or is
+skipped. Event triggers and concurrency stay in CI; the macOS workflow has no
+independent event triggers.
 
 The disposable macOS arm64 runner builds the app, checks generated bindings,
 runs all language linters, tests the coverage checker, and runs both release and
@@ -125,7 +130,7 @@ See GitHub's [required status checks documentation](https://docs.github.com/en/r
 ## Version releases
 
 Push a signed version tag such as `v0.1.0` to run
-[Release](.github/workflows/release.yml). The tagged commit must include both
+[Release](.github/workflows/release.yml). The tagged commit must include the release, CI and reusable macOS
 workflow files. The release reuses the full CI quality gate, including the 95%
 coverage thresholds; failed checks prevent packaging and publication.
 

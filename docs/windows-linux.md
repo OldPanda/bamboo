@@ -2,7 +2,7 @@
 
 These packages extend Bamboo to Windows x64 and Linux x64. The macOS arm64
 release and Sparkle update process are unchanged. No Intel Mac or ARM64 Windows/
-Linux package is provided. Preview artifacts are built on the feature branch;
+Linux package is provided. Preview artifacts are built for PRs and `main`;
 they are not a stable GitHub Release.
 
 ## Installation
@@ -56,3 +56,6 @@ credentials or developer desktop windows are used. Acceptance binaries contain
 UI automation; distribution binaries are separately built with `bamboo_release`
 and MyGo production mode. CI artifacts expire after 14 days; retain downloaded
 packages and checksums for delivery.
+
+See [Desktop CI scheduling](ci-workflows.md) for triggers, cancellation, parallel
+checks and cache policy. Branches without a PR can use manual dispatch.
