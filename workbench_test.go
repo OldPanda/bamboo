@@ -3,6 +3,7 @@ package main
 import (
 	"bamboo/internal/engine"
 	"bamboo/internal/fixtures"
+	"bamboo/internal/testutil"
 	"context"
 	"encoding/json"
 	"errors"
@@ -178,10 +179,7 @@ func TestExportDialogAndSnapshot(t *testing.T) {
 	if *got.Rows[0][0] != *r.Rows[0][0] || got.Rows[0][1] != nil || *got.Rows[0][2] != "" || got.Columns[0].Type != "BIGINT" {
 		t.Fatal("export was not a precise snapshot", got)
 	}
-	st, err := os.Stat(p)
-	if err != nil || st.Mode().Perm() != 0600 {
-		t.Fatal("export permissions", st, err)
-	}
+	testutil.Private(t, p, 0600)
 	if _, err := w.ExportPage(ctx); err == nil {
 		t.Fatal("overwrote export")
 	}

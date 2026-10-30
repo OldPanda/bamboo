@@ -8,11 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 )
-
-// HTTPFSSHA256 pins the packaged HTTPFS extension used for remote reads.
-const HTTPFSSHA256 = "c2d72a98ad081bf4d62c908b8d9f60b70ab1b83faa9141fc7e7d53526658761d"
 
 // RemoteScope owns allowlisted loopback URLs and their sizes; callers must invoke Close.
 type RemoteScope struct {
@@ -29,18 +25,7 @@ type RemoteResolver func(context.Context, []string) (*RemoteScope, error)
 // URL access. Local-only queries do not load this extension.
 func (e *Engine) SetHTTPFS(p string) { e.httpfs = p }
 
-var (
-	httpfsMu sync.Mutex
-	httpfsOK = map[string]struct{}{}
-)
-
 func verifyHTTPFS(extension string) error {
-	httpfsMu.Lock()
-	_, ok := httpfsOK[extension]
-	httpfsMu.Unlock()
-	if ok {
-		return nil
-	}
 	b, err := os.ReadFile(extension)
 	if err != nil {
 		return errors.New("Cloud reader is not installed; rebuild Bamboo with scripts/build.sh")
@@ -48,9 +33,6 @@ func verifyHTTPFS(extension string) error {
 	if fmt.Sprintf("%x", sha256.Sum256(b)) != HTTPFSSHA256 {
 		return errors.New("Cloud reader integrity check failed")
 	}
-	httpfsMu.Lock()
-	httpfsOK[extension] = struct{}{}
-	httpfsMu.Unlock()
 	return nil
 }
 func remoteDatabase(ctx context.Context, paths []string, extension string, configs ...Resources) (*database, error) {

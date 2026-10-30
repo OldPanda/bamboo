@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bamboo/internal/testutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,7 @@ import (
 )
 
 func TestAppearancePreference(t *testing.T) {
+	var err error
 	dir := t.TempDir()
 	if loadAppearance(dir) != mygo.ThemeSystem {
 		t.Fatal("missing preference")
@@ -26,10 +28,7 @@ func TestAppearancePreference(t *testing.T) {
 	if loadAppearance(dir) != mygo.ThemeDark {
 		t.Fatal("dark preference was not saved")
 	}
-	info, err := os.Stat(filepath.Join(dir, "appearance.json"))
-	if err != nil || info.Mode().Perm() != 0600 {
-		t.Fatal(info, err)
-	}
+	testutil.Private(t, filepath.Join(dir, "appearance.json"), 0600)
 	w := &Workbench{configDir: dir}
 	if w.Appearance() != "dark" {
 		t.Fatal(w.Appearance())

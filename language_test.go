@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bamboo/internal/testutil"
 	"context"
 	"os"
 	"path/filepath"
@@ -30,10 +31,7 @@ func TestLanguagePreference(t *testing.T) {
 		if fresh.Language() != language {
 			t.Fatal("not persisted")
 		}
-		stat, err := os.Stat(filepath.Join(dir, "language.json"))
-		if err != nil || stat.Mode().Perm() != 0600 {
-			t.Fatal("private preference", stat, err)
-		}
+		testutil.Private(t, filepath.Join(dir, "language.json"), 0600)
 		want := "English"
 		if language == "zh-CN" {
 			want = "中文"

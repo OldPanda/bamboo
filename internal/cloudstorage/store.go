@@ -2,6 +2,7 @@ package cloudstorage
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/privatefs"
 	"bamboo/internal/workspace"
 	"context"
 	"crypto/sha256"
@@ -87,7 +88,7 @@ func (s *Store) persist(profiles map[string]profile) error {
 	if err = os.MkdirAll(filepath.Dir(s.filename), 0700); err != nil {
 		return errors.New("could not save cloud workspace settings")
 	}
-	f, err := os.CreateTemp(filepath.Dir(s.filename), ".r2-state-*")
+	f, err := privatefs.CreateTemp(filepath.Dir(s.filename), ".r2-state-*")
 	if err != nil {
 		return errors.New("could not save cloud workspace settings")
 	}

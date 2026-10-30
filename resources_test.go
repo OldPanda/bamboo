@@ -2,6 +2,7 @@ package main
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/testutil"
 	"context"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 )
 
 func TestResourcePreferences(t *testing.T) {
+	var err error
 	w, _, _ := workbench(t)
 	w.configDir = t.TempDir()
 	want := engine.Resources{MemoryMiB: 512, TempGiB: 2, TimeoutSeconds: 600}
@@ -23,10 +25,7 @@ func TestResourcePreferences(t *testing.T) {
 	if fresh.Resources() != want {
 		t.Fatal("not persisted")
 	}
-	st, err := os.Stat(filepath.Join(w.configDir, "resources.json"))
-	if err != nil || st.Mode().Perm() != 0600 {
-		t.Fatal("permissions", err)
-	}
+	testutil.Private(t, filepath.Join(w.configDir, "resources.json"), 0600)
 	invalid := want
 	invalid.MemoryMiB = 0
 	if err = w.SetResources(invalid); err == nil || w.Resources() != want {

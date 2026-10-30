@@ -2,6 +2,7 @@
 package workspace
 
 import (
+	"bamboo/internal/privatefs"
 	"encoding/json"
 	"errors"
 	"io"
@@ -122,7 +123,7 @@ func (s *Store) write(d state) error {
 	if err = os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(s.path), ".workspace-*")
+	f, err := privatefs.CreateTemp(filepath.Dir(s.path), ".workspace-*")
 	if err != nil {
 		return err
 	}

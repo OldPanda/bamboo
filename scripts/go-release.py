@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Build/test the macOS arm64 release link without changing the module cache.
+"""Build/test the native release link without changing the module cache.
 
 Use --with-smoke for a separate developer acceptance binary, never distribution.
 The pinned bindings document this supported static-library registration path.
 """
 
 import hashlib
+import json
 import os
 import platform
 import shlex
 import subprocess
 import sys
 from pathlib import Path
+
+from release_version import parse_version
 
 ROOT = Path(__file__).resolve().parents[1]
 REMOVED = ("autocomplete", "tpch", "tpcds")
@@ -36,8 +39,22 @@ def main():
         raise SystemExit(
             "Usage: python3 scripts/go-release.py [--with-smoke] build|test|vet [go arguments]"
         )
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        raise SystemExit("The release link currently supports macOS arm64 only.")
+    system = platform.system()
+    arch = platform.machine().lower()
+    target = {
+        ("Darwin", "arm64"): "darwin-arm64",
+        ("Linux", "x86_64"): "linux-amd64",
+        ("Windows", "amd64"): "windows-amd64",
+    }.get((system, arch))
+    if target is None:
+        raise SystemExit(
+            "Supported native builds: macOS arm64, Windows amd64, Linux amd64"
+        )
+    if (
+        os.environ.get("GOOS", target.split("-")[0]) != target.split("-")[0]
+        or os.environ.get("GOARCH", target.split("-")[1]) != target.split("-")[1]
+    ):
+        raise SystemExit("Use a native runner; cross compilation is not supported")
     env = {**os.environ, "GOTOOLCHAIN": "go1.27.3", "CGO_ENABLED": "1"}
     module = Path(
         subprocess.check_output(
@@ -47,7 +64,7 @@ def main():
                 "-m",
                 "-f",
                 "{{.Dir}}",
-                "go.duckdb.org/libduckdb/darwin-arm64",
+                "go.duckdb.org/libduckdb/" + target,
             ],
             cwd=ROOT,
             env=env,
@@ -77,14 +94,18 @@ def main():
         )
         + "\n"
     )
-    output = ROOT / "build/release-link"
+    output = ROOT / "build/release-link" / target
     output.mkdir(parents=True, exist_ok=True)
     source, obj, archive = (
         output / name for name in ("loader.c", "loader.o", "libbamboo_loader.a")
     )
     # Recompile after a module/header change, otherwise retain cgo's cache.
+    compiler = shlex.split(env.get("CC", "clang" if system == "Darwin" else "gcc"))
+    compiler_version = subprocess.check_output([*compiler, "--version"])
     fingerprint = hashlib.sha256(
-        loader.encode()
+        target.encode()
+        + compiler_version
+        + loader.encode()
         + (module / "duckdb_static_extension.h").read_bytes()
         + str(module).encode()
     ).hexdigest()
@@ -100,8 +121,7 @@ def main():
         source.write_text(loader)
         subprocess.run(
             [
-                "xcrun",
-                "clang",
+                *compiler,
                 "-Os",
                 "-I",
                 str(module),
@@ -122,7 +142,20 @@ def main():
         [
             str(archive),
             *map(str, libraries),
-            "-lc++",
+            *(
+                {
+                    "Darwin": ["-lc++"],
+                    "Linux": ["-lstdc++", "-lm", "-ldl"],
+                    "Windows": [
+                        "-lws2_32",
+                        "-lwsock32",
+                        "-lrstrtmgr",
+                        "-lstdc++",
+                        "-lm",
+                        "-static",
+                    ],
+                }[system]
+            ),
             *shlex.split(env.get("CGO_LDFLAGS", "")),
         ]
     )
@@ -145,7 +178,19 @@ def main():
     # Distribution builds must not be MyGo development builds: a development
     # build resolves the window's initial "/" against MYGO_DEV_URL and then
     # trusts that origin (and localhost http(s)) for bridge calls.
-    ldflags = "-s -w -extldflags=-Wl,-dead_strip"
+    version = parse_version(
+        os.environ.get(
+            "BAMBOO_VERSION", json.loads((ROOT / "package.json").read_text())["version"]
+        )
+    )[0]
+    external = {
+        "Darwin": "-Wl,-dead_strip",
+        "Linux": "-rdynamic",
+        "Windows": "-static",
+    }[system]
+    ldflags = f"-s -w -X bamboo/internal/updater.buildVersion={version} -extldflags={external}"
+    if system == "Windows" and args[0] == "build" and not with_smoke:
+        ldflags += " -H=windowsgui"
     if not with_smoke:
         ldflags = "-X github.com/egoist/mygo.production=1 " + ldflags
     command = ["go", args[0], "-tags=" + ",".join(tags)]

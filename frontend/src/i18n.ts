@@ -26,12 +26,12 @@ export const chinese: Record<string, string> = {
   Custom: "自定义",
   "Auto uses 25% of physical memory. Custom lets you choose the limit.":
     "自动使用物理内存的 25%，也可以自定义上限。",
-  "This Mac: {total} GiB · Query budget: {budget} MiB ({percent}%).":
+  "This computer: {total} GiB · Query budget: {budget} MiB ({percent}%).":
     "本机内存：{total} GiB · 查询预算：{budget} MiB（{percent}%）。",
   "Memory detection unavailable. Auto uses 256 MiB; custom limit is 16384 MiB.":
     "无法检测物理内存。自动模式使用 256 MiB，自定义上限为 16384 MiB。",
-  "Above 75% of physical memory. This may slow down your Mac and other apps.":
-    "超过物理内存的 75%，可能影响 Mac 和其他应用的流畅度。",
+  "Above 75% of physical memory. This may slow down your computer and other apps.":
+    "超过物理内存的 75%，可能影响电脑和其他应用的流畅度。",
   "query memory must be at least 128 MiB and no greater than physical memory":
     "查询内存不得低于 128 MiB 或超过本机物理内存",
   Performance: "性能",
@@ -41,7 +41,7 @@ export const chinese: Record<string, string> = {
   seconds: "秒",
   "Save changes": "保存更改",
   "Saved. Applies to the next query.": "已保存，下次查询生效。",
-  "⌘ + Enter to run": "⌘ + Enter 运行",
+  "Ctrl / ⌘ + Enter to run": "Ctrl / ⌘ + Enter 运行",
   "could not save resource settings": "无法保存资源设置",
   "query timeout must be between 15 and 3600 seconds":
     "查询超时必须为 15–3600 秒",
@@ -136,7 +136,7 @@ export const chinese: Record<string, string> = {
   "Choose where your data lives.": "选择数据所在的位置。",
   "Close data source chooser": "关闭数据来源选择",
   "Data location": "数据位置",
-  "This Mac": "本机",
+  "This computer": "本机",
   "Cloud storage": "云存储",
   "Open file": "打开文件",
   "Browse a Parquet file": "浏览 Parquet 文件",
@@ -145,8 +145,10 @@ export const chinese: Record<string, string> = {
   "Connect a bucket or folder prefix": "连接存储桶或文件夹前缀",
   "Connect an AWS bucket": "连接 AWS 存储桶",
   "Manage connections": "管理连接",
-  "Read-only connections. Credentials stay in macOS Keychain.":
-    "只读连接。凭据保存在 macOS 钥匙串中。",
+  "Updates open the releases page. Download and install manually; Bamboo will not restart.":
+    "更新会打开版本发布页面。请手动下载并安装；Bamboo 不会自动重启。",
+  "Read-only connections. Credentials stay in the system credential store.":
+    "只读连接。凭据保存在 系统凭据保险库中。",
   "Close settings": "关闭设置",
   "Manage your saved data connections.": "管理已保存的数据连接。",
   "Available across workspaces": "可在不同工作区使用",
@@ -172,12 +174,12 @@ export const chinese: Record<string, string> = {
   "Test & connect": "测试并连接",
   "Test & save": "测试并保存",
   "Testing…": "正在测试…",
-  "Use R2 Object Read only credentials scoped to this bucket. Keys are stored in macOS Keychain. Files are read from R2 as needed; queries run on this Mac.":
-    "使用仅限此存储桶的 R2 Object Read only 凭据。密钥保存在 macOS 钥匙串中。按需读取 R2 文件，查询在本机运行。",
-  "Use R2 Object Read only credentials scoped to this bucket. Credentials stay in macOS Keychain. Queries run on this Mac.":
-    "使用仅限此存储桶的 R2 Object Read only 凭据。凭据保存在 macOS 钥匙串中，查询在本机运行。",
-  "Use credentials with s3:ListBucket and s3:GetObject permissions. Temporary credentials also require a Session Token; replace them when they expire. Credentials stay in macOS Keychain. Queries run on this Mac.":
-    "使用具有 s3:ListBucket 和 s3:GetObject 权限的凭据。临时凭据还需要会话令牌，过期后需更换。凭据保存在 macOS 钥匙串中，查询在本机运行。",
+  "Use R2 Object Read only credentials scoped to this bucket. Keys are stored in the system credential store. Files are read from R2 as needed; queries run on this computer.":
+    "使用仅限此存储桶的 R2 Object Read only 凭据。密钥保存在 系统凭据保险库中。按需读取 R2 文件，查询在本机运行。",
+  "Use R2 Object Read only credentials scoped to this bucket. Credentials stay in the system credential store. Queries run on this computer.":
+    "使用仅限此存储桶的 R2 Object Read only 凭据。凭据保存在 系统凭据保险库中，查询在本机运行。",
+  "Use credentials with s3:ListBucket and s3:GetObject permissions. Temporary credentials also require a Session Token; replace them when they expire. Credentials stay in the system credential store. Queries run on this computer.":
+    "使用具有 s3:ListBucket 和 s3:GetObject 权限的凭据。临时凭据还需要会话令牌，过期后需更换。凭据保存在 系统凭据保险库中，查询在本机运行。",
   "Leave all credential fields blank to keep saved credentials. Provide both keys and any Session Token to replace them. Close the workspace before changing its location.":
     "留空所有凭据字段可保留已保存的凭据；如需更换，请填写两个密钥及适用的会话令牌。更改位置前请先关闭工作区。",
   "Leave all credential fields blank to keep saved credentials. Provide both keys and any Session Token to replace them. Changing location resets saved queries.":

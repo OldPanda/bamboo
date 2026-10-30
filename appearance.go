@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bamboo/internal/privatefs"
 	"encoding/json"
 	"errors"
 	"os"
@@ -54,7 +55,7 @@ func saveAppearance(dir string, source mygo.ThemeSource) error {
 	if err != nil {
 		return errors.New("could not save appearance")
 	}
-	f, err := os.CreateTemp(dir, ".appearance-*")
+	f, err := privatefs.CreateTemp(dir, ".appearance-*")
 	if err != nil {
 		return errors.New("could not save appearance")
 	}

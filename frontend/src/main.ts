@@ -63,7 +63,7 @@ app.innerHTML = `
   <section id="workspace" hidden>
     <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
     <nav class="tabs" aria-label="Views"><button id="tab-explore" class="active" aria-selected="true">Explore Data</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
-    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span id="query-scope">Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p id="workspace-table-help">Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><div class="sql-input-wrap"><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea></div><div class="editor-footer"><span>⌘ + Enter to run <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
+    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span id="query-scope">Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p id="workspace-table-help">Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><div class="sql-input-wrap"><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea></div><div class="editor-footer"><span>Ctrl / ⌘ + Enter to run <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
     <div id="data-panel" class="data-panel">
       <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
@@ -81,16 +81,16 @@ app.innerHTML = `
 </dialog>
 <dialog id="source-dialog" class="connection-dialog source-dialog" aria-labelledby="source-title">
  <div class="connection-heading"><div><h2 id="source-title">Open data</h2><p>Choose where your data lives.</p></div><button id="source-dismiss" class="quiet" aria-label="Close data source chooser">×</button></div>
- <div class="source-tabs" role="tablist" aria-label="Data location"><button id="source-local" role="tab" aria-selected="true" aria-controls="sources-local"><svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>This Mac</button><button id="source-cloud" role="tab" aria-selected="false" aria-controls="sources-cloud" tabindex="-1"><svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg>Cloud storage</button></div>
+ <div class="source-tabs" role="tablist" aria-label="Data location"><button id="source-local" role="tab" aria-selected="true" aria-controls="sources-local"><svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>This computer</button><button id="source-cloud" role="tab" aria-selected="false" aria-controls="sources-cloud" tabindex="-1"><svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg>Cloud storage</button></div>
  <div id="sources-local" role="tabpanel" aria-labelledby="source-local">
-  <button id="open" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg><span><strong>Open file</strong><small>Browse a Parquet file</small></span><kbd>⌘ + O</kbd></button>
+  <button id="open" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg><span><strong>Open file</strong><small>Browse a Parquet file</small></span><kbd>Ctrl / ⌘ + O</kbd></button>
   <button id="open-folder" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg><span><strong>Open folder</strong><small>Query files together as a workspace</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
  </div>
  <div id="sources-cloud" role="tabpanel" aria-labelledby="source-cloud" hidden>
   <button id="open-r2" class="source-option"><span><strong>Cloudflare R2</strong><small>Connect a bucket or folder prefix</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
   <button id="open-s3" class="source-option"><span><strong>Amazon S3</strong><small>Connect an AWS bucket</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
   <button id="manage-connections" class="quiet"><svg width="18" height="18" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3 6 0 .6 2.6 2.2 1.3 2.6-.8 3 5.2-2 1.8v2.6l2 1.8-3 5.2-2.6-.8-2.2 1.3L15 26H9l-.6-2.6-2.2-1.3-2.6.8-3-5.2 2-1.8v-2.6l-2-1.8 3-5.2 2.6.8 2.2-1.3Z" transform="translate(2 0) scale(.83)"/><circle cx="12" cy="12" r="3.3"/></svg><span>Manage connections</span></button>
-  <p class="source-note">Read-only connections. Credentials stay in macOS Keychain.</p>
+  <p class="source-note">Read-only connections. Credentials stay in the system credential store.</p>
  </div>
 </dialog>
 <dialog id="settings-dialog" class="connection-dialog settings-dialog" aria-labelledby="settings-title">
@@ -137,7 +137,7 @@ app.innerHTML = `
     <h3 class="settings-page-title">Performance</h3>
     <form id="resources-form" class="resource-settings">
      <div class="resource-field"><label for="query-memory-mode">Query memory</label><label class="resource-toggle"><span>Auto</span><input id="query-memory-mode" type="checkbox" role="switch" aria-label="Automatic query memory"></label><p>Auto uses 25% of physical memory. Custom lets you choose the limit.</p></div>
-     <div class="resource-field resource-budget"><label id="query-memory-label" for="query-memory">Query memory limit</label><div class="resource-budget-control"><div class="resource-range"><input id="query-memory-range" type="range" min="128" max="16384" step="1" aria-labelledby="query-memory-label" aria-describedby="query-memory-summary query-memory-warning"><div id="query-memory-ticks" class="resource-ticks" aria-hidden="true"></div></div><div class="resource-input"><input id="query-memory" type="number" min="128" step="1" required aria-describedby="query-memory-summary query-memory-warning"><span>MiB</span></div></div><p id="query-memory-summary"></p><p id="query-memory-warning" class="resource-warning" role="status" hidden>Above 75% of physical memory. This may slow down your Mac and other apps.</p></div>
+     <div class="resource-field resource-budget"><label id="query-memory-label" for="query-memory">Query memory limit</label><div class="resource-budget-control"><div class="resource-range"><input id="query-memory-range" type="range" min="128" max="16384" step="1" aria-labelledby="query-memory-label" aria-describedby="query-memory-summary query-memory-warning"><div id="query-memory-ticks" class="resource-ticks" aria-hidden="true"></div></div><div class="resource-input"><input id="query-memory" type="number" min="128" step="1" required aria-describedby="query-memory-summary query-memory-warning"><span>MiB</span></div></div><p id="query-memory-summary"></p><p id="query-memory-warning" class="resource-warning" role="status" hidden>Above 75% of physical memory. This may slow down your computer and other apps.</p></div>
      <div class="resource-field"><label for="query-disk-mode">Temporary disk</label><label class="resource-toggle"><span>Auto</span><input id="query-disk-mode" type="checkbox" role="switch" aria-label="Automatic temporary disk"></label><p>Auto uses 25% of available space after reserving 1 GiB.</p></div>
      <div class="resource-field resource-budget"><label id="query-disk-label" for="query-disk">Temporary disk limit</label><div class="resource-budget-control"><div class="resource-range"><input id="query-disk-range" type="range" min="0" max="0" step="1" aria-labelledby="query-disk-label" aria-describedby="query-disk-summary query-disk-help"><div id="query-disk-ticks" class="resource-ticks" aria-hidden="true"></div></div><div class="resource-input"><input id="query-disk" type="number" min="0" max="0" step="1" required aria-describedby="query-disk-summary query-disk-help"><span>GiB</span></div></div><p id="query-disk-summary"></p><p id="query-disk-help">Set a custom limit of 0 to disable temporary disk use.</p></div>
      <div class="resource-field"><label for="query-timeout">Query timeout</label><div class="resource-input"><input id="query-timeout" type="number" min="15" max="3600" step="1" required><span>seconds</span></div></div>
@@ -163,7 +163,7 @@ app.innerHTML = `
  <label>Access Key ID<input id="r2-access" required maxlength="256" autocomplete="off" spellcheck="false"></label>
  <label>Secret Access Key<input id="r2-secret" type="password" required maxlength="512" autocomplete="new-password" spellcheck="false"></label>
  <label id="token-field" hidden>Session Token <span class="optional">for temporary credentials</span><input id="s3-token" type="password" maxlength="16384" autocomplete="new-password" spellcheck="false"></label>
- <p id="cloud-credentials-note" class="connection-note">Use R2 Object Read only credentials scoped to this bucket. Keys are stored in macOS Keychain. Files are read from R2 as needed; queries run on this Mac.</p>
+ <p id="cloud-credentials-note" class="connection-note">Use R2 Object Read only credentials scoped to this bucket. Keys are stored in the system credential store. Files are read from R2 as needed; queries run on this computer.</p>
  <p id="r2-error" role="alert" hidden></p>
  <div class="connection-actions"><button id="r2-back" type="button" class="quiet">Back</button><button id="r2-cancel" type="button">Cancel</button><button id="r2-submit" type="submit" class="primary">Test &amp; connect</button></div>
  </form>
@@ -1138,7 +1138,7 @@ function memorySummary() {
   if (total > 0)
     setText(
       $("query-memory-summary"),
-      "This Mac: {total} GiB · Query budget: {budget} MiB ({percent}%).",
+      "This computer: {total} GiB · Query budget: {budget} MiB ({percent}%).",
       {
         total: Number((total / 1024).toFixed(1)),
         budget: input.value,
@@ -1317,6 +1317,7 @@ $("interface-language").onchange = async () => {
 };
 let updatingPreferences = false;
 let updatesAvailable = false;
+let manualUpdates = false;
 let reminderReady = false;
 let reminderTicket = 0;
 async function refreshUpdateReminder() {
@@ -1346,7 +1347,9 @@ function updateControls() {
   for (const id of ["check-updates", "automatic-updates"])
     $(id).toggleAttribute(
       "disabled",
-      busy || updatingPreferences || !updatesAvailable,
+      busy ||
+        updatingPreferences ||
+        !(updatesAvailable || (id === "check-updates" && manualUpdates)),
     );
 }
 let updateStatusTicket = 0;
@@ -1364,10 +1367,15 @@ async function refreshUpdateStatus() {
     });
     automatic.checked = status.automatic;
     updatesAvailable = status.available;
+    manualUpdates = !status.available && status.canCheck;
     updateControls();
     setText(
       $("update-message"),
-      status.available ? "" : "updates are unavailable in this build",
+      status.available
+        ? ""
+        : manualUpdates
+          ? "Updates open the releases page. Download and install manually; Bamboo will not restart."
+          : "updates are unavailable in this build",
     );
   } catch (error) {
     if (ticket !== updateStatusTicket) return;
@@ -1474,7 +1482,7 @@ function updateProviderFields() {
     (s3
       ? "Use credentials with s3:ListBucket and s3:GetObject permissions. Temporary credentials also require a Session Token; replace them when they expire."
       : "Use R2 Object Read only credentials scoped to this bucket.") +
-      " Credentials stay in macOS Keychain. Queries run on this Mac.",
+      " Credentials stay in the system credential store. Queries run on this computer.",
   );
 }
 function configureR2(c?: Connection, provider = "r2") {

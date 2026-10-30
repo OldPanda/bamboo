@@ -2,6 +2,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export GOTOOLCHAIN=go1.27.3
+if [ "$(uname -s)" != Darwin ]; then
+  exec python3 scripts/build-desktop.py
+fi
 # Reject invalid versions before doing any build work.
 python3 scripts/release_version.py >/dev/null
 python3 scripts/prepare-httpfs.py
