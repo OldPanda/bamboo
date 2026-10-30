@@ -44,6 +44,10 @@ func New(dir string, vault Vault) *Store {
 	s := &Store{filename: filepath.Join(dir, "r2-workspaces.json"), vault: vault, profiles: map[string]profile{}, cursors: map[string][]string{}, clients: map[string]*Client{}, clientFactory: newClient}
 	f, err := os.Open(s.filename)
 	if os.IsNotExist(err) {
+		// Windows reports PATH_NOT_FOUND when a settings parent is a regular file.
+		if parent, parentErr := os.Stat(dir); parentErr == nil && !parent.IsDir() {
+			s.loadErr = errors.New("Cloud workspace settings parent is not a directory")
+		}
 		return s
 	}
 	if err != nil {

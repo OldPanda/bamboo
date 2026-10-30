@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -29,7 +30,8 @@ func TestOpenPathsAndFailedReplacement(t *testing.T) {
 	e, dir := setup(t)
 	for _, name := range []string{"glob*.parquet", "glob?.parquet", "glob[1].parquet"} {
 		p := filepath.Join(dir, name)
-		if err := os.WriteFile(p, []byte("x"), 0600); err != nil {
+		// Windows cannot create names containing * or ?; still test their rejection.
+		if err := os.WriteFile(p, []byte("x"), 0600); err != nil && !(runtime.GOOS == "windows" && strings.ContainsAny(name, "*?")) {
 			t.Fatal(err)
 		}
 		if _, err := e.Open(context.Background(), p); err == nil || !strings.Contains(err.Error(), "glob") {

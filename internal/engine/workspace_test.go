@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -24,7 +25,12 @@ func TestWorkspaceQueries(t *testing.T) {
 	if err = os.Mkdir(filepath.Join(root, "nested"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	names := []string{"nested/orders.parquet", `竹 ' " orders.parquet`, "data.parquet"}
+	quotedName := `竹 ' " orders.parquet`
+	if runtime.GOOS == "windows" {
+		// Double quotes are illegal in Windows filenames; retain Unicode and SQL quotes.
+		quotedName = "竹 ' orders.parquet"
+	}
+	names := []string{"nested/orders.parquet", quotedName, "data.parquet"}
 	for _, name := range names {
 		if err = os.WriteFile(filepath.Join(root, name), source, 0600); err != nil {
 			t.Fatal(err)
@@ -43,7 +49,7 @@ func TestWorkspaceQueries(t *testing.T) {
 		`SELECT count(*) FROM data a JOIN workspace."nested/orders.parquet" b USING(order_id)`:                                                                "240",
 		`SELECT count(*) FROM workspace."empty.parquet"`:                                                                                                      "0",
 		`SELECT count(*) FROM "workspace" /* nesting /* yes */ */ . "orders.parquet"`:                                                                         "240",
-		`SELECT count(*) FROM workspace."竹 ' "" orders.parquet"`:                                                                                              "240",
+		`SELECT count(*) FROM workspace."` + strings.ReplaceAll(quotedName, `"`, `""`) + `"`:                                                                  "240",
 		`SELECT count(*) FROM workspace."data.parquet"`:                                                                                                       "240",
 		`SELECT big_id FROM workspace."special.parquet"`:                                                                                                      "9223372036854775807",
 	}

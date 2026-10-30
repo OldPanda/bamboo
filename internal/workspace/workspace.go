@@ -70,6 +70,10 @@ func New(dir string) *Store {
 	s := &Store{path: filepath.Join(dir, "workspaces.json"), opened: map[string]bool{}, data: state{Version: 1, Profiles: map[string]*profile{}}}
 	f, err := os.Open(s.path)
 	if os.IsNotExist(err) {
+		// Windows reports PATH_NOT_FOUND when a settings parent is a regular file.
+		if parent, parentErr := os.Stat(dir); parentErr == nil && !parent.IsDir() {
+			s.loadErr = errors.New("workspace settings parent is not a directory")
+		}
 		return s
 	}
 	if err != nil {

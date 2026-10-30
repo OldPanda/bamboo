@@ -48,7 +48,7 @@ jobs:
       - name: Windows native compiler and installer
         if: runner.os == 'Windows'
         run: |
-          echo 'C:\msys64\mingw64\bin' >> "$GITHUB_PATH"
+          printf '%s\n' 'C:\msys64\mingw64\bin' >> "$GITHUB_PATH"
           choco install nsis --yes --no-progress
       - name: Build release and separate acceptance binaries
         run: |
