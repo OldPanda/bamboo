@@ -1,6 +1,7 @@
 /** Verify the built website over HTTP in headless Chrome without opening the app. */
 import assert from "node:assert/strict";
 import { checkPreferences } from "./website-preferences-check.mjs";
+import { checkSEO } from "./website-seo-check.mjs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -18,7 +19,9 @@ assert(
   "Private paths or unexpanded assets",
 );
 assert(
-  !/<(?:script|link)[^>]+(?:src|href)=["']https?:/i.test(html),
+  !/<script[^>]+src=["']https?:|<link[^>]+rel="stylesheet"[^>]+href=["']https?:/i.test(
+    html,
+  ),
   "External runtime dependency",
 );
 assert(!/<form\b/i.test(html), "Feedback must link to GitHub, not a form");
@@ -70,7 +73,7 @@ const server = createServer(async (request, response) => {
     );
     const file = resolve(
       site,
-      "." + (pathname === "/" ? "/index.html" : pathname),
+      "." + (pathname.endsWith("/") ? pathname + "index.html" : pathname),
     );
     if (!file.startsWith(site + sep)) {
       response.writeHead(403).end();
@@ -159,6 +162,12 @@ try {
     } else if (reply.method === "Runtime.exceptionThrown")
       errors.push(reply.params.exceptionDetails);
     else if (
+      reply.method === "Log.entryAdded" &&
+      reply.params.entry.source === "security" &&
+      reply.params.entry.level === "error"
+    )
+      errors.push(reply.params.entry);
+    else if (
       reply.method === "Network.requestWillBeSent" &&
       /^https?:/.test(reply.params.request.url) &&
       new URL(reply.params.request.url).origin !== origin
@@ -195,6 +204,7 @@ try {
     return result.result.value;
   };
   await send("Runtime.enable");
+  await send("Log.enable");
   await send("Network.enable");
   await mkdir(output, { recursive: true });
   const cases = [
@@ -548,6 +558,8 @@ try {
     "Restore saved language",
   );
   const preferenceChecks = await checkPreferences({ send, evaluate, origin });
+  const seoChecks = await checkSEO({ send, evaluate, origin });
+  console.log(`SEO browser regressions passed: ${seoChecks.length}`);
   console.log(`Preference regressions passed: ${preferenceChecks.length}`);
   await send("Emulation.setUserAgentOverride", {
     userAgent:
@@ -573,6 +585,7 @@ try {
         results,
         phoneDownload: "passed",
         preferenceChecks,
+        seoChecks,
         externalRequests: remoteRequests,
         javascriptErrors: errors,
       },
