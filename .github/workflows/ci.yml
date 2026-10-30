@@ -16,92 +16,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  macos:
+    name: macOS
+    uses: ./.github/workflows/macos.yml
+
   quality:
+    # Preserve the existing status-check context for branch protection.
     name: PR quality gate
-    runs-on: macos-26
-    timeout-minutes: 60
-    env:
-      GOTOOLCHAIN: go1.27.3
-      GOMAXPROCS: "3"
-      BAMBOO_LARGE_TEST: "1"
-      BAMBOO_KEYCHAIN_TEST: "1"
+    needs: macos
+    if: ${{ always() }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: "22.23.4"
-          cache: npm
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
-        with:
-          python-version: "3.12"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: go.mod
-          # Native libraries are large; avoid caching every platform's archives.
-          cache: false
-      - name: Install development tools
+      - name: Require successful macOS checks
+        env:
+          MACOS_RESULT: ${{ needs.macos.result }}
         run: |
-          test "$(uname -m)" = arm64
-          npm ci
-          python3 -m venv .venv
-          .venv/bin/python -m pip install -r requirements-dev.txt
-          mkdir -p build/tools
-          GOBIN="$PWD/build/tools" go install github.com/mgechev/revive@v1.17.1
-          GOBIN="$PWD/build/tools" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-          go mod download go.duckdb.org/libduckdb/darwin-arm64
-      - name: Validate workflow syntax
-        run: build/tools/actionlint -shellcheck .venv/bin/shellcheck .github/workflows/*.yml
-      - name: Build release and generated bindings
-        run: |
-          npm run build
-          git diff --exit-code -- frontend/src/mygo.ts
-      - name: Native updater integration (no windows or network checks)
-        run: python3 scripts/native-updater-smoke.py
-      - name: Lint all maintained languages
-        run: npm run lint
-      - name: Test coverage gate failure handling
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
-      - name: Create isolated CI Keychain
-        run: bash scripts/ci-keychain.sh create
-      - name: Release Go tests
-        run: python3 scripts/go-release.py test -p=1 -count=1 -timeout=300s . ./internal/... ./cmd/...
-      - name: Tagged smoke and performance Go tests
-        run: python3 scripts/go-release.py --with-smoke test -tags=cloudsmoke,bamboo_perf -p=1 -count=1 -timeout=300s . ./internal/... ./cmd/...
-      - name: Go, frontend and native desktop tests with 95% coverage
-        run: npm run coverage:ci
-      - name: Headless visual regressions
-        run: |
-          for check in scripts/visual/*/visual-check.py; do
-            python3 "$check"
-          done
-          npm run test:website
-      - name: All production-size performance cases
-        run: npm run test:perf -- --runs 1 --output artifacts/performance/ci
-      - name: Upload test evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: ci-evidence-${{ github.run_attempt }}
-          retention-days: 14
-          if-no-files-found: warn
-          path: |
-            artifacts/coverage/*.json
-            artifacts/coverage/*.jsonl
-            artifacts/coverage/*.log
-            artifacts/coverage/*.out
-            artifacts/coverage/CI-SUMMARY.md
-            artifacts/coverage/frontend/
-            artifacts/coverage/v8-raw/
-            artifacts/coverage/desktop/raw/
-            artifacts/coverage/**/desktop-smoke.json
-            artifacts/coverage/**/process.log
-            artifacts/r2/native-summary.json
-            artifacts/s3/native-summary.json
-            artifacts/visual/
-            artifacts/website/
-            artifacts/performance/ci/
-      - name: Remove isolated CI Keychain
-        if: always()
-        run: bash scripts/ci-keychain.sh delete
+          if [ "$MACOS_RESULT" != success ]; then
+            echo "::error::macOS checks did not succeed ($MACOS_RESULT)."
+            exit 1
+          fi
