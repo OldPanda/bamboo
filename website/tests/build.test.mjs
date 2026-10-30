@@ -26,6 +26,8 @@ async function fixture(t) {
     "index.html",
     "styles.css",
     "site.js",
+    "downloads.json",
+    "scripts/download-catalog.mjs",
     "_headers",
     "assets",
     "scripts/website-build.mjs",
@@ -179,4 +181,35 @@ test("unexpected files in the public asset directory fail the build", async (t) 
   const result = f.build();
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Unexpected public asset/);
+});
+
+test("download catalog is embedded in deployment and standalone preview", async (t) => {
+  const f = await fixture(t);
+  success(f.build("--standalone"));
+  const catalog = JSON.parse(
+    await readFile(join(source, "downloads.json"), "utf8"),
+  );
+  const script = (await files(f.site)).find((name) => name.endsWith(".js"));
+  for (const code of [
+    await readFile(join(f.site, script), "utf8"),
+    await readFile(join(f.root, "build/bamboo-website-preview.html"), "utf8"),
+  ]) {
+    assert(!code.includes("/* DOWNLOAD_CATALOG */ null"));
+    assert(code.includes(JSON.stringify(catalog)));
+  }
+});
+
+test("invalid download targets stop the real build", async (t) => {
+  const f = await fixture(t);
+  const catalog = JSON.parse(
+    await readFile(join(source, "downloads.json"), "utf8"),
+  );
+  catalog.platforms.macos.url = "https://example.com/installer.dmg";
+  await writeFile(
+    join(f.root, "website/downloads.json"),
+    JSON.stringify(catalog),
+  );
+  const result = f.build();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Invalid download catalog/);
 });

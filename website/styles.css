@@ -85,7 +85,8 @@ summary {
 }
 button:focus-visible,
 a:focus-visible,
-summary:focus-visible {
+summary:focus-visible,
+select:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 5px;
 }
@@ -1324,4 +1325,42 @@ h1 {
 }
 .sql-value {
   color: var(--sql-value);
+}
+
+.platform-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.platform-picker select {
+  max-width: 100%;
+  min-height: 42px;
+  padding: 8px 32px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  cursor: pointer;
+}
+.install-section .platform-picker {
+  justify-content: flex-start;
+}
+[data-install-platform][hidden] {
+  display: none;
+}
+.install-command {
+  display: block;
+  margin: 12px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.download-link {
+  white-space: normal;
+  text-align: center;
 }

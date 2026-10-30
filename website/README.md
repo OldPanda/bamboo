@@ -7,6 +7,7 @@ website/
   index.html             # Semantic markup and initial Chinese content
   styles.css             # App-matching light/dark theme
   site.js                # English/Chinese copy and interactions
+  downloads.json         # Verified stable-release installer catalog
   assets/                # Original screenshots and artwork, named by content hash
   scripts/               # Website build, browser checks and capture helpers
   tests/                 # Isolated build regression tests
@@ -61,18 +62,36 @@ All public assets have content-hashed filenames and long-lived immutable caching
 
 Official references: [Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/), [Build environment](https://developers.cloudflare.com/pages/configuration/build-image/), [Build watch paths](https://developers.cloudflare.com/pages/configuration/build-watch-paths/), [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/).
 
-The download buttons currently point at the verified `v0.1.0` Apple Silicon DMG. When a later release changes the supported architecture, minimum OS, signing status or asset name, update the page and guide together. The version-history link always opens GitHub Releases.
+## Platform downloads
+
+The main download buttons follow the browser’s desktop OS, with a visible manual selector for macOS Apple Silicon, Windows x64 and Linux x64. Phone, iPad desktop-mode, ChromeOS and unknown browsers start with a platform prompt. Detection does not prove CPU compatibility: requirements stay visible, and users can choose another target computer. The download and installation selectors stay synchronized across language and theme changes. Choices last for the current page only.
+
+`downloads.json` is a reviewed snapshot of the **latest stable GitHub Release**, embedded in the hashed script at build time. As verified on 2026-10-30, v0.1.0 provides only the Apple Silicon DMG. Windows/Linux show “not published” and link to the real releases page, with clearly labeled installation requirements. CI preview artifacts are not treated as public stable installers. Drafts, prereleases, missing assets, unsupported names and unexpected URLs never produce download buttons.
+
+Refresh availability explicitly before shipping website download changes and after publishing a release:
+
+```sh
+npm --prefix website run check:downloads
+# If published assets changed, update the reviewed snapshot:
+npm --prefix website run check:downloads -- --update
+npm --prefix website test
+npm --prefix website run build:preview
+```
+
+The network check reads the public GitHub API and follows each selected installer URL with HEAD, checking HTTP success and its length against release metadata. It fails on API/network errors and does not overwrite the catalog on those errors. No token is needed. This is an availability check, not a signature or checksum verification. `--update` changes only `website/downloads.json`; review its diff and the architecture, minimum OS, signing and installation guidance together before committing. Supported primary installers are `Bamboo-<version>-macOS-arm64.dmg`, `Bamboo-<version>-windows-x64-setup.exe` and `Bamboo-<version>-linux-x64.deb`. Portable packages remain discoverable on GitHub Releases.
+
+Normal builds/tests are offline and deterministic. The website makes no release API request at runtime and keeps `connect-src 'none'`; release changes require refreshing the snapshot and rebuilding. If an asset is removed after deployment, the site cannot detect that until refreshed. The version-history link always opens GitHub Releases. With JavaScript disabled, links open Releases and a bilingual fallback explains where to find downloads.
 
 ## Verify changes
 
 `npm --prefix website run test:build` runs dependency-free Node tests in disposable directories: public-file allowlisting, stale-output cleanup, asset hashes and references, reproducible builds, self-contained preview assets, and rejection of modified or unexpected images. These tests never modify the source assets or use cloud credentials.
 
-Run `npm run test:website` from the repository root (requires Node 22+ and Chrome; set `BAMBOO_CHROME` to override the executable). It first runs the isolated build tests, then exercises the actual page at five viewport/theme combinations, verifies its screenshot appearance, navigation and mobile download behavior, rejects external runtime requests and private paths, and writes evidence to ignored `artifacts/website/`. It also checks shared language/legal URLs, theme persistence, invalid preference fallback, unavailable browser storage, and the header icon order/style. Both website and App CI run the complete suite.
+Run `npm run test:website` from the repository root (requires Node 22+ and Chrome; set `BAMBOO_CHROME` to override the executable). It first runs the isolated build tests, then exercises the actual page at five viewport/theme combinations, verifies its screenshot appearance, navigation and mobile download behavior, rejects external runtime requests and private paths, and writes evidence to ignored `artifacts/website/`. It also checks 10 browser platform-detection cases, all three manual platform choices at 320/1280 px in both themes and languages, synchronized installation guidance, published/missing download targets, shared language/legal URLs, theme persistence, invalid preference fallback, unavailable browser storage, and the header icon order/style. Both website and App CI run the complete suite.
 
 - Format `website/index.html`, this document, and the installation guide with the repository's Prettier version.
 - Open the page at desktop and mobile widths, including 320 px, in light and dark appearances.
 - Check the mobile navigation, keyboard focus, FAQ, installation disclosure, theme preference and native screenshot theme switching.
-- Confirm the download, Apple support, Issues, Discussions and `https://x.com/OldPanda` destinations.
+- Confirm the download, Apple support, Microsoft WebView2, Issues, Discussions and `https://x.com/OldPanda` destinations.
 - Keep synthetic examples visibly identified. Preview timings are not a guarantee for full-file queries or real cloud latency.
 - Do not publish private paths, credentials, real user datasets, fabricated testimonials or unsupported platform claims.
 

@@ -96,8 +96,8 @@
       en: "A few steps to understand your data.",
     },
     t36: {
-      zh: "不需要终端，不需要安装开发工具。",
-      en: "No terminal or developer tools required.",
+      zh: "选择平台，查看系统要求与首次安装步骤。",
+      en: "Choose a platform for requirements and first-time installation.",
     },
     t38: { zh: "下载 Bamboo", en: "Download Bamboo" },
     t39: { zh: "点击", en: "Click " },
@@ -179,20 +179,20 @@
       en: "Common questions. Clear answers.",
     },
     t69: {
-      zh: "支持哪些 Mac 和文件格式？",
-      en: "Which Macs and file formats are supported?",
+      zh: "支持哪些系统和文件格式？",
+      en: "Which platforms and file formats are supported?",
     },
     t70: {
-      zh: "目前支持搭载 Apple Silicon 的 Mac（macOS 12 及以上），主要用于读取和查询 Parquet 文件。结果可导出为 CSV 或 JSON。可在  → 关于本机查看芯片与系统版本，目前没有 Intel、Windows 或 Linux 安装包。",
-      en: "Bamboo currently supports Apple Silicon Macs running macOS 12 or later. It reads and queries Parquet files, and exports results as CSV or JSON. Check your chip and OS under  → About This Mac. Intel, Windows and Linux installers are not available yet.",
+      zh: "Bamboo 支持 macOS Apple Silicon、Windows x64 和 Linux x64。正式下载以本页平台选择和 GitHub Releases 为准；预览构建不等于正式发布。不提供 Intel Mac 或 Windows/Linux ARM64 安装包。macOS 要求 12 及以上，可在  → 关于本机查看芯片与系统版本。支持读取 Parquet，并将结果导出为 CSV 或 JSON。",
+      en: "Bamboo supports macOS on Apple Silicon, Windows x64 and Linux x64. Published downloads are shown in the platform selector and GitHub Releases; preview builds are not stable releases. No Intel Mac or Windows/Linux ARM64 packages are provided. macOS requires version 12 or later; check your chip and OS under  → About This Mac. Read Parquet files and export results as CSV or JSON.",
     },
     t71: {
       zh: "文件需要上传吗？云端凭据放在哪里？",
       en: "Do files need uploading? Where are cloud credentials stored?",
     },
     t72: {
-      zh: "Bamboo 没有后端服务器，不会接收或存储你的文件、SQL、查询结果或云端凭据。所有查询和数据处理都在你的 Mac 本地完成，应用配置也保存在本机。连接 S3 或 R2 时，由你的 Mac 直接按需读取你自己的云端存储；访问凭据仅保存在本机的 macOS 钥匙串中。",
-      en: "Bamboo has no backend server and does not receive or store your files, SQL, query results, or cloud credentials. All queries and data processing run locally on your Mac, and app settings stay on your device. For S3 or R2, your Mac reads directly from your own cloud storage on demand. Access credentials are stored only in macOS Keychain on your Mac.",
+      zh: "Bamboo 没有后端服务器，不会接收或存储你的文件、SQL、查询结果或云端凭据。所有查询和数据处理都在你的电脑本地完成，应用配置也保存在本机。连接 S3 或 R2 时，由你的电脑直接按需读取你自己的云端存储；访问凭据保存在本机的系统凭据库中：macOS 钥匙串、Windows 凭据管理器或 Linux Secret Service。",
+      en: "Bamboo has no backend server and does not receive or store your files, SQL, query results, or cloud credentials. All queries and data processing run locally on your computer, and app settings stay on your device. For S3 or R2, your computer reads directly from your own cloud storage on demand. Access credentials stay in your system vault: macOS Keychain, Windows Credential Manager or Linux Secret Service.",
     },
     t73: {
       zh: "打开文件后，第一条 SQL 怎么写？",
@@ -220,8 +220,8 @@
       en: "How do I update Bamboo?",
     },
     faqUpdateAnswer: {
-      zh: "Bamboo 可以在后台检查更新，有新版本时会在左下角提示。点击更新提示，按提示确认安装并重新启动即可；你也可以在「设置 → 通用」中手动检查更新。安装和重启都需要你主动确认，不会在使用过程中自动升级。更新从本项目的 GitHub Releases 获取。",
-      en: "Bamboo can check for updates in the background and notify you in the lower-left corner. Click the update notification and follow the prompts to confirm installation and relaunch. You can also check manually in Settings → General. Installation and relaunch always require your confirmation; Bamboo will not automatically upgrade while you work. Updates come from this project's GitHub Releases.",
+      zh: "macOS 版 Bamboo 可以在后台检查更新，有新版本时会在左下角提示。点击更新提示，按提示确认安装并重新启动即可；你也可以在「设置 → 通用」中手动检查更新。安装和重启都需要你主动确认，不会在使用过程中自动升级。更新从本项目的 GitHub Releases 获取。Windows/Linux 的「检查更新」会打开版本页面，由你手动下载和安装。",
+      en: "On macOS, Bamboo can check for updates in the background and notify you in the lower-left corner. Click the update notification and follow the prompts to confirm installation and relaunch. You can also check manually in Settings → General. Installation and relaunch always require your confirmation; Bamboo will not automatically upgrade while you work. Updates come from this project's GitHub Releases. On Windows/Linux, Check for updates opens the releases page for manual download and installation.",
     },
     t81: {
       zh: "Bamboo 收费吗？遇到问题在哪里反馈？",
@@ -236,8 +236,8 @@
       en: "; ask questions and share ideas on ",
     },
     t84: {
-      zh: "讨论。反馈时请注明应用版本、macOS 版本和重现步骤，并隐去密钥、私人路径和业务数据。",
-      en: ". Include your app version, macOS version and steps to reproduce, and remove secrets, private paths and business data.",
+      zh: "讨论。反馈时请注明应用版本、操作系统版本和重现步骤，并隐去密钥、私人路径和业务数据。",
+      en: ". Include your app version, operating system version and steps to reproduce, and remove secrets, private paths and business data.",
     },
     t85: { zh: "一起，让它更好用", en: "Make it better, together" },
     t86: {
@@ -262,8 +262,8 @@
       en: "Ready for your next dataset",
     },
     t92: {
-      zh: "免费开源。为你的 Mac，也为你的好奇心。",
-      en: "Free and open source. For your Mac, and your curiosity.",
+      zh: "免费开源。为你的数据，也为你的好奇心。",
+      en: "Free and open source. For your data, and your curiosity.",
     },
     t93: { zh: "版本记录 ↗", en: "Release history ↗" },
     t94: { zh: "使用条款", en: "Terms of Use" },
@@ -344,8 +344,8 @@
       en: "Local Parquet data and SQL are processed on your device and are not uploaded to the Bamboo maintainer. The app saves settings, workspace paths, connection configurations and SQL drafts locally; these may contain sensitive information. Queries may use local caches and temporary disk space, and exports are saved to your chosen location. Temporary data can remain after an abnormal exit.",
     },
     t120: {
-      zh: "关闭工作区或卸载应用不一定清除已保存的配置、凭据、临时文件和导出结果。你可以在设置中删除不需要的云连接，并按需清理本机应用数据、钥匙串和自行导出的文件。删除云连接不会删除云端对象。",
-      en: "Closing a workspace or uninstalling the app does not necessarily remove saved configurations, credentials, temporary files or exports. Remove unwanted cloud connections in Settings and, as needed, clean up local app data, Keychain entries and your exported files. Deleting a cloud connection does not delete cloud objects.",
+      zh: "关闭工作区或卸载应用不一定清除已保存的配置、凭据、临时文件和导出结果。你可以在设置中删除不需要的云连接，并按需清理本机应用数据、系统凭据库条目和自行导出的文件。删除云连接不会删除云端对象。",
+      en: "Closing a workspace or uninstalling the app does not necessarily remove saved configurations, credentials, temporary files or exports. Remove unwanted cloud connections in Settings and, as needed, clean up local app data, system credential entries and your exported files. Deleting a cloud connection does not delete cloud objects.",
     },
     t121: { zh: "3. 云存储连接", en: "3. Cloud storage connections" },
     t122: {
@@ -353,16 +353,16 @@
       en: "Only when you connect configured Amazon S3 or Cloudflare R2 storage does the app send authenticated listing, metadata and file-read requests to that service. The provider receives those requests and necessary network metadata under your cloud service agreement. File queries execute locally.",
     },
     t123: {
-      zh: "macOS 版本将云访问凭据保存在系统钥匙串；连接配置和 SQL 草稿保存在本机。凭据不发送给 Bamboo 维护者。请按最小权限配置只读凭据，并在不再需要时删除连接及撤销相应授权。",
-      en: "The macOS app stores cloud credentials in the system Keychain; connection configurations and SQL drafts stay on your device. Credentials are not sent to the Bamboo maintainer. Use least-privilege, read-only credentials, and delete connections and revoke access when no longer needed.",
+      zh: "云访问凭据保存在系统凭据库：macOS 钥匙串、Windows 凭据管理器或 Linux Secret Service；连接配置和 SQL 草稿保存在本机。凭据不发送给 Bamboo 维护者。请按最小权限配置只读凭据，并在不再需要时删除连接及撤销相应授权。",
+      en: "Cloud credentials stay in the system vault: macOS Keychain, Windows Credential Manager or Linux Secret Service; connection configurations and SQL drafts stay on your device. Credentials are not sent to the Bamboo maintainer. Use least-privilege, read-only credentials, and delete connections and revoke access when no longer needed.",
     },
     t124: {
       zh: "4. 版本检查和下载",
       en: "4. Update checks and downloads",
     },
     t125: {
-      zh: "应用默认启用自动检查更新，可在 Settings → General 中关闭。检查和下载通过 HTTPS 访问 GitHub Releases 及其下载基础设施；服务方会收到 IP 地址及版本检查所需的常规 HTTP 元数据。应用不会在检查中发送文件路径、查询内容、云凭据或 Sparkle 系统概况。安装和重启须由你主动确认。",
-      en: "Automatic update checks are enabled by default and can be disabled in Settings → General. Checks and downloads access GitHub Releases and its download infrastructure over HTTPS. These services receive IP addresses and normal HTTP metadata needed for update checks. The app does not include file paths, query contents, cloud credentials or Sparkle system profiles in these requests. Installation and restart require your confirmation.",
+      zh: "macOS 版默认启用自动检查更新，可在 Settings → General 中关闭。Windows/Linux 不自动检查或下载安装更新；手动检查会在浏览器中打开版本页面。检查和下载通过 HTTPS 访问 GitHub Releases 及其下载基础设施；服务方会收到 IP 地址及版本检查所需的常规 HTTP 元数据。应用不会在检查中发送文件路径、查询内容、云凭据或 Sparkle 系统概况。安装和重启须由你主动确认。",
+      en: "On macOS, automatic update checks are enabled by default and can be disabled in Settings → General. Windows/Linux do not automatically check, download or install updates; a manual check opens the releases page in your browser. Checks and downloads access GitHub Releases and its download infrastructure over HTTPS. These services receive IP addresses and normal HTTP metadata needed for update checks. The app does not include file paths, query contents, cloud credentials or Sparkle system profiles in these requests. Installation and restart require your confirmation.",
     },
     t126: {
       zh: "5. 主动反馈与外部链接",
@@ -422,15 +422,73 @@
     a150: { zh: "页脚导航", en: "Footer navigation" },
     a151: { zh: "关闭Terms · 使用条款", en: "Close Terms of Use" },
     a152: { zh: "关闭Privacy · 隐私政策", en: "Close Privacy Policy" },
+    platformLabel: { zh: "选择电脑系统", en: "Choose your computer" },
+    platformChoose: { zh: "请选择平台", en: "Choose a platform" },
+    platformHint: {
+      zh: "Bamboo 是桌面应用。请选择目标电脑的系统，并确认下方要求。",
+      en: "Bamboo is a desktop app. Choose the target computer’s platform and check the requirements below.",
+    },
+    windowsRequirementsTitle: { zh: "检查系统要求", en: "Check requirements" },
+    windowsRequirements: {
+      zh: "Windows 10/11 x64，需要 Microsoft Edge WebView2 Evergreen x64 Runtime；不提供 ARM64 或 32 位安装包。",
+      en: "Windows 10/11 x64 requires Microsoft Edge WebView2 Evergreen x64 Runtime. No ARM64 or 32-bit package is provided.",
+    },
+    webviewLink: {
+      zh: "从 Microsoft 获取 WebView2 ↗",
+      en: "Get WebView2 from Microsoft ↗",
+    },
+    windowsInstallTitle: { zh: "安装或解压", en: "Install or extract" },
+    windowsInstall: {
+      zh: "运行 setup.exe 安装包，为当前用户安装；或完整解压便携 ZIP，再打开 Bamboo/bamboo.exe。请保留同目录的 extensions 和 licenses 文件夹。",
+      en: "Run the setup.exe installer for the current user, or fully extract the portable ZIP and open Bamboo/bamboo.exe. Keep the extensions and licenses folders beside the executable.",
+    },
+    windowsLaunchTitle: { zh: "首次打开", en: "First launch" },
+    windowsLaunch: {
+      zh: "预览包尚未签名，可能显示 SmartScreen 警告。请先核对下载来源和版本说明；不要关闭系统保护。受管理的电脑请联系管理员。",
+      en: "Preview packages are unsigned and may trigger SmartScreen. Check the download source and release notes before proceeding; keep system protection enabled. On a managed computer, contact your administrator.",
+    },
+    desktopCloudTitle: {
+      zh: "云连接与后续更新",
+      en: "Cloud connections and updates",
+    },
+    windowsCloud: {
+      zh: "云访问凭据保存在 Windows 凭据管理器中。检查更新会打开正式版本页面，下载和安装由你手动完成。卸载前可先在 Bamboo 中删除不再需要的云连接。",
+      en: "Cloud credentials stay in Windows Credential Manager. Check for updates opens the official releases page; you download and install updates manually. Remove unwanted cloud connections in Bamboo before uninstalling.",
+    },
+    linuxRequirementsTitle: { zh: "检查桌面环境", en: "Check your desktop" },
+    linuxRequirements: {
+      zh: "已在 Ubuntu 22.04 x64 验证；兼容 Debian 的桌面系统需要 GTK 3、WebKitGTK 4.1 和 libsecret。其他发行版未验证，不提供 ARM64 安装包。",
+      en: "Validated on Ubuntu 22.04 x64. Compatible Debian desktops need GTK 3, WebKitGTK 4.1 and libsecret. Other distributions have not been validated; no ARM64 package is provided.",
+    },
+    linuxInstallTitle: { zh: "安装 DEB 或解压", en: "Install DEB or extract" },
+    linuxInstall: {
+      zh: "在下载目录使用以下命令安装 DEB，将文件名替换为实际下载的版本：",
+      en: "In your download folder, install the DEB with this command, replacing the filename with the downloaded version:",
+    },
+    linuxPortable: {
+      zh: "也可完整解压 tar.gz 并运行 Bamboo/bamboo。便携包不会安装系统依赖，请保留 extensions 和 licenses 文件夹。",
+      en: "Alternatively, fully extract the tar.gz and run Bamboo/bamboo. The portable archive does not install system libraries. Keep the extensions and licenses folders.",
+    },
+    linuxLaunchTitle: {
+      zh: "打开文件或连接云端",
+      en: "Open files or connect to cloud",
+    },
+    linuxCloud: {
+      zh: "本地文件可直接打开。云连接需要正在运行的用户 D-Bus 会话和已解锁的 Secret Service（例如 GNOME Keyring）；凭据库不可用时会提示错误，不会改用明文保存。",
+      en: "Local files work independently. Cloud connections need an active user D-Bus session and an unlocked Secret Service, such as GNOME Keyring. Unavailable credential storage produces an error; credentials never fall back to plaintext.",
+    },
+    desktopUpdatesTitle: {
+      zh: "后续更新与卸载",
+      en: "Updates and uninstalling",
+    },
+    linuxUpdates: {
+      zh: "检查更新会打开正式版本页面，下载和安装由你手动完成。卸载会保留设置和凭据；如不再需要，请先在 Bamboo 中删除云连接。",
+      en: "Check for updates opens the official releases page; you download and install updates manually. Uninstalling keeps settings and credentials. Remove unwanted cloud connections in Bamboo first.",
+    },
   };
   const languageSelect = document.getElementById("language-select");
   let language = "zh";
   const ui = (zh, en) => (language === "en" ? en : zh);
-  const phoneHint = () =>
-    ui(
-      "Bamboo 是 Mac 应用。请在 Apple Silicon Mac 上打开本页下载安装；手机上也可以先阅读下方的安装指引。",
-      "Bamboo is a Mac app. Open this page on an Apple Silicon Mac to download and install it. You can read the installation guide on your phone.",
-    );
   const setLanguage = (next) => {
     language = next === "en" ? "en" : "zh";
     document.documentElement.lang = language === "en" ? "en" : "zh-CN";
@@ -485,7 +543,7 @@
         ? ui("展开导航", "Open navigation")
         : ui("收起导航", "Close navigation"),
     );
-    if (!hint.hidden) hint.textContent = phoneHint();
+    updateDownloads();
   };
   const legalDialogs = [...document.querySelectorAll(".legal-dialog")];
   const syncLegalRoute = () => {
@@ -572,7 +630,112 @@
     if (event.matches) closeMenu();
   });
 
-  const hint = document.getElementById("download-hint");
+  const catalog = /* DOWNLOAD_CATALOG */ null;
+  const releasesURL = "https://github.com/OldPanda/bamboo/releases";
+  const platformNames = { macos: "macOS", windows: "Windows", linux: "Linux" };
+  const platformIcons = { macos: "apple", windows: "windows", linux: "linux" };
+  // iPadOS can advertise itself as a Mac; mobile systems must not auto-select a desktop build.
+  const detectPlatform = () => {
+    const ua = navigator.userAgent;
+    const platform =
+      navigator.userAgentData?.platform || navigator.platform || "";
+    if (
+      navigator.userAgentData?.mobile ||
+      /Android|iPhone|iPad|iPod|CrOS/i.test(ua) ||
+      (/Mac/i.test(platform) && navigator.maxTouchPoints > 1)
+    )
+      return "";
+    if (/Windows|Win32|Win64/i.test(platform + " " + ua)) return "windows";
+    if (/Mac/i.test(platform + " " + ua)) return "macos";
+    if (/Linux/i.test(platform + " " + ua)) return "linux";
+    return "";
+  };
+  let selectedPlatform = detectPlatform();
+  const selectors = [...document.querySelectorAll("[data-platform-select]")];
+  const updateDownloads = () => {
+    const name = platformNames[selectedPlatform];
+    const asset = catalog?.platforms[selectedPlatform];
+    const label = !name
+      ? ui("选择下载平台", "Choose a platform")
+      : asset
+        ? ui(`免费下载 ${name} 版`, `Download for ${name}`)
+        : ui(`查看 ${name} 发布状态`, `${name} release status`);
+    document.querySelectorAll(".download-link").forEach((link) => {
+      link.href = !name ? "#platform-select" : asset?.url || releasesURL;
+      link.querySelector("[data-download-label]").textContent = label;
+      link
+        .querySelector("[data-download-action-icon]")
+        .setAttribute("href", asset ? "#i-down" : "#i-arrow");
+      link
+        .querySelector("[data-platform-icon]")
+        .setAttribute(
+          "href",
+          `#i-${platformIcons[selectedPlatform] || "down"}`,
+        );
+    });
+    selectors.forEach((select) => {
+      select.value = selectedPlatform;
+    });
+    const requirements = {
+      macos: ui(
+        "Apple Silicon · macOS 12+ · 不支持 Intel Mac",
+        "Apple Silicon · macOS 12+ · Intel Macs not supported",
+      ),
+      windows: "Windows 10/11 · x64 · WebView2",
+      linux: "Ubuntu 22.04 / Debian · x64 · GTK 3 / WebKitGTK 4.1",
+    };
+    const unavailable = name
+      ? ui(
+          `${name} 安装包尚未正式发布。可前往 GitHub Releases 查看发布状态；以下为安装前提。`,
+          `No published ${name} installer yet. Check GitHub Releases for availability; installation requirements are below.`,
+        )
+      : "";
+    document.getElementById("download-status").textContent = asset
+      ? `${catalog.tag} · ${requirements[selectedPlatform]}`
+      : unavailable;
+    document.getElementById("install-availability").textContent = !name
+      ? ui(
+          "请先选择目标电脑的系统。",
+          "Choose the target computer’s platform first.",
+        )
+      : asset
+        ? `${catalog.tag} · ${requirements[selectedPlatform]}`
+        : unavailable;
+    document.getElementById("download-hint").hidden = Boolean(name);
+    document.querySelectorAll("[data-install-platform]").forEach((panel) => {
+      panel.hidden = panel.dataset.installPlatform !== selectedPlatform;
+    });
+    document.querySelectorAll("[data-macos-download]").forEach((link) => {
+      link.href = catalog?.platforms.macos?.url || releasesURL;
+      link.querySelector("span").textContent = catalog?.platforms.macos
+        ? translations.t10[language]
+        : ui("查看 macOS 发布状态", "macOS release status");
+    });
+    document.querySelector("#platform-availability").textContent =
+      Object.entries(platformNames)
+        .map(
+          ([key, title]) =>
+            `${title}: ${catalog?.platforms[key] ? ui("可下载", "available") : ui("尚未发布", "not published")}`,
+        )
+        .join(" · ");
+  };
+  selectors.forEach((select) =>
+    select.addEventListener("change", () => {
+      selectedPlatform = Object.hasOwn(platformNames, select.value)
+        ? select.value
+        : "";
+      updateDownloads();
+    }),
+  );
+  document.querySelectorAll(".download-link").forEach((link) =>
+    link.addEventListener("click", (event) => {
+      if (!selectedPlatform) {
+        event.preventDefault();
+        selectors[0].focus();
+        selectors[0].scrollIntoView({ block: "center", behavior: "instant" });
+      }
+    }),
+  );
   let preferredLanguage = navigator.language.toLowerCase().startsWith("zh")
     ? "zh"
     : "en";
@@ -600,20 +763,4 @@
       history.replaceState(null, "", url);
     }
   });
-  document.querySelectorAll(".download-link").forEach((link) =>
-    link.addEventListener("click", (event) => {
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        event.preventDefault();
-        hint.textContent = phoneHint();
-        hint.hidden = false;
-        hint.scrollIntoView({
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-            .matches
-            ? "instant"
-            : "smooth",
-          block: "center",
-        });
-      }
-    }),
-  );
 })();

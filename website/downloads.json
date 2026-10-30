@@ -1,0 +1,12 @@
+{
+  "tag": "v0.1.0",
+  "platforms": {
+    "macos": {
+      "name": "Bamboo-0.1.0-macOS-arm64.dmg",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.0/Bamboo-0.1.0-macOS-arm64.dmg",
+      "size": 34600683
+    },
+    "windows": null,
+    "linux": null
+  }
+}

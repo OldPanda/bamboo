@@ -1,4 +1,5 @@
 /** Build only public website files; optionally emit a standalone review copy. */
+import { validateCatalog } from "./download-catalog.mjs";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -13,7 +14,13 @@ await rm(output, { recursive: true, force: true });
 await mkdir(join(output, "assets"), { recursive: true });
 let html = await readFile(join(source, "index.html"), "utf8");
 const css = await readFile(join(source, "styles.css"), "utf8");
-const js = await readFile(join(source, "site.js"), "utf8");
+const catalog = validateCatalog(
+  JSON.parse(await readFile(join(source, "downloads.json"), "utf8")),
+);
+const js = (await readFile(join(source, "site.js"), "utf8")).replace(
+  "/* DOWNLOAD_CATALOG */ null",
+  JSON.stringify(catalog),
+);
 const images = new Map();
 for (const file of await readdir(join(source, "assets"))) {
   if (!/^[a-z0-9-]+-[a-f0-9]{16}\.(png|svg)$/.test(file))
