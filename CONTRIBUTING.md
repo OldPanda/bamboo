@@ -1,6 +1,9 @@
 # Contributing to Bamboo
 
-Bamboo currently builds on **macOS arm64**. Install Xcode Command Line Tools,
+Bamboo builds on **macOS arm64**, with native **Windows x64 and Linux x64**
+preview packaging on `feat/windows-linux-x64`. See [Windows/Linux](docs/windows-linux.md)
+for native toolchains, installation requirements and acceptance commands.
+For macOS, install Xcode Command Line Tools,
 Node.js 22 or newer, Python 3.12 or newer, and Go with toolchain download support.
 The release helper pins Go 1.27.3. Run commands from the repository root.
 

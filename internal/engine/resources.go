@@ -1,13 +1,13 @@
 package engine
 
 import (
+	"bamboo/internal/privatefs"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -68,13 +68,6 @@ func (e *Engine) Configure(r Resources, save func() error) error {
 
 const diskReserve = int64(1 << 30)
 
-func availableDisk(path string) (int64, error) {
-	var st syscall.Statfs_t
-	if err := syscall.Statfs(path, &st); err != nil {
-		return 0, err
-	}
-	return int64(st.Bavail) * int64(st.Bsize), nil
-}
 func spillAllowance(requested, available int64) int64 {
 	return max(0, min(requested, available-diskReserve))
 }
@@ -126,7 +119,7 @@ func newDatabase(ctx context.Context, configs ...Resources) (*database, error) {
 	db.SetMaxIdleConns(1)
 	fail := func(err error) (*database, error) { db.Close(); return nil, err }
 	if r.TempAuto || r.TempGiB > 0 {
-		dir, err := os.MkdirTemp("", "bamboo-query-*")
+		dir, err := privatefs.MkdirTemp("", "bamboo-query-*")
 		if err != nil {
 			return fail(err)
 		}

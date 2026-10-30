@@ -2,14 +2,21 @@
 
 package updater
 
-// Start leaves unsupported development platforms offline.
-func (c *Controller) Start() error { return nativeError(1) }
+import "github.com/egoist/mygo"
 
-// Status reports that signed macOS updates are unavailable on this platform.
-func (c *Controller) Status() (Status, error) { return Status{Version: "development"}, nil }
+var buildVersion = "development"
+var openReleasePage = func() error { return mygo.Shell.OpenExternal("https://github.com/OldPanda/bamboo/releases") }
 
-// Check refuses updates outside the supported native application.
-func (c *Controller) Check() error { return nativeError(1) }
+// Start performs no background network access or installation on these platforms.
+func (c *Controller) Start() error { return nil }
+
+// Status exposes manual release browsing and the stamped application version.
+func (c *Controller) Status() (Status, error) {
+	return Status{Version: buildVersion, CanCheck: true}, nil
+}
+
+// Check opens the fixed release page only after an explicit user action.
+func (c *Controller) Check() error { return openReleasePage() }
 
 // SetAutomatic refuses to save a preference the platform cannot honor.
 func (c *Controller) SetAutomatic(bool) error { return nativeError(1) }

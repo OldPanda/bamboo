@@ -1,6 +1,7 @@
 # Working on Bamboo
 
-Bamboo is a macOS Parquet workbench built with Go, MyGo, DuckDB and TypeScript.
+Bamboo is a Parquet workbench built with Go, MyGo, DuckDB and TypeScript,
+with macOS arm64 and native Windows/Linux x64 builds.
 It opens local files and folders plus explicitly configured Amazon S3 and
 Cloudflare R2 workspaces. Prioritize data integrity, exact values, bounded
 resource use and a quiet, clear desktop experience.
@@ -45,6 +46,9 @@ resource use and a quiet, clear desktop experience.
 - Export only the selected result snapshot. Never overwrite an existing file.
   Protect CSV headers and formula-like text while preserving valid numeric
   values; document any transformation and keep JSON available for exact values.
+- On Windows, private files and spill directories require protected native ACLs;
+  POSIX mode bits do not provide that protection. Permission-failure tests must
+  use real ACL denials rather than skipping the checks or relying on `Chmod`.
 - Render file names, data, errors and connection labels as text. Keep dynamic
   values out of HTML templates and preserve CSP and bridge/navigation controls.
 

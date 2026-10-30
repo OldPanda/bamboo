@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bamboo/internal/privatefs"
 	"encoding/json"
 	"errors"
 	"os"
@@ -32,7 +33,7 @@ func (w *Workbench) SetLanguage(language string) error {
 	if err := os.MkdirAll(w.configDir, 0700); err != nil {
 		return errors.New("could not save language")
 	}
-	f, err := os.CreateTemp(w.configDir, ".language-*")
+	f, err := privatefs.CreateTemp(w.configDir, ".language-*")
 	if err != nil {
 		return errors.New("could not save language")
 	}

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bamboo/internal/testutil"
 	"context"
 	"errors"
 	"os"
@@ -56,6 +57,7 @@ func TestResourceConfiguration(t *testing.T) {
 	}
 }
 func TestDiskSpillAndRecovery(t *testing.T) {
+	var err error
 	e, _ := setup(t)
 	// The minimum supported memory forces external sorting with this workload.
 	e.db.Close()
@@ -66,10 +68,7 @@ func TestDiskSpillAndRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := e.db.tempDir
-	stat, err := os.Stat(dir)
-	if err != nil || stat.Mode().Perm() != 0700 {
-		t.Fatal("private directory", err)
-	}
+	testutil.Private(t, dir, 0700)
 	result := make(chan error, 1)
 	go func() {
 		r, err := e.Query(context.Background(), req(spillQuery))

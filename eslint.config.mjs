@@ -47,7 +47,11 @@ export default ts.config(
     languageOptions: {
       sourceType: "script",
       parserOptions: { ecmaFeatures: { globalReturn: true } },
-      globals: { mygo: "readonly", workspacePhase: "readonly" },
+      globals: {
+        mygo: "readonly",
+        workspacePhase: "readonly",
+        smokePlatform: "readonly",
+      },
     },
   },
   // IPC test doubles intentionally accept arbitrary host payloads.

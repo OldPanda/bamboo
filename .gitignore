@@ -16,3 +16,6 @@ __pycache__/
 # Local lint tools and caches
 /.venv/
 /.ruff_cache/
+
+# Generated Windows executable resources
+/bamboo_windows_amd64.syso

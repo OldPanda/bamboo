@@ -1,7 +1,9 @@
 package cloudstorage
 
 import (
+	"bamboo/internal/testutil"
 	"bamboo/internal/workspace"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -207,5 +209,55 @@ func TestOriginalLocationAfterConnectionMove(t *testing.T) {
 	list, err := reloaded.Connections()
 	if err != nil || len(list) != 2 {
 		t.Fatal(list, err)
+	}
+}
+
+// A vault/client lookup can overlap Close. Rechecking the profile must prevent
+// a newly constructed client from reviving the closed workspace.
+func TestClientCreationCannotReopenClosedConnection(t *testing.T) {
+	s, _, vault := testStore(t, func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, listingXML("data/")) })
+	info, err := s.Connect(context.Background(), input())
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := info.Root
+	credentials := vault.data[root]
+	factory := s.clientFactory
+	s.clientFactory = func(config Config, cred Credentials) *Client {
+		client := factory(config, cred)
+		if err := s.Close(root); err != nil {
+			t.Fatal(err)
+		}
+		return client
+	}
+	if client, err := s.client(root); err == nil || client != nil {
+		t.Fatal("client construction reopened a closed workspace", err)
+	}
+	if s.clients[root] != nil || !s.profiles[root].Closed || vault.data[root] != credentials {
+		t.Fatal("closing during client construction changed credentials or retained a client")
+	}
+	if active, err := New(filepath.Dir(s.filename), vault).Restore(); err != nil || len(active) != 0 {
+		t.Fatal("closed state was not persisted", active, err)
+	}
+}
+
+func TestCloudCloseFailurePreservesProfileAndSettings(t *testing.T) {
+	s, _, vault := testStore(t, func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, listingXML("data/")) })
+	info, err := s.Connect(context.Background(), input())
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(s.filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentials := vault.data[info.Root]
+	testutil.DenyWrite(t, filepath.Dir(s.filename))
+	if err := s.Close(info.Root); err == nil {
+		t.Fatal("read-only settings directory accepted a mutation")
+	}
+	after, err := os.ReadFile(s.filename)
+	if err != nil || !bytes.Equal(before, after) || s.profiles[info.Root].Closed || vault.data[info.Root] != credentials {
+		t.Fatal("failed settings write changed persisted bytes, profile or credentials", err)
 	}
 }

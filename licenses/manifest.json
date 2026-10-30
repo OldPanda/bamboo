@@ -77,5 +77,19 @@
     "licenses": [
       "sparkle-LICENSE.txt"
     ]
+  },
+  {
+    "module": "go.duckdb.org/libduckdb/linux-amd64",
+    "version": "v0.20000.0",
+    "licenses": [
+      "go.duckdb.org_libduckdb_linux-amd64-LICENSE.txt"
+    ]
+  },
+  {
+    "module": "go.duckdb.org/libduckdb/windows-amd64",
+    "version": "v0.20000.0",
+    "licenses": [
+      "go.duckdb.org_libduckdb_windows-amd64-LICENSE.txt"
+    ]
   }
 ]

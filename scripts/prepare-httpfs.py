@@ -8,16 +8,41 @@ import pathlib
 import platform
 import subprocess
 
-if platform.system() != "Darwin" or platform.machine() != "arm64":
-    raise SystemExit("This cloud-reader build currently supports macOS arm64 only.")
-sha = "c2d72a98ad081bf4d62c908b8d9f60b70ab1b83faa9141fc7e7d53526658761d"
+targets = {
+    ("Darwin", "arm64"): (
+        "osx_arm64",
+        "c2d72a98ad081bf4d62c908b8d9f60b70ab1b83faa9141fc7e7d53526658761d",
+    ),
+    ("Linux", "x86_64"): (
+        "linux_amd64",
+        "77e6c429aa04f25da7962572f12b19113e0ce46080fa1365ad66017aadcdb68d",
+    ),
+    ("Windows", "amd64"): (
+        "windows_amd64_mingw",
+        "f243c4fb236dac6b5722373cf2ff1b85c95d2ae59212986309e32cc0e8d59967",
+    ),
+}
+try:
+    extension_platform, sha = targets[(platform.system(), platform.machine().lower())]
+except KeyError:
+    raise SystemExit("Unsupported native extension platform") from None
 target = pathlib.Path("build/extensions/httpfs.duckdb_extension")
 if target.exists() and hashlib.sha256(target.read_bytes()).hexdigest() == sha:
     raise SystemExit(0)
-url = "https://extensions.duckdb.org/v2.0.0/osx_arm64/httpfs.duckdb_extension.gz"
+url = f"https://extensions.duckdb.org/v2.0.0/{extension_platform}/httpfs.duckdb_extension.gz"
+compressed_limit = (
+    24 * 1024 * 1024
+    if extension_platform == "windows_amd64_mingw"
+    else 16 * 1024 * 1024
+)
+expanded_limit = (
+    96 * 1024 * 1024
+    if extension_platform == "windows_amd64_mingw"
+    else 32 * 1024 * 1024
+)
 compressed = subprocess.run(
     [
-        "/usr/bin/curl",
+        "curl",
         "--fail",
         "--location",
         "--proto",
@@ -27,17 +52,17 @@ compressed = subprocess.run(
         "--max-time",
         "60",
         "--max-filesize",
-        str(16 * 1024 * 1024),
+        str(compressed_limit),
         url,
     ],
     check=True,
     stdout=subprocess.PIPE,
 ).stdout
-if len(compressed) > 16 * 1024 * 1024:
+if len(compressed) > compressed_limit:
     raise SystemExit("Extension download exceeds limit")
 with gzip.GzipFile(fileobj=io.BytesIO(compressed)) as stream:
-    blob = stream.read(32 * 1024 * 1024 + 1)
-if len(blob) > 32 * 1024 * 1024:
+    blob = stream.read(expanded_limit + 1)
+if len(blob) > expanded_limit:
     raise SystemExit("Uncompressed extension exceeds limit")
 if hashlib.sha256(blob).hexdigest() != sha:
     raise SystemExit("Extension checksum mismatch")
@@ -45,4 +70,4 @@ target.parent.mkdir(parents=True, exist_ok=True)
 temp = target.with_suffix(".tmp")
 temp.write_bytes(blob)
 temp.replace(target)
-print("Verified DuckDB 2.0.0 httpfs for macOS arm64")
+print(f"Verified DuckDB 2.0.0 httpfs for {extension_platform}")

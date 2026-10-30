@@ -3,6 +3,7 @@ package main
 import (
 	"bamboo/internal/cloudstorage"
 	"bamboo/internal/engine"
+	"bamboo/internal/privatefs"
 	"bamboo/internal/workspace"
 	"context"
 	"encoding/csv"
@@ -125,7 +126,7 @@ func writeExport(path string, r *engine.Result) error {
 }
 func writeExportFormat(path string, r *engine.Result, format string) error {
 	return writeExportFormatWith(path, r, format, func(path string) (io.WriteCloser, error) {
-		return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+		return privatefs.Create(path)
 	})
 }
 

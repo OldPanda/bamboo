@@ -130,7 +130,7 @@ func TestRemoteBusyNeverResolvesAndErrorsHideURLs(t *testing.T) {
 
 func TestDatabaseStartupFailuresDoNotLeaveSpillDirectories(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("TMPDIR", dir)
+	setTempRoot(t, dir)
 	for _, spill := range []bool{false, true} {
 		r := DefaultResources()
 		r.TempAuto = spill
@@ -145,14 +145,14 @@ func TestDatabaseStartupFailuresDoNotLeaveSpillDirectories(t *testing.T) {
 	if err != nil || len(entries) != 0 {
 		t.Fatal("failed startup retained spill files", entries, err)
 	}
-	t.Setenv("TMPDIR", filepath.Join(dir, "missing"))
+	setTempRoot(t, filepath.Join(dir, "missing"))
 	if db, err := newDatabase(context.Background()); err == nil || db != nil {
 		t.Fatal("missing temp root accepted")
 	}
 	if _, err := availableDisk(filepath.Join(dir, "missing")); err == nil {
 		t.Fatal("missing volume accepted")
 	}
-	t.Setenv("TMPDIR", dir)
+	setTempRoot(t, dir)
 	e, _ := setup(t)
 	r := DefaultResources()
 	r.TimeoutSeconds = 0
@@ -232,5 +232,13 @@ func TestWorkspaceResolverRejectsInvalidAndDisappearedPaths(t *testing.T) {
 	}
 	if db, cleanup, err := e.queryDatabase(context.Background(), "SELECT 1; DROP VIEW data"); err == nil || db != nil || cleanup != nil {
 		t.Fatal("invalid SQL reached database creation")
+	}
+}
+
+// setTempRoot covers Unix and Windows without relying on the host's temp variable.
+func setTempRoot(t *testing.T, path string) {
+	t.Helper()
+	for _, key := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(key, path)
 	}
 }

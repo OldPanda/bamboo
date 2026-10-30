@@ -2,6 +2,7 @@ package cloudstorage
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/privatefs"
 	"bamboo/internal/workspace"
 	"context"
 	"crypto/sha256"
@@ -43,6 +44,10 @@ func New(dir string, vault Vault) *Store {
 	s := &Store{filename: filepath.Join(dir, "r2-workspaces.json"), vault: vault, profiles: map[string]profile{}, cursors: map[string][]string{}, clients: map[string]*Client{}, clientFactory: newClient}
 	f, err := os.Open(s.filename)
 	if os.IsNotExist(err) {
+		// Windows reports PATH_NOT_FOUND when a settings parent is a regular file.
+		if parent, parentErr := os.Stat(dir); parentErr == nil && !parent.IsDir() {
+			s.loadErr = errors.New("Cloud workspace settings parent is not a directory")
+		}
 		return s
 	}
 	if err != nil {
@@ -87,7 +92,7 @@ func (s *Store) persist(profiles map[string]profile) error {
 	if err = os.MkdirAll(filepath.Dir(s.filename), 0700); err != nil {
 		return errors.New("could not save cloud workspace settings")
 	}
-	f, err := os.CreateTemp(filepath.Dir(s.filename), ".r2-state-*")
+	f, err := privatefs.CreateTemp(filepath.Dir(s.filename), ".r2-state-*")
 	if err != nil {
 		return errors.New("could not save cloud workspace settings")
 	}

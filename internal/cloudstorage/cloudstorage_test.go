@@ -3,6 +3,7 @@ package cloudstorage
 import (
 	"bamboo/internal/engine"
 	"bamboo/internal/fixtures"
+	"bamboo/internal/testutil"
 	"bamboo/internal/workspace"
 	"bytes"
 	"context"
@@ -100,9 +101,7 @@ func TestStoreLifecycle(t *testing.T) {
 	if bytes.Contains(b, []byte("synthetic")) {
 		t.Fatal("credentials persisted in settings")
 	}
-	if st, _ := os.Stat(s.filename); st.Mode().Perm() != 0600 {
-		t.Fatal(st.Mode())
-	}
+	testutil.Private(t, s.filename, 0600)
 	page, e := s.List(ctx, root, ".", 0)
 	if e != nil || len(page.Entries) != 2 || page.Entries[0].Path != "nested" {
 		t.Fatal(page, e)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bamboo/internal/engine"
+	"bamboo/internal/privatefs"
 	"encoding/json"
 	"errors"
 	"os"
@@ -46,7 +47,7 @@ func (w *Workbench) SetResources(r engine.Resources) error {
 		if err := os.MkdirAll(w.configDir, 0700); err != nil {
 			return fail
 		}
-		f, err := os.CreateTemp(w.configDir, ".resources-*")
+		f, err := privatefs.CreateTemp(w.configDir, ".resources-*")
 		if err != nil {
 			return fail
 		}

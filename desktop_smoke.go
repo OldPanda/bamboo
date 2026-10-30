@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -66,7 +67,7 @@ func smoke(win *mygo.Window) {
 		report["error"] = err.Error()
 		return
 	}
-	source := string(script)
+	source := fmt.Sprintf("const smokePlatform = %q;\n", runtime.GOOS) + string(script)
 	if workspacePhase != "" {
 		source = fmt.Sprintf("const workspacePhase = %q;\n", workspacePhase) + source
 	}

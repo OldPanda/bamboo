@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bamboo/internal/testutil"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -59,10 +60,7 @@ func TestPersistence(t *testing.T) {
 	if info, e = next.Use(root); e != nil || info.Name != "Research" {
 		t.Fatal(info, e)
 	}
-	st, _ := os.Stat(filepath.Join(config, "workspaces.json"))
-	if st.Mode().Perm() != 0600 {
-		t.Fatal(st.Mode())
-	}
+	testutil.Private(t, filepath.Join(config, "workspaces.json"), 0600)
 	files, _ := os.ReadDir(root)
 	if len(files) != 1 {
 		t.Fatal("settings written into source folder")
@@ -140,8 +138,7 @@ func TestPathsAndListing(t *testing.T) {
 	if len(seen) != 401 {
 		t.Fatal(len(seen))
 	}
-	os.Chmod(nested, 0000)
-	defer os.Chmod(nested, 0700)
+	testutil.DenyRead(t, nested)
 	if _, e = s.List(root, "nested", 0); e == nil {
 		t.Fatal("unreadable directory")
 	}
@@ -175,8 +172,7 @@ func TestValidationAndFailureKeepsState(t *testing.T) {
 		t.Fatal("file as root")
 	}
 	unreadable := t.TempDir()
-	os.Chmod(unreadable, 0000)
-	defer os.Chmod(unreadable, 0700)
+	testutil.DenyRead(t, unreadable)
 	if _, e := s.Use(unreadable); e == nil {
 		t.Fatal("unreadable root")
 	}

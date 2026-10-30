@@ -2,6 +2,7 @@
 package workspace
 
 import (
+	"bamboo/internal/privatefs"
 	"encoding/json"
 	"errors"
 	"io"
@@ -69,6 +70,10 @@ func New(dir string) *Store {
 	s := &Store{path: filepath.Join(dir, "workspaces.json"), opened: map[string]bool{}, data: state{Version: 1, Profiles: map[string]*profile{}}}
 	f, err := os.Open(s.path)
 	if os.IsNotExist(err) {
+		// Windows reports PATH_NOT_FOUND when a settings parent is a regular file.
+		if parent, parentErr := os.Stat(dir); parentErr == nil && !parent.IsDir() {
+			s.loadErr = errors.New("workspace settings parent is not a directory")
+		}
 		return s
 	}
 	if err != nil {
@@ -108,7 +113,8 @@ func New(dir string) *Store {
 	return s
 }
 func relative(p string) bool {
-	return p != "" && !filepath.IsAbs(p) && filepath.Clean(p) == p && p != ".." && !strings.HasPrefix(p, ".."+string(os.PathSeparator))
+	p = filepath.FromSlash(p)
+	return filepath.IsLocal(p) && filepath.Clean(p) == p && p != ".." && !strings.HasPrefix(p, ".."+string(os.PathSeparator))
 }
 func validQuery(q Query) bool { return len(q.Draft) <= 32768 && len(q.Applied) <= 32768 }
 func (s *Store) write(d state) error {
@@ -122,7 +128,7 @@ func (s *Store) write(d state) error {
 	if err = os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(s.path), ".workspace-*")
+	f, err := privatefs.CreateTemp(filepath.Dir(s.path), ".workspace-*")
 	if err != nil {
 		return err
 	}
@@ -319,7 +325,7 @@ func (s *Store) List(root, rel string, offset int) (*Page, error) {
 			continue
 		}
 		if e.IsDir() || e.Type().IsRegular() && strings.EqualFold(filepath.Ext(e.Name()), ".parquet") {
-			p.Entries = append(p.Entries, Entry{Name: e.Name(), Path: filepath.Join(rel, e.Name()), Directory: e.IsDir()})
+			p.Entries = append(p.Entries, Entry{Name: e.Name(), Path: filepath.ToSlash(filepath.Join(rel, e.Name())), Directory: e.IsDir()})
 		}
 	}
 	return p, nil

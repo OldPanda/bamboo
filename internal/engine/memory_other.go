@@ -1,6 +1,6 @@
-//go:build !darwin
+//go:build !darwin && !linux && !windows
 
 package engine
 
-// Bamboo currently ships on macOS; other platforms use conservative budgets.
+// Unsupported platforms use conservative budgets.
 func physicalMemoryMiB() int { return 0 }
