@@ -72,88 +72,89 @@ The hero download button follows the browser’s desktop OS. A published install
 
 ### Automatic release synchronization
 
-[Release website sync](../.github/workflows/release-website.yml) listens for the
-completion of `Release` with `workflow_run`. It runs trusted `main` scripts,
-requires a successful tag-triggered run in this repository and explicitly checks
-the macOS, Windows/Linux build, publication and hosted native acceptance jobs.
-The tag must still resolve to the verified commit. Drafts and prereleases do not
-change the catalog. This also works for releases created using `GITHUB_TOKEN`;
-it does not depend on a recursively triggered `release: published` event.
-One shared concurrency group serializes updates. Because GitHub can replace a
-pending event, automatic runs first reconcile successful Release runs created
-since their source run, selecting the highest stable version by its exact run ID.
-Thus a late older completion still catches a newer release whose pending event
-was replaced. The search is bounded to 1000 runs; exceeding that bound fails
-visibly and requires dispatching the newest successful run explicitly. Manual
-dispatch always uses precisely the supplied ID. Neither path uses `releases/latest`.
+[Release website sync](../.github/workflows/release-website.yml) consumes successful
+`Release` completions using trusted `main` code. Before proposing a catalog it
+requires the exact `refs/tags/<version>` (including annotated tags) to resolve to
+the successful run's commit, and that commit to be in `main` history. All native
+build, publication and hosted acceptance gates must pass. Partial reruns retain
+earlier successful jobs; a newer failed or skipped execution cannot be hidden by
+an old success. Run/job collections are paginated and bounded (1000 entries,
+20 attempts), with excess reported as an error.
 
-For the exact verified tag, the sync downloads all five public packages as
-bounded streams, verifies their sizes and SHA-256 sidecars, and proposes only
-`website/downloads.json` on a dedicated branch based on current `main`. The
-catalog includes actual asset URLs and byte sizes. Versions compare numerically;
-late older runs and identical catalogs produce no commit or PR. An advertised
-version whose metadata changed fails instead of silently replacing it.
+All five hosted packages must match their real byte sizes and SHA-256 sidecars.
+Only `website/downloads.json` can change. A deterministic branch and normal PR
+preserve existing branch rules; there is no direct main push, synthetic check,
+self-approval or protection bypass. The sync waits for the newest `pull_request`
+runs of `ci.yml` and `website.yml` with the exact repository, PR, head and base,
+then verifies the real job results. A changed main creates a fresh checked
+proposal (at most three bases within the 180-minute job limit).
 
-The workflow creates a normal PR and waits for the **`pull_request`-triggered**
-checks on its exact head — the same `PR quality gate` and website checks the
-main ruleset evaluates before a merge. It never approves its own PR, bypasses
-protections, writes synthetic check statuses, or pushes directly to `main`. If
-`main` advances during checks, it closes the stale proposal, recreates it on
-the fresh base, and checks again (up to three bases within the 180-minute job
-limit). Retry branches are deterministic and inspected for unexpected changes
-before reuse; no force push is needed.
+A shared concurrency group serializes updates. Automatic runs reconcile retained
+successful Release runs and select the highest stable numeric version, so a
+replaced pending event cannot lose a newer release. The 1000-run bound fails
+visibly; manual dispatch always verifies precisely the supplied run ID. Neither
+path uses `releases/latest`. Older versions cannot downgrade the catalog, and an
+already advertised version with changed metadata is rejected.
 
-Opening a PR with the workflow's own short-lived token does not run its
-`pull_request` workflows, so unattended checks and merging need a second
-identity that GitHub allows to trigger workflows: store a **GitHub App
-installation token** (or a narrowly scoped fine-grained PAT, `contents: write`,
-`pull-requests: write`, `checks: read`, `actions: read` on this repository) in
-the `SYNC_APP_TOKEN` Actions secret. With it, the PR creation triggers the
-required checks and the sync merges after they pass. Without it, the sync still
-verifies the release and opens the catalog PR, then stops at `manual:` — merge
-it yourself after the checks finish (reopen the PR if its checks were not run).
+#### One-time GitHub App configuration
 
-The merge's push event reaches the already installed Cloudflare Workers and
-Pages GitHub App, which builds production from `main`. GitHub Actions' recursion
-restriction applies to Actions, not that external Git integration. The sync
-waits up to 15 minutes for Cloudflare's successful check on the merge SHA and
-checks the five links and displayed sizes on both `/en/` and `/zh/`. A missing
-or failed deployment fails the sync visibly; it never reports deployment success
-merely because a PR merged. The browser still uses static bilingual HTML and
-the bundled catalog, with no runtime GitHub API request.
+Unattended PR checks need a GitHub App identity. The built-in `GITHUB_TOKEN`
+requires human approval for generated PR workflows; it cannot provide this
+unattended flow. Use a dedicated GitHub App installed **only on `OldPanda/bamboo`**
+with repository permissions Contents and Pull requests **read/write**, Actions
+and Checks **read-only**. Grant no branch-rule bypass. Store:
 
-One repository setting is required: **Settings → Actions → General → Allow
-GitHub Actions to create and approve pull requests**. Keep default workflow
-permissions read-only; only this job requests `contents: write`,
-`pull-requests: write`, `actions: read`, and `checks: read`. For unattended
-merge, add the `SYNC_APP_TOKEN` secret described above. No Cloudflare token,
-deployment hook or user signing key is needed. Keep the existing branch rules
-intact. If future rules require human approval, automation stops at that rule;
-do not grant bypass rights to make it merge.
+- Actions variable `SYNC_APP_ID`: numeric GitHub App ID.
+- Actions variable `SYNC_APP_INSTALLATION_ID`: its installation ID.
+- Actions secret `SYNC_APP_PRIVATE_KEY`: the App's RSA private key (PEM).
 
-For recovery, rerun the failed sync, or dispatch `Release website sync` on `main`
-with the original successful **Release run ID**. `dry_run` defaults to true and
-performs verification without writes; set it to false to resume an update. Fix
-or rerun failed CI on the catalog branch before retrying. If the catalog has
-already merged but Pages failed, retry the production deployment in Pages;
-an unchanged catalog intentionally does not manufacture another commit. Network,
-missing-asset and hash failures leave the old catalog untouched. No step edits
-tags or release assets. A newly published release with failed native acceptance
-is not advertised, even if GitHub calls it "latest".
+The script mints an installation token at runtime restricted to Bamboo's
+repository ID and those permissions. It refreshes the token five minutes before
+expiry, including during long CI waits. Generated credentials are masked; API
+authentication is never sent to public asset downloads. The built-in workflow
+token stays read-only. No PAT, stored installation token, Cloudflare deployment
+token or owner's GPG key is used. Missing configuration fails before any write;
+there is no successful manual-merge fallback.
 
-Read-only local validation of a specific successful release is also available:
+These settings are prerequisites, not created by merging the workflow. Configure
+them through GitHub's secure settings before enabling unattended synchronization;
+never put credentials in PR comments or source files.
+
+#### Deployment confirmation and recovery
+
+Cloudflare's existing Pages Git integration deploys the merge on `main`. The sync
+requires its successful check on that commit and all five links/byte-size labels
+on both `/en/` and `/zh/`. The website continues to serve static bilingual HTML,
+without runtime GitHub API requests.
+
+If merge succeeds but deployment fails or the sync is interrupted, rerunning the
+same release recovers the most recent catalog-changing commit from `main` history
+and checks its deployment plus both public pages again. This also covers manually
+merged catalog PRs. An unchanged catalog never creates another commit/PR, but is
+not considered synchronized until production is confirmed. If Pages itself failed,
+fix and retry that deployment in Pages; a sync retry only verifies it.
+
+Rerun the failed sync, or dispatch `Release website sync` on `main` with the
+successful **Release run ID**. `dry_run` defaults to true: it verifies release
+identity and packages without writes or production confirmation. Set it to false
+to synchronize or resume deployment verification. Fix/rerun failed catalog PR CI
+before retrying. Network, missing-asset and checksum failures leave the catalog
+untouched. The sync never edits tags, release assets or branch protections.
+
+Read-only local validation needs no App key:
 
 ```sh
 DRY_RUN=true RELEASE_RUN_ID=41144883695 node website/scripts/sync-release.mjs
 ```
 
-The script defaults to dry-run outside Actions; public API rate limits may apply.
-Offline regressions exercise failed verification, stale versions, tampered
-branches, explicit dispatch, failed CI, advancing `main`, and deployment checks.
-An unchanged existing release can verify idempotency without creating a commit;
-it cannot exercise a new catalog merge/deployment or a future tag event.
+Public API rate limits may apply. Offline tests cover token renewal, partial
+reruns, exact tag refs, PR run provenance, pagination, failures, retries and
+production recovery. A dry run of an unchanged release cannot demonstrate an
+automatic catalog merge/deployment or a future tag-triggered run; verify those
+with the configured App before claiming full production acceptance.
 
 References: [GitHub workflow triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow),
+[GitHub App installation authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation),
 [workflow_run security and behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run),
 [Cloudflare Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/).
 

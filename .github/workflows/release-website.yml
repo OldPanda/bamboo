@@ -31,8 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
       actions: read
       checks: read
     steps:
@@ -47,7 +46,9 @@ jobs:
       - name: Verify release, check catalog PR and merge
         env:
           GH_TOKEN: ${{ github.token }}
-          SYNC_TOKEN: ${{ secrets.SYNC_APP_TOKEN }}
+          SYNC_APP_ID: ${{ vars.SYNC_APP_ID }}
+          SYNC_APP_INSTALLATION_ID: ${{ vars.SYNC_APP_INSTALLATION_ID }}
+          SYNC_APP_PRIVATE_KEY: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
           RELEASE_RUN_ID: ${{ github.event.workflow_run.id || inputs.release_run_id }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           COALESCE_RELEASES: ${{ github.event_name == 'workflow_run' }}

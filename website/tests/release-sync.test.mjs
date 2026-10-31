@@ -15,6 +15,9 @@ import {
   synchronize,
   verifyDeployment,
   newestSuccessfulRun,
+  latestJobs,
+  tagCommit,
+  pullRequestChecks,
 } from "../scripts/sync-release.mjs";
 
 test("a late pending event reconciles newer successful runs by exact numeric version", async () => {
@@ -167,6 +170,7 @@ function harness({
   let main = "base",
     changed = false;
   const run = {
+    id: 123,
     repository: { full_name: "OldPanda/bamboo" },
     head_repository: { full_name: "OldPanda/bamboo" },
     path: ".github/workflows/release.yml",
@@ -187,7 +191,13 @@ function harness({
     ].flatMap((p) =>
       ["ubuntu-22.04", "windows-2025"].map((os) => `${p} / desktop (${os})`),
     ),
-  ].map((name) => ({ name, conclusion: "success" }));
+  ].map((name) => ({
+    name,
+    conclusion: "success",
+    status: "completed",
+    run_id: 123,
+    head_sha: "tagsha",
+  }));
   const file = (catalog) => ({
     sha: "blob",
     content: Buffer.from(JSON.stringify(catalog)).toString("base64"),
@@ -195,33 +205,55 @@ function harness({
   const api = async (path, method = "GET", body) => {
     if (method !== "GET") writes.push({ path, method, body });
     if (path === "actions/runs/123") return run;
-    if (path.includes("/attempts/1/jobs")) return { jobs };
-    if (path.startsWith("commits/")) {
-      if (path.includes("/check-runs?")) {
-        if (changeMain && !changed) {
-          main = "newbase";
-          changed = true;
-        }
-        return {
-          check_runs: [
-            {
-              name: "PR quality gate",
-              head_sha: path.split("/")[1],
-              status: "completed",
-              conclusion: failedCI ? "failure" : "success",
-              html_url: "https://example.com/ci",
-            },
-            {
-              name: "Website build and browser checks",
-              head_sha: path.split("/")[1],
-              status: "completed",
-              conclusion: "success",
-              html_url: "https://example.com/website",
-            },
-          ],
-        };
+    if (path.startsWith("actions/runs/123/attempts/1/jobs"))
+      return { total_count: jobs.length, jobs };
+    if (path === "git/ref/tags/v1.2.3")
+      return {
+        ref: "refs/tags/v1.2.3",
+        object: { type: "commit", sha: "tagsha" },
+      };
+    if (path.startsWith("commits?")) return [{ sha: main }];
+    if (path.startsWith("actions/workflows/")) {
+      if (changeMain && !changed) {
+        main = "newbase";
+        changed = true;
       }
-      return { sha: "tagsha" };
+      const workflow = path.split("/")[2],
+        sha = new URLSearchParams(path.split("?")[1]).get("head_sha");
+      const pr = [...prs.values()].find((item) => item.head.sha === sha);
+      const checkRun = {
+        id: workflow === "ci.yml" ? 2001 : 2002,
+        run_attempt: 1,
+        path: `.github/workflows/${workflow}`,
+        event: "pull_request",
+        head_sha: sha,
+        repository: { full_name: "OldPanda/bamboo" },
+        head_repository: { full_name: "OldPanda/bamboo" },
+        pull_requests: [pr],
+        status: "completed",
+        conclusion: failedCI ? "failure" : "success",
+      };
+      state[checkRun.id] = checkRun;
+      return { total_count: 1, workflow_runs: [checkRun] };
+    }
+    if (path.startsWith("actions/runs/20")) {
+      const id = Number(path.split("/")[2]),
+        checkRun = state[id];
+      return {
+        total_count: 1,
+        jobs: [
+          {
+            name:
+              id === 2001
+                ? "PR quality gate"
+                : "Website build and browser checks",
+            run_id: id,
+            head_sha: checkRun.head_sha,
+            status: "completed",
+            conclusion: "success",
+          },
+        ],
+      };
     }
     if (path.startsWith("releases/tags/")) return release;
     if (path === "git/ref/heads/main") return { object: { sha: main } };
@@ -264,7 +296,8 @@ function harness({
       const pr = {
         number: prs.size + 1,
         state: "open",
-        head: { ref: body.head },
+        head: { ref: body.head, sha: branches.get(body.head) },
+        base: { ref: "main", sha: main },
         html_url: "https://example.com/pr",
       };
       prs.set(pr.number, pr);
@@ -313,7 +346,7 @@ test("successful sync waits for pull_request checks and only then merges the exa
     ["contents/website/downloads.json"],
   );
   const count = h.writes.length;
-  assert.equal(await synchronize(h.options), "unchanged");
+  assert.equal(await synchronize(h.options), "unchanged: production verified");
   assert.equal(h.writes.length, count);
 });
 
@@ -375,7 +408,7 @@ test("foreign runs, moved tags, unmerged tags and missing native acceptance cann
 test("a retry reuses the catalog branch and PR after an interrupted check", async () => {
   const h = harness();
   const interruptedAPI = (path, method, body) => {
-    if (path.includes("/check-runs?")) throw Error("interrupted");
+    if (path.includes("/runs?event=pull_request")) throw Error("interrupted");
     return h.api(path, method, body);
   };
   await assert.rejects(
@@ -388,16 +421,6 @@ test("a retry reuses the catalog branch and PR after an interrupted check", asyn
     h.writes.filter((w) => w.path === "contents/website/downloads.json").length,
     1,
   );
-});
-
-test("without a sync token the catalog PR is left for manual merge", async () => {
-  const h = harness();
-  assert.match(
-    await synchronize({ ...h.options, autoMerge: false }),
-    /^manual: /,
-  );
-  assert(h.writes.some((w) => w.path === "pulls"));
-  assert(!h.writes.some((w) => w.path.endsWith("/merge")));
 });
 
 test("main advancing closes the stale proposal and verifies a fresh branch", async () => {
@@ -470,5 +493,214 @@ test("production confirmation requires Cloudflare's exact commit and both locale
       async () => new Response("old version"),
     ),
     /not deployed/,
+  );
+});
+
+test("partial reruns retain earlier successful gates but never mask a newer failure", async () => {
+  const run = { id: 50, head_sha: "same", run_attempt: 2 };
+  const job = (name, conclusion) => ({
+    name,
+    conclusion,
+    status: "completed",
+    run_id: 50,
+    head_sha: "same",
+  });
+  let latest = job("acceptance", "success");
+  const api = async (path) => {
+    const jobs = path.includes("/attempts/2/")
+      ? [latest]
+      : [job("build", "success"), job("acceptance", "failure")];
+    return { total_count: jobs.length, jobs };
+  };
+  let found = await latestJobs(api, run, ["build", "acceptance"]);
+  assert.equal(found.get("build").conclusion, "success");
+  assert.equal(found.get("acceptance").conclusion, "success");
+  latest = job("build", "failure");
+  found = await latestJobs(api, run, ["build", "acceptance"]);
+  assert.equal(found.get("build").conclusion, "failure");
+  await assert.rejects(
+    latestJobs(
+      async () => ({
+        total_count: 1,
+        jobs: [{ ...latest, head_sha: "foreign" }],
+      }),
+      run,
+      ["build"],
+    ),
+    /Foreign workflow job/,
+  );
+});
+
+test("job pagination cannot omit the required gate", async () => {
+  const run = { id: 50, head_sha: "same", run_attempt: 1 };
+  const filler = Array.from({ length: 100 }, (_, i) => ({
+    name: `matrix-${i}`,
+    run_id: 50,
+    head_sha: "same",
+  }));
+  const found = await latestJobs(
+    async (path) => ({
+      total_count: 101,
+      jobs: path.endsWith("page=1")
+        ? filler
+        : [
+            {
+              name: "gate",
+              run_id: 50,
+              head_sha: "same",
+              conclusion: "success",
+            },
+          ],
+    }),
+    run,
+    ["gate"],
+  );
+  assert.equal(found.get("gate").conclusion, "success");
+});
+
+test("exact tag refs peel annotations and reject missing refs, trees and cycles", async () => {
+  assert.equal(
+    await tagCommit(
+      async (path) =>
+        path.startsWith("git/ref/tags/")
+          ? {
+              ref: "refs/tags/v1.2.3",
+              object: { type: "tag", sha: "annotation" },
+            }
+          : { object: { type: "commit", sha: "commit" } },
+      "v1.2.3",
+    ),
+    "commit",
+  );
+  for (const object of [
+    { type: "tree", sha: "tree" },
+    { type: "tag", sha: "cycle" },
+  ]) {
+    await assert.rejects(
+      tagCommit(
+        async (path) =>
+          path.startsWith("git/ref/tags/")
+            ? { ref: "refs/tags/v1.2.3", object }
+            : { object },
+        "v1.2.3",
+      ),
+      /Invalid annotated tag/,
+    );
+  }
+  const h = harness();
+  const api = (path, method, body) => {
+    if (path.startsWith("git/ref/tags/"))
+      throw Error("HTTP 404: exact tag missing");
+    if (path === "commits/v1.2.3") return { sha: "tagsha" }; // a branch must not stand in for a tag
+    return h.api(path, method, body);
+  };
+  await assert.rejects(synchronize({ ...h.options, api }), /exact tag missing/);
+  assert.equal(h.writes.length, 0);
+});
+
+test("recovery after merge still checks production without another commit or PR", async () => {
+  const h = harness();
+  let checks = 0;
+  const deploy = async () => {
+    checks++;
+    throw Error("production still old");
+  };
+  await assert.rejects(
+    synchronize({ ...h.options, deploy }),
+    /production still old/,
+  );
+  const writes = h.writes.length;
+  await assert.rejects(
+    synchronize({ ...h.options, deploy }),
+    /production still old/,
+  );
+  assert.equal(checks, 2);
+  assert.equal(h.writes.length, writes);
+  let recovered;
+  assert.equal(
+    await synchronize({
+      ...h.options,
+      deploy: async (_api, sha) => {
+        recovered = sha;
+      },
+    }),
+    "unchanged: production verified",
+  );
+  assert.equal(recovered, "merged");
+});
+
+test("already-current manual catalog still requires production confirmation; dry run never deploys", async () => {
+  const h = harness({ current: "v1.2.3" });
+  const deploy = async () => {
+    throw Error("manual merge not deployed");
+  };
+  await assert.rejects(
+    synchronize({ ...h.options, deploy }),
+    /manual merge not deployed/,
+  );
+  assert.equal(
+    await synchronize({ ...h.options, dryRun: true, deploy }),
+    "dry-run: unchanged",
+  );
+  assert.equal(h.writes.length, 0);
+});
+
+test("PR gates reject wrong events, workflows, forks, PRs, heads and bases", async () => {
+  const good = {
+    id: 20,
+    run_attempt: 1,
+    path: ".github/workflows/ci.yml",
+    event: "pull_request",
+    head_sha: "head",
+    repository: { full_name: "OldPanda/bamboo" },
+    head_repository: { full_name: "OldPanda/bamboo" },
+    pull_requests: [
+      { number: 7, head: { sha: "head" }, base: { ref: "main", sha: "base" } },
+    ],
+    status: "completed",
+    conclusion: "success",
+  };
+  for (const mutate of [
+    (r) => {
+      r.event = "workflow_dispatch";
+    },
+    (r) => {
+      r.path = ".github/workflows/other.yml";
+    },
+    (r) => {
+      r.head_repository.full_name = "fork/bamboo";
+    },
+    (r) => {
+      r.head_sha = "other";
+    },
+    (r) => {
+      r.pull_requests[0].number = 8;
+    },
+    (r) => {
+      r.pull_requests[0].base.sha = "other";
+    },
+    (r) => {
+      r.pull_requests[0].head.sha = "other";
+    },
+  ]) {
+    const wrong = structuredClone(good);
+    mutate(wrong);
+    const api = async () => ({ total_count: 1, workflow_runs: [wrong] });
+    await assert.rejects(
+      pullRequestChecks(api, { number: 7 }, "head", "base", async () => {
+        throw Error("not eligible");
+      }),
+      /not eligible/,
+    );
+  }
+  const failed = { ...good, id: 21, conclusion: "failure" };
+  await assert.rejects(
+    pullRequestChecks(
+      async () => ({ total_count: 2, workflow_runs: [good, failed] }),
+      { number: 7 },
+      "head",
+      "base",
+    ),
+    /ci.yml failed/,
   );
 });

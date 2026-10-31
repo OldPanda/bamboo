@@ -1,6 +1,7 @@
 /** Release → verified catalog → checked PR → main → existing Pages Git integration. */
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { installationToken } from "./sync-auth.mjs";
 import { pathToFileURL } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
@@ -11,49 +12,107 @@ import {
 
 const repository = "OldPanda/bamboo";
 const catalogPath = "website/downloads.json";
-// The main ruleset requires these check runs to pass on the PR head before a
-// merge. On a non-main branch they only come from the pull_request event, so
-// waiting on them is exactly the gate GitHub evaluates at merge time.
-const requiredChecks = ["PR quality gate", "Website build and browser checks"];
+// Read Actions runs belonging to these workflows, not arbitrary same-name checks.
+const requiredWorkflows = [
+  ["ci.yml", "PR quality gate"],
+  ["website.yml", "Website build and browser checks"],
+];
+
+/** Bound and paginate repository API collections; truncation is never success. */
+async function collection(api, path, key) {
+  const items = [];
+  for (let page = 1; page <= 10; page++) {
+    const result = await api(
+      `${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`,
+    );
+    assert(result.total_count <= 1000, "API collection exceeds 1000 entries");
+    items.push(...result[key]);
+    if (items.length >= result.total_count) return items;
+  }
+  throw Error("API pagination exceeded its bound");
+}
+
+/** Keep the latest execution of each gate, including gates not rerun this time. */
+export async function latestJobs(api, run, names) {
+  assert(
+    Number.isSafeInteger(run.run_attempt) &&
+      run.run_attempt > 0 &&
+      run.run_attempt <= 20,
+    "Unexpected workflow attempt count",
+  );
+  const found = new Map();
+  for (let attempt = run.run_attempt; attempt >= 1; attempt--) {
+    const jobs = await collection(
+      api,
+      `actions/runs/${run.id}/attempts/${attempt}/jobs`,
+      "jobs",
+    );
+    const seen = new Set();
+    for (const job of jobs) {
+      assert(
+        job.run_id === run.id && job.head_sha === run.head_sha,
+        "Foreign workflow job",
+      );
+      assert(!seen.has(job.name), "Ambiguous workflow job name");
+      seen.add(job.name);
+      if (!found.has(job.name)) found.set(job.name, job);
+    }
+    if (names.every((name) => found.has(name))) break;
+  }
+  return found;
+}
+
+/** Resolve only refs/tags, including annotated tags, never a same-named branch. */
+export async function tagCommit(api, tag) {
+  const ref = await api(`git/ref/tags/${encodeURIComponent(tag)}`);
+  assert.equal(ref.ref, `refs/tags/${tag}`, "Unexpected tag ref");
+  let object = ref.object;
+  const seen = new Set();
+  for (let depth = 0; depth < 10; depth++) {
+    if (object.type === "commit") return object.sha;
+    assert(
+      object.type === "tag" && !seen.has(object.sha),
+      "Invalid annotated tag",
+    );
+    seen.add(object.sha);
+    object = (await api(`git/tags/${encodeURIComponent(object.sha)}`)).object;
+  }
+  throw Error("Annotated tag nesting exceeded its bound");
+}
 
 /** A replaced pending event must still reconcile every newer successful release run. */
 export async function newestSuccessfulRun(api, sourceID) {
   const source = await api(`actions/runs/${sourceID}`);
   let selected = source;
-  // Search from the source run's creation time: even an old, slow release that
-  // finishes late cannot hide a newer success behind GitHub's pending-run limit.
-  const since = encodeURIComponent(`>=${source.created_at}`);
-  for (let page = 1; page <= 10; page++) {
-    const result = await api(
-      `actions/workflows/release.yml/runs?status=success&event=push&created=${since}&per_page=100&page=${page}`,
-    );
-    assert(
-      result.total_count <= 1000,
-      "More than 1000 release runs need reconciliation; dispatch the newest successful release explicitly",
-    );
-    for (const run of result.workflow_runs) {
-      if (
-        /^v\d+\.\d+\.\d+$/.test(run.head_branch) &&
-        (!/^v\d+\.\d+\.\d+$/.test(selected.head_branch) ||
-          compareTags(run.head_branch, selected.head_branch) > 0)
-      )
-        selected = run;
-    }
-    if (page * 100 >= result.total_count) return selected.id;
+  // Reconcile all retained successes: a later-created older tag must not hide a
+  // higher version whose pending workflow_run was replaced by concurrency.
+  const runs = await collection(
+    api,
+    "actions/workflows/release.yml/runs?status=success&event=push",
+    "workflow_runs",
+  );
+  for (const run of runs) {
+    if (
+      /^v\d+\.\d+\.\d+$/.test(run.head_branch) &&
+      (!/^v\d+\.\d+\.\d+$/.test(selected.head_branch) ||
+        compareTags(run.head_branch, selected.head_branch) > 0)
+    )
+      selected = run;
   }
-  throw Error("Release run pagination exceeded its bound");
+  return selected.id;
 }
 
-/** Use only the repository-scoped Actions token; never forward it to downloads. */
+/** Resolve fresh credentials for each repository request; never send them to downloads. */
 export function githubAPI(token, fetcher = fetch) {
   return async (path, method = "GET", body) => {
+    const credential = typeof token === "function" ? await token() : token;
     const response = await fetcher(
       `https://api.github.com/repos/${repository}/${path}`,
       {
         method,
         headers: {
           Accept: "application/vnd.github+json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(credential ? { Authorization: `Bearer ${credential}` } : {}),
           "X-GitHub-Api-Version": "2022-11-28",
         },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -70,6 +129,7 @@ export function githubAPI(token, fetcher = fetch) {
 export async function releaseForRun(api, runID) {
   assert(/^\d+$/.test(String(runID)), "A Release run ID is required");
   const run = await api(`actions/runs/${runID}`);
+  assert.equal(String(run.id), String(runID), "Unexpected release run ID");
   assert(
     run.repository.full_name === repository &&
       run.head_repository.full_name === repository,
@@ -84,10 +144,7 @@ export async function releaseForRun(api, runID) {
   );
   // Prereleases are intentionally ignored, even if their packaging succeeded.
   if (!/^v\d+\.\d+\.\d+$/.test(run.head_branch)) return null;
-  const jobs = await api(
-    `actions/runs/${runID}/attempts/${run.run_attempt}/jobs?per_page=100`,
-  );
-  for (const name of [
+  const names = [
     "Release quality gate / PR quality gate",
     "Build macOS DMG",
     "Publish GitHub Release",
@@ -99,16 +156,16 @@ export async function releaseForRun(api, runID) {
         (os) => `${prefix} / desktop (${os})`,
       ),
     ),
-  ])
+  ];
+  const jobs = await latestJobs(api, run, names);
+  for (const name of names)
     assert(
-      jobs.jobs.some(
-        (job) => job.name === name && job.conclusion === "success",
-      ),
+      jobs.get(name)?.status === "completed" &&
+        jobs.get(name)?.conclusion === "success",
       `Missing successful release gate: ${name}`,
     );
-  const commit = await api(`commits/${encodeURIComponent(run.head_branch)}`);
   assert.equal(
-    commit.sha,
+    await tagCommit(api, run.head_branch),
     run.head_sha,
     "Release tag moved since verification",
   );
@@ -142,31 +199,71 @@ async function mainSnapshot(api) {
   };
 }
 
-async function pullRequestChecks(api, sha, wait) {
+/** Await the newest eligible run of each trusted workflow for this exact PR/base/head. */
+export async function pullRequestChecks(api, pr, sha, baseSHA, wait = sleep) {
   const deadline = Date.now() + 75 * 60 * 1000;
-  let runs;
   for (;;) {
-    runs = await api(`commits/${sha}/check-runs?per_page=100`);
-    const byName = new Map(runs.check_runs.map((check) => [check.name, check]));
-    const pending = requiredChecks.filter(
-      (name) => !byName.has(name) || byName.get(name).status !== "completed",
-    );
-    if (pending.length === 0) break;
+    const pending = [];
+    for (const [workflow, name] of requiredWorkflows) {
+      const runs = await collection(
+        api,
+        `actions/workflows/${workflow}/runs?event=pull_request&head_sha=${sha}`,
+        "workflow_runs",
+      );
+      const candidates = runs.filter(
+        (run) =>
+          run.path === `.github/workflows/${workflow}` &&
+          run.event === "pull_request" &&
+          run.head_sha === sha &&
+          run.repository?.full_name === repository &&
+          run.head_repository?.full_name === repository &&
+          run.pull_requests?.some(
+            (item) =>
+              item.number === pr.number &&
+              item.head.sha === sha &&
+              item.base.ref === "main" &&
+              item.base.sha === baseSHA,
+          ),
+      );
+      const run = candidates.sort((a, b) => b.id - a.id)[0];
+      if (!run || run.status !== "completed") {
+        pending.push(name);
+        continue;
+      }
+      assert.equal(
+        run.conclusion,
+        "success",
+        `${workflow} failed: ${run.html_url}`,
+      );
+      const job = (await latestJobs(api, run, [name])).get(name);
+      assert(
+        job?.status === "completed" && job.conclusion === "success",
+        `Missing successful PR gate: ${name}`,
+      );
+    }
+    if (!pending.length) return;
     assert(
       Date.now() < deadline,
-      `Timed out waiting for required checks: ${pending.join(", ")}; rerun sync to resume`,
+      `Timed out waiting for PR checks: ${pending.join(", ")}`,
     );
     await wait(30000);
   }
-  for (const name of requiredChecks) {
-    const check = runs.check_runs.find((item) => item.name === name);
-    assert.equal(
-      check.conclusion,
-      "success",
-      `${name} failed: ${check.html_url}`,
-    );
-    console.log(`Passed ${name}: ${check.html_url}`);
-  }
+}
+
+/** Recover the main commit that last changed the catalog, including manual merges. */
+async function catalogCommit(api, base) {
+  const commits = await api(
+    `commits?sha=${base.sha}&path=${encodeURIComponent(catalogPath)}&per_page=1`,
+  );
+  assert(commits.length === 1, "Cannot find the catalog's main commit");
+  const sha = commits[0].sha;
+  const file = await api(`contents/${catalogPath}?ref=${sha}`);
+  assert.deepEqual(
+    JSON.parse(Buffer.from(file.content, "base64").toString("utf8")),
+    base.catalog,
+    "Catalog recovery commit does not match main",
+  );
+  return sha;
 }
 
 /** Confirm the Git integration deployed this merge and both public locales expose its catalog. */
@@ -222,7 +319,6 @@ export async function synchronize({
   verify = verifyReleaseDownloads,
   deploy = verifyDeployment,
   wait = sleep,
-  autoMerge = true,
 }) {
   const release = await releaseForRun(api, runID);
   if (!release) return "prerelease";
@@ -233,8 +329,12 @@ export async function synchronize({
   for (let attempt = 0; attempt < 3; attempt++) {
     const base = await mainSnapshot(api);
     const decision = catalogDecision(base.catalog, catalog);
-    if (decision !== "update" || dryRun)
+    if (dryRun || decision === "older")
       return dryRun ? `dry-run: ${decision}` : decision;
+    if (decision === "unchanged") {
+      await deploy(api, await catalogCommit(api, base), catalog, wait);
+      return "unchanged: production verified";
+    }
     // A deterministic branch per base makes retries resumable, without force pushes.
     const branch = `automation/website-${catalog.tag}-${base.sha}`;
     const refs = await api(`git/matching-refs/heads/${branch}`);
@@ -251,10 +351,6 @@ export async function synchronize({
         sha: base.file.sha,
         content,
         message: `chore(website): synchronize ${catalog.tag} downloads`,
-        committer: {
-          name: "github-actions[bot]",
-          email: "41898282+github-actions[bot]@users.noreply.github.com",
-        },
       });
       head = update.commit.sha;
     }
@@ -289,14 +385,8 @@ export async function synchronize({
       pr.state === "open",
       "Automation PR is closed; inspect before retrying",
     );
-    if (!autoMerge) {
-      console.log(
-        `Catalog needs ${catalog.tag}; PR ready for review: ${pr.html_url}. Configure SYNC_APP_TOKEN for unattended checks and merge.`,
-      );
-      return `manual: ${pr.html_url}`;
-    }
     console.log(`Checking ${pr.html_url} at ${head}`);
-    await pullRequestChecks(api, head, wait);
+    await pullRequestChecks(api, pr, head, base.sha, wait);
     const latest = await mainSnapshot(api);
     if (latest.sha !== base.sha) {
       await api(`pulls/${pr.number}`, "PATCH", { state: "closed" });
@@ -385,7 +475,15 @@ if (
     if (process.env.GITHUB_EVENT_NAME === "workflow_run")
       assert.equal(String(event.workflow_run.id), process.env.RELEASE_RUN_ID);
   }
-  const token = process.env.SYNC_TOKEN || process.env.GH_TOKEN;
+  // Missing App configuration is an error before any write, never a green manual fallback.
+  const token = dryRun
+    ? process.env.GH_TOKEN
+    : installationToken({
+        appID: process.env.SYNC_APP_ID,
+        installationID: process.env.SYNC_APP_INSTALLATION_ID,
+        privateKey: process.env.SYNC_APP_PRIVATE_KEY,
+        mask: (value) => console.log(`::add-mask::${value}`),
+      });
   console.log(
     await synchronize({
       api: githubAPI(token),
@@ -397,7 +495,6 @@ if (
             )
           : process.env.RELEASE_RUN_ID,
       dryRun,
-      autoMerge: Boolean(process.env.SYNC_TOKEN),
     }),
   );
 }
