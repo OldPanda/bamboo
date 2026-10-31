@@ -4,13 +4,87 @@ import (
 	"bamboo/internal/engine"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestCSVQueryExportPreservesBlankRecords(t *testing.T) {
+	cases := []struct {
+		name, query string
+		want        [][]string
+	}{
+		{"reported", "SELECT s FROM (VALUES ('first'), (NULL), (''), ('last'), (NULL)) AS v(s)", [][]string{{"s"}, {"first"}, {""}, {""}, {"last"}, {""}}},
+		{"positions", "SELECT s FROM (VALUES (NULL), (''), ('middle'), (''), (NULL)) AS v(s)", [][]string{{"s"}, {""}, {""}, {"middle"}, {""}, {""}}},
+		{"multiple", "SELECT s, s AS other FROM (VALUES (NULL), (''), ('middle'), (NULL)) AS v(s)", [][]string{{"s", "other"}, {"", ""}, {"", ""}, {"middle", "middle"}, {"", ""}}},
+		{"empty", "SELECT '' AS s WHERE false", [][]string{{"s"}}},
+		{"time", "SELECT t FROM (VALUES (TIME_NS '12:34:56.123456789'), (TIME_NS '00:00:00.000000001'), (TIME_NS '23:59:59.999999999'), (NULL)) AS v(t)", [][]string{{"t"}, {"12:34:56.123456789"}, {"00:00:00.000000001"}, {"23:59:59.999999999"}, {""}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w, d, dir := workbench(t)
+			ctx := context.Background()
+			if _, err := w.OpenPath(ctx, w.initial); err != nil {
+				t.Fatal(err)
+			}
+			page := readPage(t, w, tc.query)
+			d.path = filepath.Join(dir, "page.csv")
+			if _, err := w.ExportPageAs(ctx, "csv"); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(d.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := csv.NewReader(strings.NewReader(string(data))).ReadAll()
+			if err != nil || !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("CSV records: %#v, want %#v; error %v", got, tc.want, err)
+			}
+			d.path = filepath.Join(dir, "page.json")
+			if _, err = w.ExportPageAs(ctx, "json"); err != nil {
+				t.Fatal(err)
+			}
+			data, err = os.ReadFile(d.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var exact engine.Result
+			if err = json.Unmarshal(data, &exact); err != nil || !reflect.DeepEqual(exact.Rows, page.Rows) {
+				t.Fatal("JSON lost NULL, empty text or time precision", err)
+			}
+		})
+	}
+}
+
+func TestCSVBlankRecordWriteFailures(t *testing.T) {
+	for _, header := range []string{"value", ""} {
+		t.Run("header="+header, func(t *testing.T) {
+			p := filepath.Join(t.TempDir(), "page.csv")
+			sentinel := errors.New("write failed")
+			var file *failingFile
+			result := &engine.Result{Columns: []engine.Column{{Name: header}}, Rows: [][]*string{{nil}}}
+			err := writeExportFormatWith(p, result, "csv", func(path string) (io.WriteCloser, error) {
+				f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+				if err != nil {
+					return nil, err
+				}
+				file = &failingFile{File: f, writeErr: sentinel}
+				return file, nil
+			})
+			if !errors.Is(err, sentinel) || !file.closed {
+				t.Fatal("blank record failure handling", err)
+			}
+			if _, err = os.Stat(p); !os.IsNotExist(err) {
+				t.Fatal("partial blank-record CSV remains")
+			}
+		})
+	}
+}
 
 func TestCSVExportRoundTripAndSnapshot(t *testing.T) {
 	w, d, dir := workbench(t)

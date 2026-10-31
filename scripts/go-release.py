@@ -14,6 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from prepare_parquet import parquet_library
 from release_version import parse_version
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -144,6 +145,9 @@ def main():
     for library in libraries:
         if not library.is_file():
             raise SystemExit("Missing pinned DuckDB library: " + str(library))
+    libraries[LIBRARIES.index("parquet_extension")] = parquet_library(
+        module, target, env
+    )
     env["CGO_LDFLAGS"] = shlex.join(
         [
             str(archive),

@@ -168,7 +168,7 @@ func writeExportFormatWith(path string, r *engine.Result, format string, create 
 		for i, col := range r.Columns {
 			header[i] = spreadsheetText(col.Name, "")
 		}
-		err = enc.Write(header)
+		err = writeCSVRecord(enc, f, header)
 		for _, row := range r.Rows {
 			if err != nil {
 				break
@@ -179,7 +179,7 @@ func writeExportFormatWith(path string, r *engine.Result, format string, create 
 					values[i] = spreadsheetText(*value, r.Columns[i].Type)
 				}
 			}
-			err = enc.Write(values)
+			err = writeCSVRecord(enc, f, values)
 		}
 		enc.Flush()
 		if err == nil {
@@ -195,6 +195,20 @@ func writeExportFormatWith(path string, r *engine.Result, format string, create 
 		os.Remove(path)
 	}
 	return closeErr
+}
+
+// A lone empty field must be quoted: standard CSV readers skip blank lines.
+// Flush earlier records before writing it, preserving ordering and write errors.
+func writeCSVRecord(enc *csv.Writer, dst io.Writer, values []string) error {
+	if len(values) == 1 && values[0] == "" {
+		enc.Flush()
+		if err := enc.Error(); err != nil {
+			return err
+		}
+		_, err := dst.Write([]byte("\"\"\n"))
+		return err
+	}
+	return enc.Write(values)
 }
 
 // Only typed numeric cells with a complete numeric representation bypass text

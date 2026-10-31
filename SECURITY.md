@@ -12,7 +12,7 @@ Bamboo previews local Parquet and explicitly configured R2/S3 workspaces. It has
 
 ## Export and local data
 
-JSON retains column types, exact textual values and NULL. CSV protects headers and formula-like text by prefixing an apostrophe, including leading whitespace/control characters and full-width formula markers. Strictly validated numeric cells retain their original spelling, including negative integers and decimals. NULL and empty text become empty CSV fields. The export chooser explains the transformation; use JSON when original values are required.
+JSON retains column types, exact textual values and NULL. CSV protects headers and formula-like text by prefixing an apostrophe, including leading whitespace/control characters and full-width formula markers. Strictly validated numeric cells retain their original spelling, including negative integers and decimals. NULL and empty text become empty CSV fields; a single empty field is explicitly quoted so standard readers preserve its row and position. The export chooser explains the transformation; use JSON when original values are required.
 
 CSV protection reduces formula interpretation on import; it is not a guarantee across every spreadsheet application or saving/reopening workflow. See [OWASP CSV Injection](https://community.owasp.org/attacks/CSV_Injection). No spreadsheet application is invoked by Bamboo.
 

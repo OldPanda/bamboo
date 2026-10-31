@@ -5,6 +5,9 @@ for native toolchains, installation requirements and acceptance commands.
 For macOS, install Xcode Command Line Tools,
 Node.js 22.23.4 (the CI version), Python 3.12 or newer, and Go with toolchain download support.
 The release helper pins Go 1.27.3. Run commands from the repository root.
+Native builds also require a C++17 compiler, Make (MinGW Make on Windows),
+and CMake 3.31.6 from `requirements-build.txt`. Development setup below includes
+CMake; packaging-only environments can install that smaller requirements file.
 
 ## Set up development tools
 
@@ -40,6 +43,11 @@ fresh checkout. `npm run lint` runs gofmt, Revive, go vet, ESLint, TypeScript,
 Ruff, ShellCheck, Swift formatting and Prettier. It checks normal release and
 cloud-fixture/performance build variants without launching the app. The release
 helper uses the same static DuckDB link for build, test and vet.
+It downloads SHA-256-pinned DuckDB 2.0.0 source on the first build and rebuilds
+only its Parquet component with the reviewed decimal compatibility patch.
+The resulting archive is cached under `build/parquet-compat/`; the Go module
+cache and original native libraries are never modified. See
+[Parquet compatibility](docs/parquet-compatibility.md).
 
 `npm run format` applies formatting only. Review the diff afterward; add meaningful
 documentation and fix semantic lint findings manually. Go exported APIs should

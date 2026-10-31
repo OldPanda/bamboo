@@ -27,7 +27,7 @@ Cloudflare cloud-only logo: https://www.cloudflare.com/logo.svg (official websit
 AWS logo: https://press.aboutamazon.com/logos ; asset https://assets.aboutamazon.com/ff/9f/c88d0578474381e7ee1b6d337d23/aws-logo-rgb.png .
 These marks belong to their respective owners and are not covered by Bamboo's MIT license. No affiliation or endorsement is implied.
 
-Release builds select the pinned static libraries through the bindings' documented `duckdb_use_static_lib` path. The static registration loader omits only `autocomplete`, `tpch`, and `tpcds`; core functions, ICU, JSON, Parquet, httplib and loadable-extension support remain. The official httpfs binary is retained without modification. No upstream source or module-cache archives are changed.
+Release builds select pinned static libraries through the bindings' documented `duckdb_use_static_lib` path. The static registration loader omits only `autocomplete`, `tpch`, and `tpcds`; core functions, ICU, JSON, Parquet, httplib and loadable-extension support remain. The Parquet component is rebuilt from SHA-256-pinned DuckDB 2.0.0 source with Bamboo's decimal metadata patch; see [the patch and build provenance](docs/parquet-compatibility.md). DuckDB's MIT license remains included. The official httpfs binary and Go module-cache archives are retained without modification. CMake 3.31.6 (BSD-3-Clause) is a build tool only and is not bundled with the application.
 
 Automatic updates use **Sparkle 2.10.1**, including its native installer helpers.
 The official archive SHA-256 is pinned to
