@@ -46,7 +46,6 @@ app.innerHTML = `
   <button id="open-data" hidden class="open-button primary" aria-haspopup="dialog" aria-controls="source-dialog" title="Open data"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Open data</button>
   <section id="open-files-panel" hidden><div class="section-label">Open files</div><div id="open-files"></div></section>
   <section id="folder-panel" hidden><div class="section-label">Workspaces</div><div id="workspace-roots"></div></section>
-  <div id="file-card" hidden></div>
   <div id="columns-label" class="section-label columns-label" hidden>Columns <span id="column-count">—</span></div>
   <div id="column-list" class="column-list" hidden></div>
   <div class="sidebar-footer">
@@ -1846,16 +1845,6 @@ function showFile(f: DataFile) {
   $("file-size").textContent = size(f.bytes);
   $("row-groups").textContent = fmt(f.rowGroups);
   $("column-count").textContent = String(f.columns.length);
-  const card = $("file-card");
-  card.classList.remove("muted");
-  card.replaceChildren(
-    el("span", "▧", "file-icon"),
-    el("strong", f.name),
-    ui("small", "{rows} rows / {size}", "", {
-      rows: fmt(f.rows),
-      size: size(f.bytes),
-    }),
-  );
   const list = $("column-list");
   list.replaceChildren();
   const schema = $("schema-body");

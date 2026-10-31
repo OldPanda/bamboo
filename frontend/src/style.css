@@ -142,38 +142,6 @@ kbd {
   margin-top: var(--space-lg);
   margin-bottom: var(--space-xs);
 }
-.file-card {
-  position: relative;
-  background: var(--color-accent-soft);
-  color: var(--ink);
-  border-radius: var(--radius-input);
-  padding: var(--space-sm) var(--space-xs) var(--space-sm) var(--space-lg);
-}
-.file-card strong {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.file-card small {
-  display: block;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  margin-top: var(--space-2xs);
-}
-.file-icon {
-  position: absolute;
-  left: var(--space-xs);
-  top: var(--space-sm);
-  color: var(--green);
-}
-.file-card.muted {
-  background: transparent;
-  color: var(--muted);
-  padding: var(--space-xs) 0;
-}
 .column-list {
   overflow: auto;
   flex: 1;
@@ -741,7 +709,6 @@ textarea {
   }
   .brand > div,
   .section-label,
-  .file-card,
   .column-list,
   .open-button kbd {
     display: none;

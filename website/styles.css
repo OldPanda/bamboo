@@ -313,18 +313,6 @@ h1 {
   color: var(--muted);
   letter-spacing: 0.2px;
 }
-.version-note {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-}
-.version-note:before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  background: var(--accent);
-  border-radius: 50%;
-}
 .preview-wrap {
   position: relative;
   margin: 53px auto 0;
@@ -984,20 +972,6 @@ h1 {
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-.download-hint {
-  max-width: 700px;
-  margin: 14px auto 0;
-  padding: 11px 15px;
-  background: var(--accent-soft);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  color: var(--accent);
-  font-size: 12px;
-  line-height: 1.8;
-}
-.download-hint[hidden] {
-  display: none;
 }
 .icons {
   display: none;

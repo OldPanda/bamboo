@@ -39,10 +39,6 @@ export const translations = {
   },
   t10: { zh: "免费下载 macOS 版", en: "Download for macOS" },
   t11: { zh: "首次安装指引", en: "First-time installation" },
-  t12: {
-    zh: "· Apple Silicon · macOS 12+ · MIT 协议",
-    en: "· Apple Silicon · macOS 12+ · MIT License",
-  },
   t15: {
     zh: "文件在哪里，工作台就在哪里。",
     en: "Where your files are, your workbench follows.",
@@ -416,7 +412,6 @@ export const translations = {
     zh: "macOS 隐私与安全性真实截图：安全性区域中，被阻止的应用右侧有“仍要打开”按钮",
     en: "Actual macOS Privacy & Security screenshot in English: Open Anyway appears beside the blocked app in the Security section",
   },
-  a149: { zh: "下载 Bamboo", en: "Download Bamboo" },
   a150: { zh: "页脚导航", en: "Footer navigation" },
   a151: { zh: "关闭Terms · 使用条款", en: "Close Terms of Use" },
   a152: { zh: "关闭Privacy · 隐私政策", en: "Close Privacy Policy" },
