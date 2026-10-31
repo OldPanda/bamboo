@@ -15,6 +15,7 @@ CMake; packaging-only environments can install that smaller requirements file.
 npm ci
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pip install -r requirements-build.txt
 mkdir -p build/tools
 GOTOOLCHAIN=go1.27.3 GOBIN="$PWD/build/tools" go install github.com/mgechev/revive@v1.17.1
 ```

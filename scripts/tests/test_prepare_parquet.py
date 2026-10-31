@@ -2,6 +2,7 @@
 
 import importlib.util
 import io
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -16,6 +17,36 @@ SPEC.loader.exec_module(MODULE)
 
 class ParquetBuildTests(unittest.TestCase):
     """Never compile mismatched inputs or extract unexpected links and paths."""
+
+    def test_cmake_distribution_selection(self):
+        """Use the installed pinned distribution and reject a different version."""
+        with mock.patch.object(Path, "is_file", return_value=True):
+            for system, suffix in (("Darwin", "cmake"), ("Windows", "cmake.exe")):
+                with (
+                    self.subTest(system=system),
+                    mock.patch.object(
+                        MODULE.subprocess,
+                        "check_output",
+                        side_effect=["/pinned/bin\n", b"cmake version 3.31.6\n"],
+                    ) as run,
+                ):
+                    executable, _ = MODULE.cmake_tool(system)
+                    self.assertEqual(executable, str(Path("/pinned/bin") / suffix))
+                    self.assertIn("import cmake", run.call_args_list[0].args[0][-1])
+            with mock.patch.object(
+                MODULE.subprocess,
+                "check_output",
+                side_effect=["/pinned/bin\n", b"cmake version 4.0.0\n"],
+            ):
+                with self.assertRaisesRegex(ValueError, "hash-pinned CMake"):
+                    MODULE.cmake_tool("Darwin")
+            with mock.patch.object(
+                MODULE.subprocess,
+                "check_output",
+                side_effect=subprocess.CalledProcessError(1, "python"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "requirements-build.txt"):
+                    MODULE.cmake_tool("Darwin")
 
     def test_exact_patch_and_drift(self):
         """Apply only the intended source hunk, failing on changed native code."""

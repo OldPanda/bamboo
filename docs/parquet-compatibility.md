@@ -28,6 +28,9 @@ CMake's `parquet_extension` target with the existing prebuilt DuckDB core:
 - DuckDB source: `d54cbbe3df17e8e5ce68312f483b4155836112aa` (`v2.0.0`).
 - Source archive SHA-256: `93e3d1f9c84b6ec3493237d21565c01c2c19b9862e54e5552d3d7999ccc3bbb4`.
 - The module's provenance must match that source and version.
+- CMake's three supported wheels are SHA-256-pinned in `requirements-build.txt`.
+  Pip requires hashes and binary wheels. The helper selects that Python-installed
+  CMake version rather than an ambient executable from `PATH`.
 - Extraction is bounded and rejects links outside the excluded upstream data
   corpus; the single patch hunk must match exactly.
 - Builds use two compiler processes. Cache identity includes source, patch,

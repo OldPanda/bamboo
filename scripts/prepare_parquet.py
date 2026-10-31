@@ -11,6 +11,7 @@ import platform
 import shlex
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -110,6 +111,30 @@ def source_archive():
     return archive
 
 
+def cmake_tool(system):
+    """Select the hash-pinned Python distribution, never an ambient PATH tool."""
+    relative = ".venv/Scripts/python.exe" if system == "Windows" else ".venv/bin/python"
+    for python in (ROOT / relative, Path(sys.executable)):
+        if not python.is_file():
+            continue
+        try:
+            directory = subprocess.check_output(
+                [str(python), "-c", "import cmake; print(cmake.CMAKE_BIN_DIR)"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+        except subprocess.CalledProcessError:
+            continue
+        executable = Path(directory) / ("cmake.exe" if system == "Windows" else "cmake")
+        version = subprocess.check_output([str(executable), "--version"])
+        if version.splitlines()[0] != b"cmake version 3.31.6":
+            raise ValueError(
+                "Install hash-pinned CMake 3.31.6 from requirements-build.txt"
+            )
+        return str(executable), version
+    raise RuntimeError("Install requirements-build.txt before building Bamboo")
+
+
 def parquet_library(module, target, env):
     """Return a verified cached native archive, rebuilding when its inputs change."""
     provenance = json.loads((module / "provenance.json").read_text())
@@ -119,16 +144,9 @@ def parquet_library(module, target, env):
     ):
         raise ValueError("Parquet patch requires the pinned DuckDB 2.0.0 core")
     system = platform.system()
-    cmake = shutil.which("cmake")
-    if not cmake:
-        local = ROOT / ".venv/bin/cmake"
-        if local.is_file():
-            cmake = str(local)
-    if not cmake:
-        raise RuntimeError("Install requirements-build.txt before building Bamboo")
+    cmake, versions = cmake_tool(system)
     cc = env.get("CC", "clang" if system == "Darwin" else "gcc")
     cxx = env.get("CXX", "clang++" if system == "Darwin" else "g++")
-    versions = subprocess.check_output([cmake, "--version"])
     for compiler in (cc, cxx):
         versions += subprocess.check_output([*shlex.split(compiler), "--version"])
     fingerprint = hashlib.sha256(
