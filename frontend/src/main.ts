@@ -1884,9 +1884,15 @@ function render(r: Result) {
   $("empty-result").innerHTML =
     "No matching rows.<small>Try another filter or query.</small>";
   localizeStatic($("empty-result"));
-  result = r;
   const head = $("grid").querySelector("thead")!;
   const body = $("grid").querySelector("tbody")!;
+  // Replacing a focused sort button otherwise sends keyboard users to the body.
+  // Capture at render time so a pending query never steals focus back.
+  const focusedIndex = Array.from(head.querySelectorAll("button")).findIndex(
+    (button) => button === document.activeElement,
+  );
+  const focusedColumn = result?.columns[focusedIndex]?.name;
+  result = r;
   head.replaceChildren();
   body.replaceChildren();
   const tr = document.createElement("tr");
@@ -1894,6 +1900,8 @@ function render(r: Result) {
   r.columns.forEach((c) => {
     const th = document.createElement("th");
     th.dataset.type = c.type;
+    if (request.sort === c.name)
+      th.setAttribute("aria-sort", request.desc ? "descending" : "ascending");
     const b = el(
       "button",
       c.name + (request.sort === c.name ? (request.desc ? " ↓" : " ↑") : ""),
@@ -1913,6 +1921,9 @@ function render(r: Result) {
     tr.append(th);
   });
   head.append(tr);
+  Array.from(head.querySelectorAll("button"))
+    .find((_, index) => r.columns[index].name === focusedColumn)
+    ?.focus({ preventScroll: true });
   r.rows.forEach((row, i) => {
     const tr = document.createElement("tr");
     tr.append(el("td", fmt(String(r.offset + i + 1)), "row-number"));

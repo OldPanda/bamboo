@@ -1,4 +1,26 @@
-# Exact decimal compatibility
+# Exact Parquet values
+
+## Legacy INT96 timestamps
+
+INT96 stores a Julian day and nanoseconds since midnight. Bamboo reads these
+columns as `STRUCT(date DATE, "time" TIME_NS)` using DuckDB's `int96_as='struct'`
+option. This preserves all nine fractional digits and dates from 0001 through
+9999, including NULL. The default `TIMESTAMP` reader truncates to microseconds;
+`TIMESTAMP_NS` alone converts dates outside its narrower range to infinity.
+
+For example, `1970-01-01 00:00:00.123456789` is displayed and exported as
+`{'date': 1970-01-01, 'time': '00:00:00.123456789'}`. SQL can select
+`stamp.date` and `stamp.time` independently. Existing queries applying timestamp
+functions directly to an INT96 column must use those fields instead. Modern
+INT64 timestamp columns keep their existing timestamp types.
+
+The shared reader option applies to local files, folder workspaces, S3 and R2.
+[INT96 regressions](../internal/engine/int96_test.go) use an independent PLAIN
+Parquet writer to check nanoseconds, pre-epoch values, range endpoints, NULL,
+pagination, child filtering/sorting, failed-query recovery, synthetic cloud
+range-cache reuse and unchanged source hashes. No native DuckDB patch is added.
+
+## Legacy decimal annotations
 
 Bamboo accepts legacy Parquet DECIMAL annotations that specify precision and
 omit scale. The [Parquet specification](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#decimal)

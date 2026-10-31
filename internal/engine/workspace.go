@@ -27,7 +27,9 @@ func openDatabase(ctx context.Context, paths []string, configs ...Resources) (*d
 	return db, nil
 }
 func createView(ctx context.Context, db *database, name, path string) error {
-	_, err := db.ExecContext(ctx, "CREATE VIEW "+name+" AS SELECT * FROM read_parquet("+literal(path)+", hive_partitioning=false)")
+	// INT96's default TIMESTAMP truncates nanoseconds; TIMESTAMP_NS saturates
+	// dates outside its narrower range. The date/time struct preserves both.
+	_, err := db.ExecContext(ctx, "CREATE VIEW "+name+" AS SELECT * FROM read_parquet("+literal(path)+", hive_partitioning=false, int96_as='struct')")
 	return err
 }
 
