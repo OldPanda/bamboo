@@ -5,7 +5,7 @@ Bamboo's original application code is MIT licensed. Dependencies retain their ow
 - MyGo **v0.6.4**, release commit `6255ea40139d06e0762a7c4a32626148ba410478`: MIT. Provides the native window, OS webview, dialogs, and generated TypeScript IPC. The corresponding npm `mygo-runtime` is pinned to **0.6.4** (MIT).
 - DuckDB Go **v2.20000.0**, bindings **v0.20000.0**, bundled DuckDB **2.0.0**: MIT. DuckDB is statically linked; its native library includes core extensions and third-party components. Upstream source and full component license notices: https://github.com/duckdb/duckdb/tree/v2.0.0/third_party and https://github.com/duckdb/duckdb/blob/v2.0.0/LICENSE . These should be reviewed before public redistribution; this artifact is a local development build.
 - Compiled Go dependency license texts and versions are recorded in `licenses/manifest.json` and adjacent files. These include purego (Apache-2.0), x/text (BSD-style), uuid (BSD-style), and mapstructure (MIT).
-- TypeScript and Vite are development tools. Exact transitive versions and package integrity hashes are in `package-lock.json`; Go versions and checksums are in `go.mod` / `go.sum`.
+- TypeScript, Vite, ESLint (MIT), eslint-plugin-jsdoc (BSD-3-Clause), and minimatch (BlueOak-1.0.0) are development tools and are not bundled into the desktop runtime. Exact transitive versions and package integrity hashes are in `package-lock.json`; Go versions and checksums are in `go.mod` / `go.sum`.
 - No Parqlab code, artwork, assets, or proprietary implementation was copied. Its public product page informed the exploration workflow only.
 
 Official references reviewed during implementation:

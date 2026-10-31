@@ -220,7 +220,7 @@ def main():
         with tempfile.TemporaryDirectory(prefix="bamboo-workspace-config-") as config:
             for phase, args, count in [
                 ("create", ["--workspace", str(fixture.parent)], 15),
-                ("restore", [], 9),
+                ("restore", [], 10),
             ]:
                 smoke(
                     ROOT / "build/bamboo-covered",
@@ -262,7 +262,7 @@ def main():
                 (ROOT / "build/bamboo-acceptance", OUT / "app-desktop", False),
             ]:
                 (config / "workspaces.json").write_text(json.dumps(seed))
-                for phase, count in [("multi", 24), ("multi-restore", 8)]:
+                for phase, count in [("multi", 24), ("multi-restore", 9)]:
                     smoke(
                         binary,
                         fixture,
@@ -300,7 +300,7 @@ def main():
                     ("cross", ["--workspace", str(fixture.parent)], 10),
                     ("cross-restore", [], 3),
                     ("root-query", [], 8),
-                    ("root-query-restore", [], 4),
+                    ("root-query-restore", [], 5),
                 ]:
                     smoke(
                         binary,

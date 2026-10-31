@@ -115,6 +115,7 @@ beforeEach(() => {
     "Workbench.QueryWorkspace": (_root: string, r: Request) =>
       page(r.offset, r.offset < 200),
     "Workbench.CloseWorkspaceFile": () => undefined,
+    "Workbench.CloseFile": () => undefined,
     "Workbench.Open": () => dataFile(),
     "Workbench.OpenPath": () => dataFile(),
     "Workbench.Query": (r: Request) => page(r.offset, r.offset < 200),
@@ -824,7 +825,7 @@ describe("folder workspaces", () => {
     expect($("scope-name").textContent).toBe("File");
     expect($("breadcrumb").textContent).toBe("Welcome");
   });
-  it("restores a workspace on startup and preserves a draft if the saved query fails", async () => {
+  it("restores a workspace draft without executing its historical query", async () => {
     folderResponses();
     responses["Workbench.RestoreWorkspaces"] = () => ({
       workspaces: [{ ...workspaceInfo, active: "orders.parquet" }],
@@ -837,7 +838,11 @@ describe("folder workspaces", () => {
     await boot();
     expect(lastRequest().sql).toBe("SELECT * FROM data");
     expect($<HTMLTextAreaElement>("sql").value).toBe("SELECT draft");
-    expect($("notification").textContent).toContain("Draft preserved");
+    expect(
+      bridge.call.mock.calls
+        .filter(([name]) => name === "Workbench.Query")
+        .every(([, r]) => r.sql === "SELECT * FROM data"),
+    ).toBe(true);
     responses["Workbench.OpenWorkspaceFile"] = () => ({
       file: {
         ...dataFile(),
@@ -869,7 +874,7 @@ describe("folder workspaces", () => {
     };
     await boot();
     expect($("notification").textContent).toContain("Last file is unavailable");
-    expect($("workspace").hidden).toBe(false);
+    expect($("welcome").hidden).toBe(false);
     await click("folder-close");
     expect($("breadcrumb").textContent).toBe("Welcome");
     responses["Workbench.OpenWorkspace"] = () => null;
@@ -1365,11 +1370,12 @@ it("restores a workspace-level query directly and keeps multiple workspace draft
     applied: "SELECT 42",
   });
   await boot();
-  expect(bridge.call).toHaveBeenCalledWith(
-    "Workbench.QueryWorkspace",
-    "/analysis",
-    expect.objectContaining({ sql: "SELECT 42" }),
-  );
+  expect(
+    bridge.call.mock.calls.some(
+      ([name]) => name === "Workbench.QueryWorkspace",
+    ),
+  ).toBe(false);
+  expect($<HTMLTextAreaElement>("sql").value).toBe("SELECT 42");
   responses["Workbench.OpenWorkspace"] = () => ({
     root: "/second",
     name: "Second",
@@ -1380,6 +1386,13 @@ it("restores a workspace-level query directly and keeps multiple workspace draft
     applied: "",
   });
   await click("open-folder");
+  expect(bridge.call).toHaveBeenCalledWith(
+    "Workbench.SaveWorkspaceQuery",
+    "/analysis",
+    ".",
+    "SELECT 42",
+    "SELECT 42",
+  );
   expect($<HTMLTextAreaElement>("sql").value).toBe("");
   value("sql", "SELECT 7");
   $("sql").dispatchEvent(new Event("input"));
@@ -3123,4 +3136,155 @@ describe("quiet sidebar update reminders", () => {
     await refresh();
     expect($("update-reminder").hidden).toBe(true);
   });
+});
+
+describe("persistent sessions", () => {
+  it("restores independent and workspace files lazily with the saved active selection", async () => {
+    folderResponses();
+    responses["Workbench.RestoreWorkspaces"] = () => ({
+      workspaces: [workspaceInfo],
+      warning: "",
+      session: {
+        files: [
+          "/analysis/orders.parquet",
+          "/outside/a.parquet",
+          "/outside/b.parquet",
+        ],
+        active: "/outside/b.parquet",
+      },
+    });
+    responses["Workbench.OpenPath"] = (path: string) => ({
+      ...dataFile(),
+      path,
+      name: path.split("/").at(-1),
+    });
+    await boot();
+    expect(document.querySelectorAll(".opened-file")).toHaveLength(3);
+    expect(
+      bridge.call.mock.calls.filter(([name]) => name === "Workbench.OpenPath"),
+    ).toEqual([["Workbench.OpenPath", "/outside/b.parquet"]]);
+    expect(
+      bridge.call.mock.calls.some(
+        ([name]) => name === "Workbench.OpenWorkspaceFile",
+      ),
+    ).toBe(false);
+    expect(lastRequest().sql).toBe("SELECT * FROM data");
+    expect($("breadcrumb").textContent).toBe("b.parquet");
+    await treeFile();
+    expect($<HTMLTextAreaElement>("sql").value).toBe("SELECT draft");
+    expect(lastRequest().sql).toBe("SELECT * FROM data");
+    const close = document.querySelector<HTMLButtonElement>(
+      '.opened-file[data-path="/outside/a.parquet"] .close-file',
+    )!;
+    responses["Workbench.CloseFile"] = () => {
+      throw new Error("disk denied");
+    };
+    close.click();
+    await settled();
+    expect(document.querySelectorAll(".opened-file")).toHaveLength(3);
+    expect($("notification").textContent).toContain("disk denied");
+    responses["Workbench.CloseFile"] = () => undefined;
+    close.click();
+    await settled();
+    expect(document.querySelectorAll(".opened-file")).toHaveLength(2);
+  });
+
+  it("retains an offline root while restoring another root and skips closed cloud documents", async () => {
+    folderResponses();
+    responses["Workbench.RestoreWorkspaces"] = () => ({
+      workspaces: [
+        { root: "/offline", name: "Offline", active: "lost.parquet" },
+        workspaceInfo,
+      ],
+      warning: "",
+      session: {
+        files: [
+          "/offline/lost.parquet",
+          "s3://closed/private.parquet",
+          "/analysis/orders.parquet",
+        ],
+        active: "/analysis/orders.parquet",
+      },
+    });
+    const list = responses["Workbench.ListDirectory"];
+    responses["Workbench.ListDirectory"] = (root: string, ...args: any[]) => {
+      if (root === "/offline") throw new Error("drive unavailable");
+      return list(root, ...args);
+    };
+    await boot();
+    expect(document.querySelectorAll(".workspace-group")).toHaveLength(2);
+    expect(
+      document.querySelector('[data-root="/offline"]')?.textContent,
+    ).toContain("saved state is preserved");
+    expect($("breadcrumb").textContent).toBe("orders.parquet");
+    expect(
+      bridge.call.mock.calls.filter(
+        ([name]) => name === "Workbench.OpenWorkspaceFile",
+      ),
+    ).toHaveLength(1);
+    expect(
+      document.querySelector('[data-path="s3://closed/private.parquet"]'),
+    ).toBeNull();
+  });
+
+  it("keeps a temporarily unavailable independent file available for retry", async () => {
+    responses["Workbench.RestoreWorkspaces"] = () => ({
+      workspaces: [],
+      warning: "",
+      session: {
+        files: ["/offline/data.parquet"],
+        active: "/offline/data.parquet",
+      },
+    });
+    responses["Workbench.OpenPath"] = () => {
+      throw new Error("permission denied");
+    };
+    await boot();
+    expect(document.querySelectorAll(".opened-file")).toHaveLength(1);
+    expect($("notification").textContent).toContain("permission denied");
+    expect(
+      bridge.call.mock.calls.some(([name]) => name === "Workbench.CloseFile"),
+    ).toBe(false);
+    responses["Workbench.OpenPath"] = () => ({
+      ...dataFile(),
+      path: "/offline/data.parquet",
+      name: "data.parquet",
+    });
+    document
+      .querySelector<HTMLButtonElement>(".opened-file .activate-file")!
+      .click();
+    await settled();
+    expect($("breadcrumb").textContent).toBe("data.parquet");
+  });
+
+  it("opens a launch argument after restoring the existing session", async () => {
+    responses["Workbench.RestoreWorkspaces"] = () => ({
+      workspaces: [],
+      warning: "",
+      session: { files: ["/saved.parquet"], active: "/saved.parquet" },
+    });
+    responses["Workbench.InitialFile"] = () => "/new.parquet";
+    responses["Workbench.OpenPath"] = (path: string) => ({
+      ...dataFile(),
+      path,
+      name: path.slice(1),
+    });
+    await boot();
+    expect(document.querySelectorAll(".opened-file")).toHaveLength(2);
+    expect($("breadcrumb").textContent).toBe("new.parquet");
+  });
+});
+
+it("shows an independent file persistence warning while keeping its preview usable", async () => {
+  responses["Workbench.Open"] = () => ({
+    ...dataFile(),
+    warning: "settings denied",
+  });
+  await open();
+  expect($("notification").textContent).toContain(
+    "File opened, but its session could not be saved: settings denied",
+  );
+  expect(document.querySelectorAll("#grid tbody tr")).toHaveLength(2);
+  await click("next");
+  expect(lastRequest().offset).toBe(100);
 });

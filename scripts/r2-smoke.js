@@ -257,6 +257,11 @@ if (workspacePhase === "r2") {
     "R2 workspace editor and SQL restored",
   );
   assert(
+    !document.querySelector("#grid tbody tr"),
+    "restart does not execute cloud SQL",
+  );
+  await click("run");
+  assert(
     document.querySelectorAll("#grid tbody tr").length === 100,
     "R2 restored query executes",
   );

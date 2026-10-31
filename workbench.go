@@ -65,6 +65,11 @@ func (w *Workbench) OpenPath(ctx context.Context, path string) (*engine.File, er
 		w.last = nil
 		w.mu.Unlock()
 	}
+	if err == nil && w.folders != nil {
+		if saveErr := w.folders.Remember(f.Path, true); saveErr != nil {
+			f.Warning = saveErr.Error()
+		}
+	}
 	return f, err
 }
 

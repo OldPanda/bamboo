@@ -38,6 +38,8 @@ type Column struct {
 
 // File contains Parquet metadata; large counts use strings to preserve precision in JavaScript.
 type File struct {
+	// Warning reports an ancillary application-state failure without invalidating the reader.
+	Warning   string   `json:"warning,omitempty"`
 	Name      string   `json:"name"`
 	Path      string   `json:"path"`
 	Bytes     string   `json:"bytes"`

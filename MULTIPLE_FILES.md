@@ -8,9 +8,25 @@ Each open file retains its SQL draft separately from the successful query, plus 
 
 ## Persistence
 
-All open roots, workspace display names and per-file draft/successful SQL are saved privately in the app config. Restart restores one last file per still-open root, with the last-used root active. Older single-workspace settings migrate automatically. Closing a file clears its recent-file entry if it was that root's last file. Missing roots are reported without preventing other roots from opening.
+Open roots, workspace names, the complete open-file list (up to 128 files),
+and the active file or workspace are saved privately in the app config.
+Independent Parquet files now survive restarts and upgrades too. Older settings
+retain their roots and last file per root; standalone files that older versions
+never saved cannot be reconstructed.
 
-The full list of open documents, outside-file queries, pagination, filters/sorts and expanded directory branches are session-only. This release does not restore every open file after quitting. No cross-file query or simultaneous app-instance configuration coordination is provided.
+Startup restores the file list without opening every reader. Only the selected
+file gets a bounded default first page. Saved workspace/file SQL drafts remain
+available, but historical SQL is not executed on startup; choose **Run** to execute
+it. Independent-file SQL, pagination, filters/sorts and expanded branches remain
+session-only. Closing a file or workspace updates the saved open set immediately.
+
+Unavailable paths and cloud connections are retained for retry; one unavailable
+root does not prevent the others from appearing. No missing-path error is treated
+as proof that an external drive's files were deleted. Permanently removed entries
+can be closed explicitly. Unreadable or incompatible settings are reported and
+preserved, not overwritten by an empty session. Writes use private atomic files;
+failed writes are visible. Simultaneous app-instance configuration coordination is
+not provided.
 
 ## Verified on macOS arm64
 

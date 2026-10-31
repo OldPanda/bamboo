@@ -48,10 +48,16 @@ const selected = (path) => row(path)?.classList.contains("selected");
 assert(groups().length === 2, "two independent workspace roots restored");
 if (workspacePhase === "multi-restore") {
   assert(
-    opened().length === 2 && row(first) && row(second),
-    "last file per workspace restored; outside files stay session-only",
+    opened().length === 3 && row(first) && row(second) && row(external),
+    "all workspace and independent files restored",
   );
   assert(selected(first), "last used workspace restored as active");
+  assert(
+    rows() === 100,
+    "restart previews only the selected file without historical SQL",
+  );
+  await click(row(external).querySelector(".close-file"));
+  await click($("run"));
   assert(
     $("sql").value ===
       "SELECT city, count(*) AS orders FROM data GROUP BY city" &&
