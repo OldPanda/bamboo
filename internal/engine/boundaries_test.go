@@ -100,7 +100,7 @@ func TestQueryErrorsAndExactBoundaries(t *testing.T) {
 	}
 }
 
-func TestWideParquetFailsWithoutReplacingSession(t *testing.T) {
+func TestOversizedSchemaFailsWithoutReplacingSession(t *testing.T) {
 	e, dir := setup(t)
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
@@ -108,15 +108,40 @@ func TestWideParquetFailsWithoutReplacingSession(t *testing.T) {
 	}
 	defer db.Close()
 	p := filepath.Join(dir, "wide.parquet")
-	if _, err := db.Exec("COPY (SELECT " + strings.Repeat("1,", 256) + "1) TO " + literal(p) + " (FORMAT PARQUET)"); err != nil {
+	fields := make([]string, 64)
+	for i := range fields {
+		fields[i] = "1 AS " + ident(strings.Repeat("x", 16384)+strings.Repeat("y", i))
+	}
+	if _, err := db.Exec("COPY (SELECT " + strings.Join(fields, ",") + ") TO " + literal(p) + " (FORMAT PARQUET)"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.Open(context.Background(), p); err == nil || !strings.Contains(err.Error(), "256 columns") {
+	if _, err := e.Open(context.Background(), p); err == nil || !strings.Contains(err.Error(), "schema exceeds 1 MiB") {
 		t.Fatal("wide schema", err)
 	}
 	r, err := e.Query(context.Background(), req("SELECT count(*) FROM data"))
 	if err != nil || *r.Rows[0][0] != "240" {
 		t.Fatal("old data lost", err)
+	}
+	resolve := func(string) (string, error) { return p, nil }
+	if _, err := e.QueryWorkspace(context.Background(), req(`SELECT * FROM workspace."wide.parquet"`), resolve); err == nil || !strings.Contains(err.Error(), "schema exceeds 1 MiB") {
+		t.Fatal("oversized query schema was accepted", err)
+	}
+	r, err = e.QueryWorkspace(context.Background(), req(`SELECT 42 FROM workspace."wide.parquet"`), resolve)
+	if err != nil || len(r.Columns) != 1 || len(r.Rows) != 1 || *r.Rows[0][0] != "42" {
+		t.Fatal("narrow workspace query could not recover", err)
+	}
+}
+
+func TestSchemaBudgetExactBoundaries(t *testing.T) {
+	e, _ := setup(t)
+	nameBytes := MaxSchema - 64 - len("INTEGER")
+	name := strings.Repeat("竹", nameBytes/3) + strings.Repeat("x", nameBytes%3)
+	cols, err := describe(context.Background(), e.db, "SELECT 1 AS "+ident(name))
+	if err != nil || len(cols) != 1 || cols[0].Name != name {
+		t.Fatal("inclusive metadata byte budget", err)
+	}
+	if _, err := describe(context.Background(), e.db, "SELECT 1 AS "+ident(name+"x")); err == nil || !strings.Contains(err.Error(), "schema exceeds 1 MiB") {
+		t.Fatal("metadata byte budget was not enforced", err)
 	}
 }
 

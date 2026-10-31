@@ -18,8 +18,11 @@ import (
 // MaxPage limits the number of rows returned by one preview.
 const MaxPage = 500
 
-// MaxColumns limits the columns exposed by a file or query result.
-const MaxColumns = 256
+// MaxSchema bounds column names/types plus a fixed per-column allocation allowance.
+const MaxSchema = 1024 * 1024
+
+// MaxPageCells bounds preview allocation and rendering, including NULL/empty cells.
+const MaxPageCells = 128000
 
 // MaxCell limits the byte length of a rendered cell value.
 const MaxCell = 64 * 1024
@@ -61,11 +64,13 @@ type Request struct {
 
 // Result contains one bounded page; nil cell pointers represent SQL NULL.
 type Result struct {
-	Columns   []Column    `json:"columns"`
-	Rows      [][]*string `json:"rows"`
-	More      bool        `json:"more"`
-	Offset    int         `json:"offset"`
-	ElapsedMS int64       `json:"elapsedMS"`
+	Columns []Column    `json:"columns"`
+	Rows    [][]*string `json:"rows"`
+	More    bool        `json:"more"`
+	Offset  int         `json:"offset"`
+	// PageSize is the effective row limit after applying the cell budget.
+	PageSize  int   `json:"pageSize,omitempty"`
+	ElapsedMS int64 `json:"elapsedMS"`
 }
 
 // Engine has one active operation and a separately cancellable context.
@@ -215,16 +220,19 @@ func describe(ctx context.Context, db *database, q string) ([]Column, error) {
 	}
 	defer rows.Close()
 	out := []Column{}
+	size := 0
 	for rows.Next() {
 		var c Column
 		var a, b, d, f any
 		if err = rows.Scan(&c.Name, &c.Type, &a, &b, &d, &f); err != nil {
 			return nil, err
 		}
-		out = append(out, c)
-		if len(out) > MaxColumns {
-			return nil, errors.New("this version supports up to 256 columns")
+		// Include per-column overhead so empty names/types cannot bypass the bound.
+		size += len(c.Name) + len(c.Type) + 64
+		if size > MaxSchema {
+			return nil, errors.New("schema exceeds 1 MiB; select fewer columns in a workspace query")
 		}
+		out = append(out, c)
 	}
 	return out, rows.Err()
 }
@@ -330,15 +338,16 @@ func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure er
 	}
 	// DuckDB formats values before IPC: decimals, nested types and nanosecond
 	// timestamps never round-trip through float64 or JavaScript numbers.
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("SELECT CAST(COLUMNS(*) AS VARCHAR) FROM (%s\n) AS bamboo_page LIMIT %d OFFSET %d", q, r.Limit+1, r.Offset), args...)
+	pageSize := min(r.Limit, MaxPageCells/max(1, len(cols)))
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("SELECT CAST(COLUMNS(*) AS VARCHAR) FROM (%s\n) AS bamboo_page LIMIT %d OFFSET %d", q, pageSize+1, r.Offset), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := &Result{Columns: cols, Rows: [][]*string{}, Offset: r.Offset}
+	out := &Result{Columns: cols, Rows: [][]*string{}, Offset: r.Offset, PageSize: pageSize}
 	size := 0
 	for rows.Next() {
-		if len(out.Rows) == r.Limit {
+		if len(out.Rows) == pageSize {
 			out.More = true
 			break
 		}

@@ -3,6 +3,10 @@ export type Language = "en" | "zh-CN";
 type Params = Record<string, string | number>;
 /** App-owned Chinese translations keyed by their English UI text. */
 export const chinese: Record<string, string> = {
+  "Wide result: up to {rows} rows per page; all columns shown.":
+    "宽表每页最多显示 {rows} 行，保留全部列。",
+  "schema exceeds 1 MiB; select fewer columns in a workspace query":
+    "字段元数据超过 1 MiB，请在工作区查询中选择较少的列",
   "Temporary disk": "临时磁盘",
   "Automatic temporary disk": "自动临时磁盘",
   "Auto uses 25% of available space after reserving 1 GiB.":
