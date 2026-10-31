@@ -43,6 +43,9 @@ resource use and a quiet, clear desktop experience.
   explicitly opened workspace. Preserve canonical-path and symlink checks.
 - Preserve exact decimals, large integers, timestamps, nested values and NULL
   through Go, IPC and rendering. Do not route them through JavaScript numbers.
+- Check established SQL types, ordinary functions and comparisons when changing
+  physical-type decoding. Make representation changes explicit; exact-value
+  assertions alone do not establish query compatibility.
 - Export only the selected result snapshot. Never overwrite an existing file.
   Protect CSV headers and formula-like text while preserving valid numeric
   values; document any transformation and keep JSON available for exact values.
@@ -140,6 +143,9 @@ npm run build
   Finder and Dock checks need an explicitly suitable interactive session.
 - Mocked IPC screenshots verify layout, not native integration. Unit tests,
   synthetic cloud tests and live-provider acceptance are separate evidence.
+- Verify keyboard focus with real headless browser input and a deferred IPC
+  response. jsdom does not model the native blur caused by disabling a focused
+  button, and immediately resolved mocks can hide that transition.
 - Concurrency/cache changes warrant targeted race checks. SQL, export and path
   changes warrant adversarial inputs and source-immutability checks.
 - On Windows, observe actively written spill-file sizes through live file-handle

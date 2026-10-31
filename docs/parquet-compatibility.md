@@ -1,4 +1,49 @@
-# Exact decimal compatibility
+# Exact Parquet values
+
+## Legacy INT96 timestamps
+
+[INT96 is deprecated](https://parquet.apache.org/docs/file-format/types/), but
+existing files remain readable. Bamboo preserves DuckDB's default `TIMESTAMP`
+type for these columns across local files, folder workspaces, S3 and R2. Existing
+timestamp comparisons, date functions and interval arithmetic continue to work.
+Modern INT64 timestamp columns keep their existing types and precision.
+
+**Known precision limit:** INT96 stores a Julian day and nanoseconds since
+midnight, while the default `TIMESTAMP` reader keeps only microseconds. For
+example, `1970-01-01 00:00:00.123456789` becomes
+`1970-01-01 00:00:00.123456`, including in exports of that result. Casting the
+already-read value to `TIMESTAMP_NS` cannot recover the missing digits.
+
+For an already-opened local file, an advanced SQL query can explicitly use
+DuckDB's full-precision reader through the existing scoped query interface:
+
+```sql
+SELECT *
+FROM read_parquet('/absolute/path/file.parquet', int96_as='struct')
+```
+
+Replace the example path with the opened file's absolute canonical path. This
+does not grant access to unopened files or arbitrary network locations. This
+recipe is for local files; it does not expose cloud gateway URLs or add a cloud
+precision setting.
+
+Only that explicit query returns INT96 columns as
+`STRUCT(date DATE, "time" TIME_NS)`, preserving nine fractional digits, dates
+from 0001 through 9999 and NULL. Its result can be exported without losing those
+digits. SQL can select `stamp.date` and `stamp.time` from this representation;
+ordinary timestamp functions require an intentional conversion. The default
+`data` and `workspace` views keep their timestamp schema. Selecting
+`int96_as='timestamp_ns'` alone is not a full-range alternative: dates outside
+its narrower range can become infinity.
+
+[INT96 regressions](../internal/engine/int96_test.go) use an independent PLAIN
+Parquet writer to check the default timestamp contract, functions, range,
+NULL, pagination, failed-query recovery and synthetic cloud range-cache reuse.
+The explicit local query additionally checks exact nanoseconds, child
+filtering/sorting and rejection of unopened paths. Source hashes remain
+unchanged. No native DuckDB patch or additional reader setting is added.
+
+## Legacy decimal annotations
 
 Bamboo accepts legacy Parquet DECIMAL annotations that specify precision and
 omit scale. The [Parquet specification](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#decimal)

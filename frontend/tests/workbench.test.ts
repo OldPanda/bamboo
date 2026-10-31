@@ -342,6 +342,62 @@ describe("the shipped page through its generated IPC binding", () => {
     expect($<HTMLInputElement>("filter-value").value).toBe("");
   });
 
+  it("keeps keyboard focus on the sorted header and exposes its direction", async () => {
+    await open();
+    const header = () =>
+      document.querySelectorAll<HTMLButtonElement>("#grid th button")[1];
+    header().focus();
+    for (const desc of [false, true]) {
+      header().click();
+      await settled();
+      expect(lastRequest()).toMatchObject({ sort: "text", desc });
+      expect(document.activeElement).toBe(header());
+      expect(header().closest("th")!.getAttribute("aria-sort")).toBe(
+        desc ? "descending" : "ascending",
+      );
+      expect(document.querySelectorAll("#grid th[aria-sort]")).toHaveLength(1);
+    }
+    responses["Workbench.Query"] = () => {
+      throw new Error("sort canceled");
+    };
+    header().click();
+    await settled();
+    expect(document.activeElement).toBe(header());
+    expect(header().closest("th")!.getAttribute("aria-sort")).toBe(
+      "descending",
+    );
+  });
+
+  it("does not reclaim header focus moved while sorting or retain a stale direction", async () => {
+    await open();
+    let finish!: (r: Result) => void;
+    responses["Workbench.Query"] = () =>
+      new Promise((resolve) => (finish = resolve));
+    const header =
+      document.querySelector<HTMLButtonElement>("#grid th button")!;
+    header.focus();
+    header.click();
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    expect(header.disabled).toBe(false);
+    expect(header.getAttribute("aria-disabled")).toBe("true");
+    const queries = bridge.call.mock.calls.filter(
+      ([name]) => name === "Workbench.Query",
+    ).length;
+    header.click();
+    expect(
+      bridge.call.mock.calls.filter(([name]) => name === "Workbench.Query"),
+    ).toHaveLength(queries);
+    $("grid-scroll").focus();
+    expect(document.activeElement).toBe($("grid-scroll"));
+    finish(page());
+    await settled();
+    expect(document.activeElement).toBe($("grid-scroll"));
+    expect(document.querySelectorAll("#grid th[aria-sort]")).toHaveLength(1);
+    responses["Workbench.Query"] = () => page();
+    await click("run");
+    expect(document.querySelector("#grid th[aria-sort]")).toBeNull();
+  });
+
   it("keeps all wide columns and uses the effective page size in both directions", async () => {
     const wideColumns = Array.from({ length: 257 }, (_, i) => ({
       name: i === 256 ? '末列 " <img>' : `c${i}`,

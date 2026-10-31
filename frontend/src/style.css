@@ -19,10 +19,11 @@ button {
   cursor: pointer;
   white-space: nowrap;
 }
-button:active:not(:disabled) {
+button:active:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-paper-3);
 }
 button:disabled,
+button[aria-disabled="true"],
 input:disabled,
 select:disabled,
 textarea:disabled {
@@ -668,7 +669,7 @@ textarea {
   background: var(--color-error-soft);
 }
 @media (hover: hover) {
-  button:hover:not(:disabled) {
+  button:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--hover);
   }
   button.primary:hover:not(:disabled) {
@@ -1070,6 +1071,7 @@ textarea {
 /* Keep the workbench steady while IPC is in flight. Disabled controls retain
    their normal appearance; only slow operations reveal the overlay. */
 body.is-busy button:disabled,
+body.is-busy button[aria-disabled="true"],
 body.is-busy input:disabled,
 body.is-busy select:disabled,
 body.is-busy textarea:disabled {
