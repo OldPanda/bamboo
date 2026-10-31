@@ -58,7 +58,7 @@ The project uses:
 
 The build and its Node tests need no installed dependencies. Skipping automatic installation avoids installing or building the desktop App in Pages. Browser checks run in GitHub Actions, where Chrome is available. Preview builds use the same website path filters and build command as production; they do not publish to the production address. This build does not change Cloudflare project or domain settings.
 
-The `Website` GitHub workflow validates website and workflow changes on pull requests and `main`, with a manual run option. It never receives Cloudflare credentials or publishes the site. The regular App CI also runs the complete website suite; App release/tag workflows are unchanged.
+The `Website` GitHub workflow validates website and workflow changes on pull requests and `main`, with a manual run option. It never receives Cloudflare credentials or publishes the site. The regular App CI also runs the complete website suite. The separate release catalog workflow below connects successful App releases to this existing deployment path.
 
 All public assets have content-hashed filenames and long-lived immutable caching. HTML revalidates. The Pages CSP permits same-origin scripts and images, blocks network calls from page scripts, and prevents framing; local HTTP checks exercise these headers. The standalone review copy is for direct opening and does not inherit HTTP headers.
 
@@ -68,9 +68,80 @@ Official references: [Git integration](https://developers.cloudflare.com/pages/g
 
 The hero download button follows the browser’s desktop OS. A published installer links to the real release asset; an unavailable platform links to its bottom download card. Phone, iPad desktop-mode, ChromeOS and unknown browsers link to all downloads. Small links under the button jump to the other platform cards and move keyboard focus there. Detection does not prove CPU compatibility, so architecture and minimum OS remain visible. The bottom section lists macOS Apple Silicon DMG, Windows x64 EXE/portable ZIP and Linux x64 DEB/portable tar.gz separately, including unpublished packages. The installation guide retains its own selector; changing it never changes the hero’s detected platform. Guide choices survive language and theme changes on the current page.
 
-`downloads.json` is a reviewed snapshot of the **latest stable GitHub Release**, embedded in the hashed script at build time. Release v0.1.2 provides all five packages: Apple Silicon DMG, Windows x64 setup EXE and ZIP, and Linux x64 DEB and tar.gz. The catalog records their verified public URLs and sizes; signing limitations and installation requirements remain visible. CI preview artifacts are not treated as public stable installers. Drafts, prereleases, missing assets, unsupported names and unexpected URLs never produce download buttons.
+`downloads.json` is a verified snapshot of the **newest successfully verified stable release**, embedded in the hashed script at build time. Release v0.1.2 provides all five packages: Apple Silicon DMG, Windows x64 setup EXE and ZIP, and Linux x64 DEB and tar.gz. The catalog records their verified public URLs and sizes; signing limitations and installation requirements remain visible. CI preview artifacts are not treated as public stable installers. Drafts, prereleases, missing assets, unsupported names and unexpected URLs never produce download buttons.
 
-Refresh availability explicitly before shipping website download changes and after publishing a release:
+### Automatic release synchronization
+
+[Release website sync](../.github/workflows/release-website.yml) listens for the
+completion of `Release` with `workflow_run`. It runs trusted `main` scripts,
+requires a successful tag-triggered run in this repository and explicitly checks
+the macOS, Windows/Linux build, publication and hosted native acceptance jobs.
+The tag must still resolve to the verified commit. Drafts and prereleases do not
+change the catalog. This also works for releases created using `GITHUB_TOKEN`;
+it does not depend on a recursively triggered `release: published` event.
+
+For the exact verified tag, the sync downloads all five public packages as
+bounded streams, verifies their sizes and SHA-256 sidecars, and proposes only
+`website/downloads.json` on a dedicated branch based on current `main`. The
+catalog includes actual asset URLs and byte sizes. Versions compare numerically;
+late older runs and identical catalogs produce no commit or PR. An advertised
+version whose metadata changed fails instead of silently replacing it.
+
+The workflow creates a normal PR using GitHub's short-lived Actions token and
+**explicitly dispatches** `ci.yml` and `website.yml` on its exact head. It waits
+for both runs to succeed before asking the normal merge API to squash that head.
+It never approves its own PR, bypasses protections, writes synthetic check
+statuses, or pushes directly to `main`. If `main` advances during checks, it
+closes the stale proposal, recreates it on the fresh base, and checks again (up
+to three bases within the 180-minute job limit). Retry branches are deterministic
+and inspected for unexpected changes before reuse; no force push is needed.
+
+The merge's push event reaches the already installed Cloudflare Workers and
+Pages GitHub App, which builds production from `main`. GitHub Actions' recursion
+restriction applies to Actions, not that external Git integration. The sync
+waits up to 15 minutes for Cloudflare's successful check on the merge SHA and
+checks the five links and displayed sizes on both `/en/` and `/zh/`. A missing
+or failed deployment fails the sync visibly; it never reports deployment success
+merely because a PR merged. The browser still uses static bilingual HTML and
+the bundled catalog, with no runtime GitHub API request.
+
+One repository setting is required: **Settings → Actions → General → Allow
+GitHub Actions to create and approve pull requests**. Keep default workflow
+permissions read-only; only this job requests `contents: write`,
+`pull-requests: write`, `actions: write`, and `checks: read`. No new GitHub App,
+PAT, user signing key, Cloudflare token or deployment hook is needed. Keep the
+existing branch rules intact. If future rules require human approval, automation
+stops at that rule; do not grant bypass rights to make it merge.
+
+For recovery, rerun the failed sync, or dispatch `Release website sync` on `main`
+with the original successful **Release run ID**. `dry_run` defaults to true and
+performs verification without writes; set it to false to resume an update. Fix
+or rerun failed CI on the catalog branch before retrying. If the catalog has
+already merged but Pages failed, retry the production deployment in Pages;
+an unchanged catalog intentionally does not manufacture another commit. Network,
+missing-asset and hash failures leave the old catalog untouched. No step edits
+tags or release assets. A newly published release with failed native acceptance
+is not advertised, even if GitHub calls it "latest".
+
+Read-only local validation of a specific successful release is also available:
+
+```sh
+DRY_RUN=true RELEASE_RUN_ID=41144883695 node website/scripts/sync-release.mjs
+```
+
+The script defaults to dry-run outside Actions; public API rate limits may apply.
+Offline regressions exercise failed verification, stale versions, tampered
+branches, explicit dispatch, failed CI, advancing `main`, and deployment checks.
+An unchanged existing release can verify idempotency without creating a commit;
+it cannot exercise a new catalog merge/deployment or a future tag event.
+
+References: [GitHub workflow triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow),
+[workflow_run security and behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run),
+[Cloudflare Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/).
+
+### Manual availability diagnostics
+
+For investigating published availability independently of the release gate:
 
 ```sh
 npm --prefix website run check:downloads
