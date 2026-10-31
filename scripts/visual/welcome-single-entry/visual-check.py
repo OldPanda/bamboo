@@ -29,7 +29,6 @@ const timer=setInterval(()=>{if(document.body.dataset.ready!=='true')return;clea
  document.getElementById('source-dismiss').click();
  const zone=document.getElementById('welcome-drop-zone');
  const r=zone.getBoundingClientRect();
- const drag=(x,y)=>zone.dispatchEvent(new DragEvent('dragover',{bubbles:true,clientX:x,clientY:y,dataTransfer:Object.assign(new DataTransfer(),{})}));
  const fire=(x,y)=>{const dt=new DataTransfer();dt.items.add(new File(['x'],'example.parquet'));zone.dispatchEvent(new DragEvent('dragover',{bubbles:true,clientX:x,clientY:y,dataTransfer:dt}));};
  const before=getComputedStyle(zone).backgroundColor;
  fire(r.x-10,r.y);const outside=!zone.classList.contains('drag-active');

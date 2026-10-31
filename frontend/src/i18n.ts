@@ -260,7 +260,6 @@ export const chinese: Record<string, string> = {
   "Sorting…": "正在排序…",
   "Sort by {name}": "按 {name} 排序",
   empty: "空文本",
-  "{rows} rows / {size}": "{rows} 行 / {size}",
   "{start}–{end} / more rows available / {ms} ms":
     "{start}–{end} / 还有更多行 / {ms} 毫秒",
   "{start}–{end} / end of results / {ms} ms":
