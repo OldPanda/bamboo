@@ -337,23 +337,47 @@ test("invalid download targets stop the real build", async (t) => {
 
 test("static locale pages expose every package and truthful availability without a hero selector", async (t) => {
   const f = await fixture(t);
-  success(f.build());
-  const catalog = JSON.parse(
+  const published = JSON.parse(
     await readFile(join(source, "downloads.json"), "utf8"),
   );
-  for (const lang of ["en", "zh"]) {
-    const html = await readFile(join(f.site, lang, "index.html"), "utf8");
-    assert(!html.includes('id="platform-select"'));
-    assert(!html.includes("<!-- PACKAGE:"));
-    assert.equal([...html.matchAll(/data-package="/g)].length, 5);
-    for (const platform of ["macos", "windows", "linux"]) {
-      assert(html.includes(`href="#download-${platform}"`));
-      assert(html.includes(`id="download-${platform}"`));
+  // Exercise missing installers independently of the current published release.
+  for (const available of [Object.keys(published.packages), ["macosDmg"], []]) {
+    const catalog = structuredClone(published);
+    for (const key of Object.keys(catalog.packages))
+      if (!available.includes(key)) catalog.packages[key] = null;
+    await writeFile(
+      join(f.root, "website/downloads.json"),
+      JSON.stringify(catalog),
+    );
+    success(f.build());
+    for (const lang of ["en", "zh"]) {
+      const html = await readFile(join(f.site, lang, "index.html"), "utf8");
+      assert(!html.includes('id="platform-select"'));
+      assert(!html.includes("<!-- PACKAGE:"));
+      assert.equal([...html.matchAll(/data-package="/g)].length, 5);
+      for (const platform of ["macos", "windows", "linux"]) {
+        assert(html.includes(`href="#download-${platform}"`));
+        assert(html.includes(`id="download-${platform}"`));
+      }
+      assert.match(html, lang === "en" ? /Portable ZIP/ : /ZIP 便携包/);
+      assert.match(html, lang === "en" ? /Portable tar.gz/ : /tar.gz 便携包/);
+      assert.equal(
+        [...html.matchAll(/class="package-unavailable"/g)].length,
+        Object.values(catalog.packages).filter((asset) => !asset).length,
+      );
+      for (const [key, asset] of Object.entries(catalog.packages)) {
+        if (asset)
+          assert(html.includes(`data-package="${key}" href="${asset.url}"`));
+        else {
+          assert(
+            html.includes(
+              `<span class="package-unavailable" data-package="${key}">`,
+            ),
+          );
+          const original = published.packages[key];
+          if (original) assert(!html.includes(`href="${original.url}"`));
+        }
+      }
     }
-    assert(html.includes(catalog.packages.macosDmg.url));
-    assert.match(html, lang === "en" ? /Portable ZIP/ : /ZIP 便携包/);
-    assert.match(html, lang === "en" ? /Portable tar.gz/ : /tar.gz 便携包/);
-    assert.equal([...html.matchAll(/class="package-unavailable"/g)].length, 4);
-    assert(!/href="[^"]+(windows-x64|linux-x64)/.test(html));
   }
 });

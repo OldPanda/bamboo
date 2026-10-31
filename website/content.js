@@ -463,8 +463,8 @@ export const translations = {
   },
   windowsLaunchTitle: { zh: "首次打开", en: "First launch" },
   windowsLaunch: {
-    zh: "预览包尚未签名，可能显示 SmartScreen 警告。请先核对下载来源和版本说明；不要关闭系统保护。受管理的电脑请联系管理员。",
-    en: "Preview packages are unsigned and may trigger SmartScreen. Check the download source and release notes before proceeding; keep system protection enabled. On a managed computer, contact your administrator.",
+    zh: "Windows 安装包尚未签名，可能显示 SmartScreen 警告。请先核对下载来源和版本说明；不要关闭系统保护。受管理的电脑请联系管理员。",
+    en: "Windows packages are unsigned and may trigger SmartScreen. Check the download source and release notes before proceeding; keep system protection enabled. On a managed computer, contact your administrator.",
   },
   desktopCloudTitle: {
     zh: "云连接与后续更新",

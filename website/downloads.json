@@ -1,14 +1,30 @@
 {
-  "tag": "v0.1.0",
+  "tag": "v0.1.2",
   "packages": {
     "macosDmg": {
-      "name": "Bamboo-0.1.0-macOS-arm64.dmg",
-      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.0/Bamboo-0.1.0-macOS-arm64.dmg",
-      "size": 34600683
+      "name": "Bamboo-0.1.2-macOS-arm64.dmg",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.2/Bamboo-0.1.2-macOS-arm64.dmg",
+      "size": 34378222
     },
-    "windowsSetup": null,
-    "windowsZip": null,
-    "linuxDeb": null,
-    "linuxTar": null
+    "windowsSetup": {
+      "name": "Bamboo-0.1.2-windows-x64-setup.exe",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.2/Bamboo-0.1.2-windows-x64-setup.exe",
+      "size": 48319708
+    },
+    "windowsZip": {
+      "name": "Bamboo-0.1.2-windows-x64.zip",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.2/Bamboo-0.1.2-windows-x64.zip",
+      "size": 48500776
+    },
+    "linuxDeb": {
+      "name": "Bamboo-0.1.2-linux-x64.deb",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.2/Bamboo-0.1.2-linux-x64.deb",
+      "size": 28767146
+    },
+    "linuxTar": {
+      "name": "Bamboo-0.1.2-linux-x64.tar.gz",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.2/Bamboo-0.1.2-linux-x64.tar.gz",
+      "size": 38801964
+    }
   }
 }
