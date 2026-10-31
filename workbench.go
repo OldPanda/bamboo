@@ -126,19 +126,12 @@ func (w *Workbench) ExportPageAs(ctx context.Context, format string) (string, er
 	}
 	return path, writeExportFormat(path, r, format)
 }
-func writeExport(path string, r *engine.Result) error {
-	return writeExportFormat(path, r, "json")
-}
 func writeExportFormat(path string, r *engine.Result, format string) error {
 	return writeExportFormatWith(path, r, format, func(path string) (io.WriteCloser, error) {
 		return privatefs.Create(path)
 	})
 }
 
-// writeExportWith keeps file creation and write/close failure handling testable.
-func writeExportWith(path string, r *engine.Result, create func(string) (io.WriteCloser, error)) error {
-	return writeExportFormatWith(path, r, "json", create)
-}
 func writeExportFormatWith(path string, r *engine.Result, format string, create func(string) (io.WriteCloser, error)) error {
 	if format != "json" && format != "csv" {
 		return errors.New("choose JSON or CSV export format")
