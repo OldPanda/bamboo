@@ -57,6 +57,7 @@ jobs:
         run: |
           test "$(uname -m)" = arm64
           npm ci
+          python3 -m pip install -r requirements-build.txt
           go mod download go.duckdb.org/libduckdb/darwin-arm64
           npm run build
           git diff --exit-code -- frontend/src/mygo.ts

@@ -1,0 +1,2 @@
+# Unified patch context prefixes a space before upstream tab indentation.
+scripts/duckdb/*.patch whitespace=-space-before-tab

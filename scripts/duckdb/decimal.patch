@@ -1,0 +1,67 @@
+--- a/extension/parquet/parquet_reader.cpp
++++ b/extension/parquet/parquet_reader.cpp
+@@ -541,34 +541,51 @@
+ 			} else {
+ 				throw IOException("TIMESTAMP converted type can only be set for value of Type::INT64");
+ 			}
+-		case ConvertedType::DECIMAL:
+-			if (!s_ele.__isset.precision || !s_ele.__isset.scale) {
+-				throw IOException("DECIMAL requires a length and scale specifier!");
+-			}
+-			if (s_ele.precision < 1 || s_ele.scale < 0 || s_ele.scale > s_ele.precision) {
+-				throw IOException("Invalid DECIMAL precision %d and scale %d", s_ele.precision, s_ele.scale);
+-			}
+-			schema.type_scale = NumericCast<uint32_t>(s_ele.scale);
++		case ConvertedType::DECIMAL: {
++			if (!s_ele.__isset.precision) {
++				throw IOException("DECIMAL requires a precision specifier!");
++			}
++			// Parquet defaults an omitted legacy scale to zero. Never infer precision.
++			const auto scale = s_ele.__isset.scale ? s_ele.scale : 0;
++			if (s_ele.precision < 1 || scale < 0 || scale > s_ele.precision) {
++				throw IOException("Invalid DECIMAL precision %d and scale %d", s_ele.precision, scale);
++			}
++			schema.type_scale = NumericCast<uint32_t>(scale);
+ 			if (s_ele.precision > DecimalType::MaxWidth()) {
++				throw NotImplementedException("Exact Parquet DECIMAL precision above 38 is not supported");
++			}
++			switch (s_ele.type) {
++			case Type::FIXED_LEN_BYTE_ARRAY: {
++				// Maximum precision for 1..16 signed big-endian bytes, per Parquet.
++				static constexpr int max_precision[] = {0, 2, 4, 6, 9, 11, 14, 16, 18, 21, 23, 26, 28, 31, 33, 35, 38};
++				if (s_ele.type_length <= 0 ||
++				    (s_ele.type_length <= 16 && s_ele.precision > max_precision[s_ele.type_length])) {
++					throw IOException("DECIMAL precision exceeds FIXED_LEN_BYTE_ARRAY capacity");
++				}
+ 				schema.type_info = ParquetExtraTypeInfo::DECIMAL_BYTE_ARRAY;
+-				return LogicalType::DOUBLE;
+-			}
+-			switch (s_ele.type) {
++				break;
++			}
+ 			case Type::BYTE_ARRAY:
+-			case Type::FIXED_LEN_BYTE_ARRAY:
+ 				schema.type_info = ParquetExtraTypeInfo::DECIMAL_BYTE_ARRAY;
+ 				break;
+ 			case Type::INT32:
++				if (s_ele.precision > 9) {
++					throw IOException("DECIMAL precision exceeds INT32 capacity");
++				}
+ 				schema.type_info = ParquetExtraTypeInfo::DECIMAL_INT32;
+ 				break;
+ 			case Type::INT64:
++				if (s_ele.precision > 18) {
++					throw IOException("DECIMAL precision exceeds INT64 capacity");
++				}
+ 				schema.type_info = ParquetExtraTypeInfo::DECIMAL_INT64;
+ 				break;
+ 			default:
+ 				throw IOException(
+ 				    "DECIMAL converted type can only be set for value of Type::(FIXED_LEN_)BYTE_ARRAY/INT32/INT64");
+ 			}
+-			return LogicalType::DECIMAL(s_ele.precision, s_ele.scale);
++			return LogicalType::DECIMAL(s_ele.precision, scale);
++		}
+ 		case ConvertedType::UTF8:
+ 		case ConvertedType::ENUM:
+ 			switch (s_ele.type) {

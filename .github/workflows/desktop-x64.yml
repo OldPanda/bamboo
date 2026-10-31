@@ -33,7 +33,7 @@ jobs:
     env:
       GOTOOLCHAIN: go1.27.3
       GOMAXPROCS: "3"
-      BAMBOO_VERSION: ${{ inputs.version || '0.1.2' }}
+      BAMBOO_VERSION: ${{ inputs.version || '0.1.3' }}
       BAMBOO_VAULT_TEST: "1"
     defaults:
       run:
@@ -69,6 +69,7 @@ jobs:
         if: ${{ !inputs.verify-published }}
         run: |
           npm ci --prefer-offline
+          python -m pip install -r requirements-build.txt
           python scripts/build-desktop.py
           git diff --exit-code -- frontend/src/mygo.ts
       - name: Frontend regression tests
