@@ -71,7 +71,7 @@ app.innerHTML = `
     <div id="data-panel" class="data-panel">
       <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
-      <footer class="table-footer"><span id="result-summary">Ready</span><div class="pagination"><button id="previous" aria-label="Previous page">←</button><span id="page-label">Page 1</span><button id="next" aria-label="Next page">→</button></div></footer>
+      <footer class="table-footer"><div><span id="result-summary">Ready</span><div id="page-size-note" hidden></div></div><div class="pagination"><button id="previous" aria-label="Previous page">←</button><span id="page-label">Page 1</span><button id="next" aria-label="Next page">→</button></div></footer>
     </div>
     <div id="schema-panel" class="schema-panel" hidden><div class="schema-note">Types are read directly from the Parquet file. Values stay exact across the desktop bridge.</div><table><thead><tr><th>#</th><th>Column</th><th>Logical type</th></tr></thead><tbody id="schema-body"></tbody></table></div>
   </section>
@@ -1742,6 +1742,7 @@ function controls() {
   );
   $("next").toggleAttribute("disabled", busy || !result?.more);
   $("export").toggleAttribute("disabled", busy || !result);
+  if (!result) $("page-size-note").hidden = true;
   $("run").toggleAttribute(
     "disabled",
     busy || (!file && (!folder || !$<HTMLTextAreaElement>("sql").value.trim())),
@@ -1935,8 +1936,17 @@ function render(r: Result) {
   });
   $("empty-result").hidden = r.rows.length !== 0;
   setText($("page-label"), "Page {page}", {
-    page: Math.floor(r.offset / request.limit) + 1,
+    page: Math.floor(r.offset / (r.pageSize || request.limit)) + 1,
   });
+  const pageNote = $("page-size-note");
+  pageNote.hidden = !r.pageSize || r.pageSize >= request.limit;
+  setText(
+    pageNote,
+    "Wide result: up to {rows} rows per page; all columns shown.",
+    {
+      rows: r.pageSize || request.limit,
+    },
+  );
   setText(
     $("result-summary"),
     r.rows.length
@@ -2033,11 +2043,17 @@ $("clear-filter").onclick = () =>
   });
 $("previous").onclick = () =>
   void task("Reading page…", () =>
-    run({ ...request, offset: Math.max(0, request.offset - request.limit) }),
+    run({
+      ...request,
+      offset: Math.max(0, request.offset - (result?.pageSize || request.limit)),
+    }),
   );
 $("next").onclick = () =>
   void task("Reading page…", () =>
-    run({ ...request, offset: request.offset + request.limit }),
+    run({
+      ...request,
+      offset: request.offset + (result?.pageSize || request.limit),
+    }),
   );
 $("page-size").onchange = () =>
   void task("Reading page…", () =>

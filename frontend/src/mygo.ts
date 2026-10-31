@@ -114,6 +114,7 @@ export interface Result {
   rows: ((string | null)[])[];
   more: boolean;
   offset: number;
+  pageSize?: number;
   elapsedMS: number;
 }
 

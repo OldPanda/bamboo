@@ -342,6 +342,72 @@ describe("the shipped page through its generated IPC binding", () => {
     expect($<HTMLInputElement>("filter-value").value).toBe("");
   });
 
+  it("keeps all wide columns and uses the effective page size in both directions", async () => {
+    const wideColumns = Array.from({ length: 257 }, (_, i) => ({
+      name: i === 256 ? '末列 " <img>' : `c${i}`,
+      type: "BIGINT",
+    }));
+    responses["Workbench.Open"] = () => ({
+      ...dataFile(),
+      columns: wideColumns,
+    });
+    // A small effective limit exercises the backend contract without allocating
+    // 128,000 DOM cells in a unit test. Real budget boundaries are engine tests.
+    responses["Workbench.Query"] = (r: Request) => ({
+      columns: wideColumns,
+      rows: Array.from({ length: Math.min(2, 5 - r.offset) }, (_, i) =>
+        wideColumns.map((_, j) => String((r.offset + i) * 10000 + j)),
+      ),
+      pageSize: 2,
+      offset: r.offset,
+      more: r.offset + 2 < 5,
+      elapsedMS: 3,
+    });
+    await open();
+    expect(document.querySelectorAll("#grid th")).toHaveLength(258);
+    expect(document.querySelectorAll("#schema-body tr")).toHaveLength(257);
+    expect(document.querySelectorAll("#column-list .column-item")).toHaveLength(
+      257,
+    );
+    expect($<HTMLSelectElement>("filter-column").options).toHaveLength(258);
+    expect(
+      document.querySelector("#grid th:last-child button")!.textContent,
+    ).toBe(wideColumns[256].name);
+    expect(document.querySelector("#grid img")).toBeNull();
+    expect($("page-size-note").hidden).toBe(false);
+    expect($("page-size-note").textContent).toContain("2 rows per page");
+    await click("next");
+    expect(lastRequest()).toMatchObject({ offset: 2, limit: 100 });
+    expect($("page-label").textContent).toBe("Page 2");
+    expect(
+      document.querySelector("#grid tbody tr td:last-child")!.textContent,
+    ).toBe("20256");
+    await click("next");
+    expect(lastRequest().offset).toBe(4);
+    expect($("page-label").textContent).toBe("Page 3");
+    expect($<HTMLButtonElement>("next").disabled).toBe(true);
+    await click("previous");
+    expect(lastRequest().offset).toBe(2);
+    await click("previous");
+    expect(lastRequest().offset).toBe(0);
+    document
+      .querySelector<HTMLButtonElement>("#grid th:last-child button")!
+      .click();
+    await settled();
+    expect(lastRequest()).toMatchObject({
+      sort: wideColumns[256].name,
+      offset: 0,
+    });
+    value("filter-column", wideColumns[256].name);
+    value("filter-value", "256");
+    $("filter-form").dispatchEvent(new Event("submit", { cancelable: true }));
+    await settled();
+    expect(lastRequest().filterColumn).toBe(wideColumns[256].name);
+    responses["Workbench.Query"] = () => ({ ...page(0, false), pageSize: 100 });
+    await click("run");
+    expect($("page-size-note").hidden).toBe(true);
+  });
+
   it("commits successful SQL only, preserves the previous page on failure and recovers", async () => {
     await open();
     expect($("sql-panel").hidden).toBe(false);
