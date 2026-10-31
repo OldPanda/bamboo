@@ -3,7 +3,7 @@
 Bamboo builds on **macOS arm64**, with native **Windows x64 and Linux x64** packages. See [Windows/Linux](docs/windows-linux.md)
 for native toolchains, installation requirements and acceptance commands.
 For macOS, install Xcode Command Line Tools,
-Node.js 22 or newer, Python 3.12 or newer, and Go with toolchain download support.
+Node.js 22.23.4 (the CI version), Python 3.12 or newer, and Go with toolchain download support.
 The release helper pins Go 1.27.3. Run commands from the repository root.
 
 ## Set up development tools
@@ -15,6 +15,11 @@ python3 -m venv .venv
 mkdir -p build/tools
 GOTOOLCHAIN=go1.27.3 GOBIN="$PWD/build/tools" go install github.com/mgechev/revive@v1.17.1
 ```
+
+The lint toolchain uses ESLint 10 with the existing recommended rule set and a
+patched `minimatch` 11.0.1 override for
+[GHSA-g3hv-75wg-m249](https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249).
+The override covers development tools only; keep the full npm audit gate enabled.
 
 Swift formatting uses `xcrun swift-format` from Xcode Command Line Tools
 (validated with version 6.3.0). Python lint tools are pinned in
