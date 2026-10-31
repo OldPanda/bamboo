@@ -79,6 +79,13 @@ the macOS, Windows/Linux build, publication and hosted native acceptance jobs.
 The tag must still resolve to the verified commit. Drafts and prereleases do not
 change the catalog. This also works for releases created using `GITHUB_TOKEN`;
 it does not depend on a recursively triggered `release: published` event.
+One shared concurrency group serializes updates. Because GitHub can replace a
+pending event, automatic runs first reconcile successful Release runs created
+since their source run, selecting the highest stable version by its exact run ID.
+Thus a late older completion still catches a newer release whose pending event
+was replaced. The search is bounded to 1000 runs; exceeding that bound fails
+visibly and requires dispatching the newest successful run explicitly. Manual
+dispatch always uses precisely the supplied ID. Neither path uses `releases/latest`.
 
 For the exact verified tag, the sync downloads all five public packages as
 bounded streams, verifies their sizes and SHA-256 sidecars, and proposes only
@@ -87,14 +94,24 @@ catalog includes actual asset URLs and byte sizes. Versions compare numerically;
 late older runs and identical catalogs produce no commit or PR. An advertised
 version whose metadata changed fails instead of silently replacing it.
 
-The workflow creates a normal PR using GitHub's short-lived Actions token and
-**explicitly dispatches** `ci.yml` and `website.yml` on its exact head. It waits
-for both runs to succeed before asking the normal merge API to squash that head.
-It never approves its own PR, bypasses protections, writes synthetic check
-statuses, or pushes directly to `main`. If `main` advances during checks, it
-closes the stale proposal, recreates it on the fresh base, and checks again (up
-to three bases within the 180-minute job limit). Retry branches are deterministic
-and inspected for unexpected changes before reuse; no force push is needed.
+The workflow creates a normal PR and waits for the **`pull_request`-triggered**
+checks on its exact head — the same `PR quality gate` and website checks the
+main ruleset evaluates before a merge. It never approves its own PR, bypasses
+protections, writes synthetic check statuses, or pushes directly to `main`. If
+`main` advances during checks, it closes the stale proposal, recreates it on
+the fresh base, and checks again (up to three bases within the 180-minute job
+limit). Retry branches are deterministic and inspected for unexpected changes
+before reuse; no force push is needed.
+
+Opening a PR with the workflow's own short-lived token does not run its
+`pull_request` workflows, so unattended checks and merging need a second
+identity that GitHub allows to trigger workflows: store a **GitHub App
+installation token** (or a narrowly scoped fine-grained PAT, `contents: write`,
+`pull-requests: write`, `checks: read`, `actions: read` on this repository) in
+the `SYNC_APP_TOKEN` Actions secret. With it, the PR creation triggers the
+required checks and the sync merges after they pass. Without it, the sync still
+verifies the release and opens the catalog PR, then stops at `manual:` — merge
+it yourself after the checks finish (reopen the PR if its checks were not run).
 
 The merge's push event reaches the already installed Cloudflare Workers and
 Pages GitHub App, which builds production from `main`. GitHub Actions' recursion
@@ -108,10 +125,11 @@ the bundled catalog, with no runtime GitHub API request.
 One repository setting is required: **Settings → Actions → General → Allow
 GitHub Actions to create and approve pull requests**. Keep default workflow
 permissions read-only; only this job requests `contents: write`,
-`pull-requests: write`, `actions: write`, and `checks: read`. No new GitHub App,
-PAT, user signing key, Cloudflare token or deployment hook is needed. Keep the
-existing branch rules intact. If future rules require human approval, automation
-stops at that rule; do not grant bypass rights to make it merge.
+`pull-requests: write`, `actions: read`, and `checks: read`. For unattended
+merge, add the `SYNC_APP_TOKEN` secret described above. No Cloudflare token,
+deployment hook or user signing key is needed. Keep the existing branch rules
+intact. If future rules require human approval, automation stops at that rule;
+do not grant bypass rights to make it merge.
 
 For recovery, rerun the failed sync, or dispatch `Release website sync` on `main`
 with the original successful **Release run ID**. `dry_run` defaults to true and

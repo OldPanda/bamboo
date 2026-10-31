@@ -5,12 +5,44 @@ import { pathToFileURL } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
   catalogDecision,
+  compareTags,
   verifyReleaseDownloads,
 } from "./release-downloads.mjs";
 
 const repository = "OldPanda/bamboo";
 const catalogPath = "website/downloads.json";
-const workflows = ["ci.yml", "website.yml"];
+// The main ruleset requires these check runs to pass on the PR head before a
+// merge. On a non-main branch they only come from the pull_request event, so
+// waiting on them is exactly the gate GitHub evaluates at merge time.
+const requiredChecks = ["PR quality gate", "Website build and browser checks"];
+
+/** A replaced pending event must still reconcile every newer successful release run. */
+export async function newestSuccessfulRun(api, sourceID) {
+  const source = await api(`actions/runs/${sourceID}`);
+  let selected = source;
+  // Search from the source run's creation time: even an old, slow release that
+  // finishes late cannot hide a newer success behind GitHub's pending-run limit.
+  const since = encodeURIComponent(`>=${source.created_at}`);
+  for (let page = 1; page <= 10; page++) {
+    const result = await api(
+      `actions/workflows/release.yml/runs?status=success&event=push&created=${since}&per_page=100&page=${page}`,
+    );
+    assert(
+      result.total_count <= 1000,
+      "More than 1000 release runs need reconciliation; dispatch the newest successful release explicitly",
+    );
+    for (const run of result.workflow_runs) {
+      if (
+        /^v\d+\.\d+\.\d+$/.test(run.head_branch) &&
+        (!/^v\d+\.\d+\.\d+$/.test(selected.head_branch) ||
+          compareTags(run.head_branch, selected.head_branch) > 0)
+      )
+        selected = run;
+    }
+    if (page * 100 >= result.total_count) return selected.id;
+  }
+  throw Error("Release run pagination exceeded its bound");
+}
 
 /** Use only the repository-scoped Actions token; never forward it to downloads. */
 export function githubAPI(token, fetcher = fetch) {
@@ -80,6 +112,19 @@ export async function releaseForRun(api, runID) {
     run.head_sha,
     "Release tag moved since verification",
   );
+  // The tag must already be in main's history. An unreleased side commit that
+  // can push tags but cannot merge main must never advertise downloads, even
+  // if its own Release run reported success.
+  const mainRef = await api("git/ref/heads/main");
+  const ancestry = await api(
+    `compare/${encodeURIComponent(mainRef.object.sha)}...${encodeURIComponent(
+      run.head_sha,
+    )}`,
+  );
+  assert(
+    ancestry.status === "behind" || ancestry.status === "identical",
+    "Release tag is not reachable from main",
+  );
   const release = await api(
     `releases/tags/${encodeURIComponent(run.head_branch)}`,
   );
@@ -97,31 +142,30 @@ async function mainSnapshot(api) {
   };
 }
 
-async function checkedRuns(api, branch, sha, wait) {
-  for (const workflow of workflows) {
-    const path = `actions/workflows/${workflow}/runs?branch=${encodeURIComponent(branch)}&event=workflow_dispatch&per_page=100`;
-    let runs = await api(path);
-    let run = runs.workflow_runs.find((item) => item.head_sha === sha);
-    if (!run)
-      await api(`actions/workflows/${workflow}/dispatches`, "POST", {
-        ref: branch,
-      });
-    const deadline = Date.now() + 75 * 60 * 1000;
-    while (!run || run.status !== "completed") {
-      assert(
-        Date.now() < deadline,
-        `Timed out waiting for ${workflow}; rerun sync to resume`,
-      );
-      await wait(30000);
-      runs = await api(path);
-      run = runs.workflow_runs.find((item) => item.head_sha === sha);
-    }
-    assert.equal(
-      run.conclusion,
-      "success",
-      `${workflow} failed; fix or rerun its checks before retrying sync`,
+async function pullRequestChecks(api, sha, wait) {
+  const deadline = Date.now() + 75 * 60 * 1000;
+  let runs;
+  for (;;) {
+    runs = await api(`commits/${sha}/check-runs?per_page=100`);
+    const byName = new Map(runs.check_runs.map((check) => [check.name, check]));
+    const pending = requiredChecks.filter(
+      (name) => !byName.has(name) || byName.get(name).status !== "completed",
     );
-    console.log(`Passed ${workflow}: ${run.html_url}`);
+    if (pending.length === 0) break;
+    assert(
+      Date.now() < deadline,
+      `Timed out waiting for required checks: ${pending.join(", ")}; rerun sync to resume`,
+    );
+    await wait(30000);
+  }
+  for (const name of requiredChecks) {
+    const check = runs.check_runs.find((item) => item.name === name);
+    assert.equal(
+      check.conclusion,
+      "success",
+      `${name} failed: ${check.html_url}`,
+    );
+    console.log(`Passed ${name}: ${check.html_url}`);
   }
 }
 
@@ -178,6 +222,7 @@ export async function synchronize({
   verify = verifyReleaseDownloads,
   deploy = verifyDeployment,
   wait = sleep,
+  autoMerge = true,
 }) {
   const release = await releaseForRun(api, runID);
   if (!release) return "prerelease";
@@ -238,14 +283,20 @@ export async function synchronize({
         head: branch,
         base: "main",
         title: `chore(website): synchronize ${catalog.tag} downloads`,
-        body: `All five public packages passed SHA-256 and size verification after [Release run](https://github.com/${repository}/actions/runs/${runID}).\n\nAutomation explicitly dispatches CI and Website against this commit, waits for success, then merges through the normal PR API. Cloudflare Pages deploys main through its existing Git integration.`,
+        body: `All five public packages passed SHA-256 and size verification after [Release run](https://github.com/${repository}/actions/runs/${runID}).\n\nOpening this pull request runs the normal CI and Website checks on its head; the sync waits for those required checks and then merges through the protected PR API. Cloudflare Pages deploys main through its existing Git integration.`,
       });
     assert(
       pr.state === "open",
       "Automation PR is closed; inspect before retrying",
     );
+    if (!autoMerge) {
+      console.log(
+        `Catalog needs ${catalog.tag}; PR ready for review: ${pr.html_url}. Configure SYNC_APP_TOKEN for unattended checks and merge.`,
+      );
+      return `manual: ${pr.html_url}`;
+    }
     console.log(`Checking ${pr.html_url} at ${head}`);
-    await checkedRuns(api, branch, head, wait);
+    await pullRequestChecks(api, head, wait);
     const latest = await mainSnapshot(api);
     if (latest.sha !== base.sha) {
       await api(`pulls/${pr.number}`, "PATCH", { state: "closed" });
@@ -334,11 +385,19 @@ if (
     if (process.env.GITHUB_EVENT_NAME === "workflow_run")
       assert.equal(String(event.workflow_run.id), process.env.RELEASE_RUN_ID);
   }
+  const token = process.env.SYNC_TOKEN || process.env.GH_TOKEN;
   console.log(
     await synchronize({
-      api: githubAPI(process.env.GH_TOKEN),
-      runID: process.env.RELEASE_RUN_ID,
+      api: githubAPI(token),
+      runID:
+        process.env.COALESCE_RELEASES === "true"
+          ? await newestSuccessfulRun(
+              githubAPI(token),
+              process.env.RELEASE_RUN_ID,
+            )
+          : process.env.RELEASE_RUN_ID,
       dryRun,
+      autoMerge: Boolean(process.env.SYNC_TOKEN),
     }),
   );
 }

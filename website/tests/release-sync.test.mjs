@@ -14,7 +14,38 @@ import {
   githubAPI,
   synchronize,
   verifyDeployment,
+  newestSuccessfulRun,
 } from "../scripts/sync-release.mjs";
+
+test("a late pending event reconciles newer successful runs by exact numeric version", async () => {
+  const source = {
+    id: 1,
+    head_branch: "v1.2.3",
+    created_at: "2026-10-01T00:00:00Z",
+  };
+  const api = async (path) =>
+    path === "actions/runs/1"
+      ? source
+      : {
+          total_count: 3,
+          workflow_runs: [
+            { id: 2, head_branch: "v1.9.0" },
+            { id: 3, head_branch: "v1.10.0" },
+            { id: 4, head_branch: "v2.0.0-rc.1" },
+          ],
+        };
+  assert.equal(await newestSuccessfulRun(api, 1), 3);
+  await assert.rejects(
+    newestSuccessfulRun(
+      async (path) =>
+        path === "actions/runs/1"
+          ? source
+          : { total_count: 1001, workflow_runs: [] },
+      1,
+    ),
+    /1000/,
+  );
+});
 
 function fixture(tag = "v1.2.3") {
   const bytes = Buffer.from("synthetic package");
@@ -125,13 +156,14 @@ function harness({
   changeMain = false,
   tamper = false,
   releaseFailure = false,
+  ancestry = "behind",
 } = {}) {
   const { release } = fixture();
   const writes = [];
   const branches = new Map();
   const contents = new Map();
   const prs = new Map();
-  const runs = new Map();
+  const state = { ancestry };
   let main = "base",
     changed = false;
   const run = {
@@ -164,7 +196,33 @@ function harness({
     if (method !== "GET") writes.push({ path, method, body });
     if (path === "actions/runs/123") return run;
     if (path.includes("/attempts/1/jobs")) return { jobs };
-    if (path.startsWith("commits/")) return { sha: "tagsha" };
+    if (path.startsWith("commits/")) {
+      if (path.includes("/check-runs?")) {
+        if (changeMain && !changed) {
+          main = "newbase";
+          changed = true;
+        }
+        return {
+          check_runs: [
+            {
+              name: "PR quality gate",
+              head_sha: path.split("/")[1],
+              status: "completed",
+              conclusion: failedCI ? "failure" : "success",
+              html_url: "https://example.com/ci",
+            },
+            {
+              name: "Website build and browser checks",
+              head_sha: path.split("/")[1],
+              status: "completed",
+              conclusion: "success",
+              html_url: "https://example.com/website",
+            },
+          ],
+        };
+      }
+      return { sha: "tagsha" };
+    }
     if (path.startsWith("releases/tags/")) return release;
     if (path === "git/ref/heads/main") return { object: { sha: main } };
     if (path === `contents/website/downloads.json?ref=${main}`)
@@ -185,7 +243,8 @@ function harness({
       contents.set(sha, body.content);
       return { commit: { sha } };
     }
-    if (path.startsWith("compare/"))
+    if (path.startsWith("compare/")) {
+      if (path.endsWith("...tagsha")) return { status: state.ancestry };
       return {
         status: "ahead",
         commits: [{}],
@@ -196,6 +255,7 @@ function harness({
           },
         ],
       };
+    }
     if (path.startsWith("contents/"))
       return { content: contents.get(path.split("?ref=")[1]) };
     if (path.startsWith("pulls?"))
@@ -209,23 +269,6 @@ function harness({
       };
       prs.set(pr.number, pr);
       return pr;
-    }
-    if (path.endsWith("/dispatches")) {
-      runs.set(path.split("/")[2] + body.ref, {
-        head_sha: branches.get(body.ref),
-        status: "completed",
-        conclusion: failedCI ? "failure" : "success",
-      });
-      return null;
-    }
-    if (path.includes("/runs?branch=")) {
-      const branch = decodeURIComponent(path.split("branch=")[1].split("&")[0]);
-      const found = runs.get(path.split("/")[2] + branch);
-      if (found && changeMain && !changed) {
-        main = "newbase";
-        changed = true;
-      }
-      return { workflow_runs: found ? [found] : [] };
     }
     if (path.endsWith("/merge")) {
       current = "v1.2.3";
@@ -243,6 +286,7 @@ function harness({
     writes,
     run,
     jobs,
+    state,
     options: {
       api,
       runID: "123",
@@ -254,11 +298,13 @@ function harness({
   };
 }
 
-test("successful sync dispatches both checks and only then merges the exact catalog head", async () => {
+test("successful sync waits for pull_request checks and only then merges the exact catalog head", async () => {
   const h = harness();
   assert.equal(await synchronize(h.options), "merged: merged");
-  const dispatches = h.writes.filter((w) => w.path.endsWith("/dispatches"));
-  assert.equal(dispatches.length, 2);
+  assert.equal(
+    h.writes.filter((w) => w.path.endsWith("/dispatches")).length,
+    0,
+  );
   const last = h.writes.at(-1);
   assert.equal(last.path, "pulls/1/merge");
   assert(last.body.sha.startsWith("head-automation/website-v1.2.3-base"));
@@ -301,7 +347,7 @@ test("failed CI and a tampered branch cannot merge", async () => {
   }
 });
 
-test("foreign runs, moved tags and missing native acceptance cannot write", async () => {
+test("foreign runs, moved tags, unmerged tags and missing native acceptance cannot write", async () => {
   for (const change of [
     (h) => {
       h.run.head_repository.full_name = "foreign/repo";
@@ -315,6 +361,9 @@ test("foreign runs, moved tags and missing native acceptance cannot write", asyn
     (h) => {
       h.jobs.at(-1).conclusion = "skipped";
     },
+    (h) => {
+      h.state.ancestry = "ahead";
+    },
   ]) {
     const h = harness();
     change(h);
@@ -323,10 +372,10 @@ test("foreign runs, moved tags and missing native acceptance cannot write", asyn
   }
 });
 
-test("a retry reuses the catalog branch and PR after an interrupted dispatch", async () => {
+test("a retry reuses the catalog branch and PR after an interrupted check", async () => {
   const h = harness();
   const interruptedAPI = (path, method, body) => {
-    if (path.endsWith("/dispatches")) throw Error("interrupted");
+    if (path.includes("/check-runs?")) throw Error("interrupted");
     return h.api(path, method, body);
   };
   await assert.rejects(
@@ -339,6 +388,16 @@ test("a retry reuses the catalog branch and PR after an interrupted dispatch", a
     h.writes.filter((w) => w.path === "contents/website/downloads.json").length,
     1,
   );
+});
+
+test("without a sync token the catalog PR is left for manual merge", async () => {
+  const h = harness();
+  assert.match(
+    await synchronize({ ...h.options, autoMerge: false }),
+    /^manual: /,
+  );
+  assert(h.writes.some((w) => w.path === "pulls"));
+  assert(!h.writes.some((w) => w.path.endsWith("/merge")));
 });
 
 test("main advancing closes the stale proposal and verifies a fresh branch", async () => {
