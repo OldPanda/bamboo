@@ -58,7 +58,7 @@ The project uses:
 
 The build and its Node tests need no installed dependencies. Skipping automatic installation avoids installing or building the desktop App in Pages. Browser checks run in GitHub Actions, where Chrome is available. Preview builds use the same website path filters and build command as production; they do not publish to the production address. This build does not change Cloudflare project or domain settings.
 
-The `Website` GitHub workflow validates website and workflow changes on pull requests and `main`, with a manual run option. It never receives Cloudflare credentials or publishes the site. The regular App CI also runs the complete website suite; App release/tag workflows are unchanged.
+The `Website` GitHub workflow validates website and workflow changes on pull requests and `main`, with a manual run option. It never receives Cloudflare credentials or publishes the site. The regular App CI also runs the complete website suite. The separate release catalog workflow below connects successful App releases to this existing deployment path.
 
 All public assets have content-hashed filenames and long-lived immutable caching. HTML revalidates. The Pages CSP permits same-origin scripts and images, blocks network calls from page scripts, and prevents framing; local HTTP checks exercise these headers. The standalone review copy is for direct opening and does not inherit HTTP headers.
 
@@ -68,9 +68,99 @@ Official references: [Git integration](https://developers.cloudflare.com/pages/g
 
 The hero download button follows the browser’s desktop OS. A published installer links to the real release asset; an unavailable platform links to its bottom download card. Phone, iPad desktop-mode, ChromeOS and unknown browsers link to all downloads. Small links under the button jump to the other platform cards and move keyboard focus there. Detection does not prove CPU compatibility, so architecture and minimum OS remain visible. The bottom section lists macOS Apple Silicon DMG, Windows x64 EXE/portable ZIP and Linux x64 DEB/portable tar.gz separately, including unpublished packages. The installation guide retains its own selector; changing it never changes the hero’s detected platform. Guide choices survive language and theme changes on the current page.
 
-`downloads.json` is a reviewed snapshot of the **latest stable GitHub Release**, embedded in the hashed script at build time. Release v0.1.2 provides all five packages: Apple Silicon DMG, Windows x64 setup EXE and ZIP, and Linux x64 DEB and tar.gz. The catalog records their verified public URLs and sizes; signing limitations and installation requirements remain visible. CI preview artifacts are not treated as public stable installers. Drafts, prereleases, missing assets, unsupported names and unexpected URLs never produce download buttons.
+`downloads.json` is a verified snapshot of the **newest successfully verified stable release**, embedded in the hashed script at build time. Release v0.1.2 provides all five packages: Apple Silicon DMG, Windows x64 setup EXE and ZIP, and Linux x64 DEB and tar.gz. The catalog records their verified public URLs and sizes; signing limitations and installation requirements remain visible. CI preview artifacts are not treated as public stable installers. Drafts, prereleases, missing assets, unsupported names and unexpected URLs never produce download buttons.
 
-Refresh availability explicitly before shipping website download changes and after publishing a release:
+### Automatic release synchronization
+
+[Release website sync](../.github/workflows/release-website.yml) consumes successful
+`Release` completions using trusted `main` code. Before proposing a catalog it
+requires the exact `refs/tags/<version>` (including annotated tags) to resolve to
+the successful run's commit, and that commit to be in `main` history. All native
+build, publication and hosted acceptance gates must pass. Partial reruns retain
+earlier successful jobs; a newer failed or skipped execution cannot be hidden by
+an old success. Run/job collections are paginated and bounded (1000 entries,
+20 attempts), with excess reported as an error.
+
+All five hosted packages must match their real byte sizes and SHA-256 sidecars.
+Only `website/downloads.json` can change. A deterministic branch and normal PR
+preserve existing branch rules; there is no direct main push, synthetic check,
+self-approval or protection bypass. The sync waits for the newest `pull_request`
+runs of `ci.yml` and `website.yml` with the exact repository, PR, head and base,
+then verifies the real job results. A changed main creates a fresh checked
+proposal (at most three bases within the 180-minute job limit).
+
+A shared concurrency group serializes updates. Automatic runs reconcile retained
+successful Release runs and select the highest stable numeric version, so a
+replaced pending event cannot lose a newer release. The 1000-run bound fails
+visibly; manual dispatch always verifies precisely the supplied run ID. Neither
+path uses `releases/latest`. Older versions cannot downgrade the catalog, and an
+already advertised version with changed metadata is rejected.
+
+#### One-time GitHub App configuration
+
+Unattended PR checks need a GitHub App identity. The built-in `GITHUB_TOKEN`
+requires human approval for generated PR workflows; it cannot provide this
+unattended flow. Use a dedicated GitHub App installed **only on `OldPanda/bamboo`**
+with repository permissions Contents and Pull requests **read/write**, Actions
+and Checks **read-only**. Grant no branch-rule bypass. Store:
+
+- Actions variable `SYNC_APP_ID`: numeric GitHub App ID.
+- Actions variable `SYNC_APP_INSTALLATION_ID`: its installation ID.
+- Actions secret `SYNC_APP_PRIVATE_KEY`: the App's RSA private key (PEM).
+
+The script mints an installation token at runtime restricted to Bamboo's
+repository ID and those permissions. It refreshes the token five minutes before
+expiry, including during long CI waits. Generated credentials are masked; API
+authentication is never sent to public asset downloads. The built-in workflow
+token stays read-only. No PAT, stored installation token, Cloudflare deployment
+token or owner's GPG key is used. Missing configuration fails before any write;
+there is no successful manual-merge fallback.
+
+These settings are prerequisites, not created by merging the workflow. Configure
+them through GitHub's secure settings before enabling unattended synchronization;
+never put credentials in PR comments or source files.
+
+#### Deployment confirmation and recovery
+
+Cloudflare's existing Pages Git integration deploys the merge on `main`. The sync
+requires its successful check on that commit and all five links/byte-size labels
+on both `/en/` and `/zh/`. The website continues to serve static bilingual HTML,
+without runtime GitHub API requests.
+
+If merge succeeds but deployment fails or the sync is interrupted, rerunning the
+same release recovers the most recent catalog-changing commit from `main` history
+and checks its deployment plus both public pages again. This also covers manually
+merged catalog PRs. An unchanged catalog never creates another commit/PR, but is
+not considered synchronized until production is confirmed. If Pages itself failed,
+fix and retry that deployment in Pages; a sync retry only verifies it.
+
+Rerun the failed sync, or dispatch `Release website sync` on `main` with the
+successful **Release run ID**. `dry_run` defaults to true: it verifies release
+identity and packages without writes or production confirmation. Set it to false
+to synchronize or resume deployment verification. Fix/rerun failed catalog PR CI
+before retrying. Network, missing-asset and checksum failures leave the catalog
+untouched. The sync never edits tags, release assets or branch protections.
+
+Read-only local validation needs no App key:
+
+```sh
+DRY_RUN=true RELEASE_RUN_ID=41144883695 node website/scripts/sync-release.mjs
+```
+
+Public API rate limits may apply. Offline tests cover token renewal, partial
+reruns, exact tag refs, PR run provenance, pagination, failures, retries and
+production recovery. A dry run of an unchanged release cannot demonstrate an
+automatic catalog merge/deployment or a future tag-triggered run; verify those
+with the configured App before claiming full production acceptance.
+
+References: [GitHub workflow triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow),
+[GitHub App installation authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation),
+[workflow_run security and behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run),
+[Cloudflare Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/).
+
+### Manual availability diagnostics
+
+For investigating published availability independently of the release gate:
 
 ```sh
 npm --prefix website run check:downloads

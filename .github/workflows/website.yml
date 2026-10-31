@@ -5,11 +5,13 @@ on:
     paths:
       - "website/**"
       - ".github/workflows/website.yml"
+      - ".github/workflows/release-website.yml"
   push:
     branches: [main]
     paths:
       - "website/**"
       - ".github/workflows/website.yml"
+      - ".github/workflows/release-website.yml"
   workflow_dispatch:
 
 permissions:
