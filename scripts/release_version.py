@@ -42,6 +42,7 @@ def stamp_bundle(path, value):
         SUFeedURL="https://github.com/OldPanda/bamboo/releases/latest/download/appcast.xml",
         SUPublicEDKey=public_key,
         SUEnableAutomaticChecks=True,
+        SUScheduledCheckInterval=3600,
         SUAutomaticallyUpdate=False,
         SUAllowsAutomaticUpdates=False,
         SUSendProfileInfo=False,

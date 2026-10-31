@@ -228,6 +228,8 @@ export const chinese: Record<string, string> = {
   "Renaming workspace…": "正在重命名工作区…",
   "Closing workspace…": "正在关闭工作区…",
   "Opening workspace…": "正在打开工作区…",
+  "Workspace is unavailable. Refresh to retry. Its saved state is preserved.":
+    "工作区暂时不可用。请刷新重试，已保存的状态会保留。",
   "Cloud storage is unavailable. Refresh to retry, or reconnect with updated credentials.":
     "云存储不可用。请刷新重试，或更新凭据后重新连接。",
   "{provider} / Workspace open": "{provider} / 工作区已打开",

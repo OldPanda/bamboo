@@ -44,6 +44,11 @@ func (w *Workbench) openRemoteFile(ctx context.Context, root, relative string) (
 	w.last = nil
 	w.mu.Unlock()
 	r := &WorkspaceFile{File: f, Query: q}
+	if w.folders != nil {
+		if err = w.folders.Remember(f.Path, true); err != nil {
+			r.Warning = err.Error()
+		}
+	}
 	if err = w.remote.Select(root, relative); err != nil {
 		r.Warning = "File opened, but its recent-file state could not be saved: " + err.Error()
 	}
@@ -94,5 +99,5 @@ func (w *Workbench) DeleteR2Connection(root string) error {
 		return errors.New("another operation is running")
 	}
 	defer w.opMu.Unlock()
-	return w.remote.DeleteConnection(root)
+	return w.folders.CloseCloud(root, true, func() error { return w.remote.DeleteConnection(root) })
 }

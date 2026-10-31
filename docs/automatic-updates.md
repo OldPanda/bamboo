@@ -3,7 +3,9 @@
 Bamboo uses Sparkle 2.10.1 for signed macOS updates. **Settings → General** shows
 the installed version, a **Check for updates** button and an automatic-check
 switch. The switch uses Sparkle's persisted preferences. Background checks are
-enabled by default; installing and restarting require the user's confirmation.
+enabled by default and scheduled hourly (`SUScheduledCheckInterval=3600`, the
+[minimum supported by Sparkle](https://sparkle-project.org/documentation/customization/)).
+Disabling automatic checks remains effective after an upgrade; installing and restarting require the user's confirmation.
 Scheduled checks display a quiet **Update to …** button above Settings in the
 lower-left sidebar. Clicking it opens Sparkle's update confirmation; it does not
 grant permission to install or restart on its own. Dismissing or postponing the

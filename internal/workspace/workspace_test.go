@@ -197,8 +197,8 @@ func TestSettingsRecoveryAndLimits(t *testing.T) {
 		if _, e := s.Restore(); e == nil {
 			t.Fatal("invalid state accepted")
 		}
-		if _, e := s.Use(t.TempDir()); e != nil {
-			t.Fatal("explicit reopen did not recover", e)
+		if _, e := s.Use(t.TempDir()); e == nil {
+			t.Fatal("corrupt settings overwritten")
 		}
 	}
 	config := t.TempDir()
@@ -314,7 +314,7 @@ func TestMultipleRootsAndClosing(t *testing.T) {
 	s.Use(two)
 	os.Remove(two)
 	r, e = New(config).RestoreAll()
-	if e != nil || len(r.Workspaces) != 1 || r.Warning == "" {
+	if e != nil || len(r.Workspaces) != 2 || r.Warning == "" {
 		t.Fatal(r, e)
 	}
 	s.data.Open = nil

@@ -105,6 +105,7 @@ export interface Resources {
 export interface Restored {
   workspaces: Info[];
   warning: string;
+  session?: Session;
 }
 
 export interface Result {
@@ -113,6 +114,11 @@ export interface Result {
   more: boolean;
   offset: number;
   elapsedMS: number;
+}
+
+export interface Session {
+  files: string[];
+  active: string;
 }
 
 export interface Status {
@@ -149,6 +155,10 @@ export const Workbench = {
   /** ClearPreview releases the active engine after the last open file is closed. */
   clearPreview(): Promise<void> {
     return call("Workbench.ClearPreview");
+  },
+  /** CloseFile forgets an independent file while retaining its source bytes. */
+  closeFile(path: string): Promise<void> {
+    return call("Workbench.CloseFile", path);
   },
   /** CloseWorkspace closes a local or cloud workspace while retaining its saved preferences. */
   closeWorkspace(root: string): Promise<void> {

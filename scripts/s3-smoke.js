@@ -263,6 +263,11 @@ if (workspacePhase === "s3") {
     "S3 workspace editor and SQL restored",
   );
   assert(
+    !document.querySelector("#grid tbody tr"),
+    "restart does not execute cloud SQL",
+  );
+  await click("run");
+  assert(
     document.querySelectorAll("#grid tbody tr").length === 100,
     "S3 restored query executes",
   );

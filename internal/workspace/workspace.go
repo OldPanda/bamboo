@@ -49,6 +49,7 @@ type profile struct {
 	Queries map[string]Query `json:"queries"`
 }
 type state struct {
+	Session  *Session            `json:"session,omitempty"`
 	Version  int                 `json:"version"`
 	Open     []string            `json:"open,omitempty"`
 	Last     string              `json:"last"`
@@ -84,7 +85,7 @@ func New(dir string) *Store {
 	b, err := io.ReadAll(io.LimitReader(f, stateLimit+1))
 	var d state
 	if err != nil || len(b) > stateLimit || json.Unmarshal(b, &d) != nil || d.Version != 1 || d.Profiles == nil || len(d.Profiles) > 32 || len(d.Open) > 32 {
-		s.loadErr = errors.New("saved workspace settings are unreadable; open a folder to start again")
+		s.loadErr = errors.New("saved workspace settings are unreadable; existing settings were preserved")
 		return s
 	}
 	for root, p := range d.Profiles {
@@ -108,6 +109,10 @@ func New(dir string) *Store {
 			s.loadErr = errors.New("invalid open workspace")
 			return s
 		}
+	}
+	if d.Session != nil && !validSession(d.Session) {
+		s.loadErr = errors.New("invalid saved session")
+		return s
 	}
 	s.data = d
 	return s
@@ -146,6 +151,9 @@ func (s *Store) write(d state) error {
 	return os.Rename(f.Name(), s.path)
 }
 func (s *Store) commit(d state) error {
+	if s.loadErr != nil {
+		return s.loadErr
+	}
 	if err := s.write(d); err != nil {
 		return err
 	}
@@ -154,6 +162,9 @@ func (s *Store) commit(d state) error {
 }
 func (s *Store) copy() state {
 	d := state{Version: 1, Last: s.data.Last, Open: slices.Clone(s.data.Open), Profiles: map[string]*profile{}}
+	if s.data.Session != nil {
+		d.Session = &Session{Files: slices.Clone(s.data.Session.Files), Active: s.data.Session.Active}
+	}
 	for k, p := range s.data.Profiles {
 		c := *p
 		c.Queries = map[string]Query{}
@@ -236,6 +247,7 @@ func (s *Store) Leave() error {
 	d := s.copy()
 	d.Last = ""
 	d.Open = nil
+	d.Session = &Session{Files: []string{}}
 	if err := s.commit(d); err != nil {
 		return err
 	}
@@ -384,16 +396,21 @@ func (s *Store) Select(root, rel string) error {
 	d := s.copy()
 	d.Profiles[root].Active = rel
 	d.Last = root
+	if err := remember(&d, filepath.Join(root, filepath.FromSlash(rel)), rel != "."); err != nil {
+		return err
+	}
 	return s.commit(d)
 }
 
 // Restored contains reopened workspaces and warnings for inaccessible roots.
 type Restored struct {
-	Workspaces []Info `json:"workspaces"`
-	Warning    string `json:"warning"`
+	Workspaces []Info   `json:"workspaces"`
+	Warning    string   `json:"warning"`
+	Session    *Session `json:"session,omitempty"`
 }
 
-// RestoreAll reopens accessible roots independently, ordering the last active root last.
+// RestoreAll registers saved roots without rewriting state, including unavailable
+// roots for retry, and orders the last active root last.
 func (s *Store) RestoreAll() (*Restored, error) {
 	s.mu.Lock()
 	err := s.loadErr
@@ -408,13 +425,21 @@ func (s *Store) RestoreAll() (*Restored, error) {
 		roots = append(roots, last)
 	}
 	r := &Restored{Workspaces: []Info{}}
+	s.mu.Lock()
+	r.Session = s.copy().Session
+	s.mu.Unlock()
 	for _, root := range roots {
-		info, e := s.Use(root)
-		if e != nil {
-			r.Warning += "Could not reopen " + root + ": " + e.Error() + "\n"
-			continue
+		s.mu.Lock()
+		p := s.data.Profiles[root]
+		if p != nil {
+			// Retain unavailable roots for retry without rewriting the saved selection.
+			s.opened[root] = true
+			r.Workspaces = append(r.Workspaces, p.Info)
 		}
-		r.Workspaces = append(r.Workspaces, *info)
+		s.mu.Unlock()
+		if _, e := os.Stat(root); e != nil {
+			r.Warning += "Could not reopen " + root + ": " + e.Error() + "\n"
+		}
 	}
 	return r, nil
 }
@@ -427,6 +452,7 @@ func (s *Store) Close(root string) error {
 		return err
 	}
 	d := s.copy()
+	forgetRoot(&d, root)
 	d.Open = slices.DeleteFunc(d.Open, func(r string) bool { return r == root })
 	if d.Last == root {
 		d.Last = ""
@@ -450,10 +476,10 @@ func (s *Store) CloseFile(root, rel string) error {
 	if err != nil {
 		return err
 	}
-	if p.Active != rel {
-		return nil
-	}
 	d := s.copy()
-	d.Profiles[root].Active = ""
+	forgetFile(&d, filepath.Join(root, filepath.FromSlash(rel)))
+	if p.Active == rel {
+		d.Profiles[root].Active = ""
+	}
 	return s.commit(d)
 }

@@ -89,6 +89,11 @@ requested, and update their tests together.
   inside. General groups appearance and language. A dropdown must look selectable.
 - Resource sliders show scales and units, support useful snap points and exact
   numeric entry, and distinguish Auto from Custom without losing user intent.
+- Persist open workspaces, independent Parquet files and the active selection
+  across restarts and upgrades. Explicitly closed items must stay closed. Preserve
+  unavailable entries through offline storage, denied permissions or locked vaults;
+  never overwrite unreadable state with an empty session. Restore only a bounded
+  preview, without automatically executing historical SQL.
 - Workspaces collapse independently. Group refresh, rename and close actions at
   the right edge; expanding/collapsing must not reset the current query.
 - Opening a cloud connection and managing saved connections are different flows.

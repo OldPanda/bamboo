@@ -35,8 +35,13 @@ if (phase === "restore") {
     "SQL restored across process launches",
   );
   assert(
+    document.querySelectorAll("#grid tbody tr").length === 100,
+    "restart reads only a default first page",
+  );
+  await click("run");
+  assert(
     document.querySelectorAll("#grid tbody tr").length === 4,
-    "saved SQL executed against restored file",
+    "saved SQL executes only after Run",
   );
 } else {
   assert(

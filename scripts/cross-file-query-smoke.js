@@ -21,6 +21,7 @@ const join =
   'SELECT a.order_id, a.city, b.amount FROM workspace."orders.parquet" a JOIN workspace."nested/orders-copy.parquet" b USING (order_id) ORDER BY a.order_id';
 if (workspacePhase === "cross-restore") {
   assert($("sql").value === join, "cross-file SQL restored after relaunch");
+  await query(join);
   assert(
     document.querySelectorAll("#grid tbody tr").length === 100,
     "restored JOIN executes with real workspace scope",

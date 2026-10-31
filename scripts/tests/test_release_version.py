@@ -83,6 +83,7 @@ class ReleaseVersionTests(unittest.TestCase):
             self.assertEqual(info["CFBundleShortVersionString"], "2.3.4")
             self.assertEqual(info["BambooReleaseVersion"], "2.3.4-rc.1")
             self.assertIs(info["SUEnableAutomaticChecks"], True)
+            self.assertEqual(info["SUScheduledCheckInterval"], 3600)
             self.assertIs(info["SUAutomaticallyUpdate"], False)
             self.assertIs(info["SUAllowsAutomaticUpdates"], False)
             self.assertEqual(result.stdout, "2.3.4-rc.1\n")

@@ -101,7 +101,7 @@ func (w *Workbench) OpenWorkspaceFile(ctx context.Context, root, relative string
 func (w *Workbench) RestoreWorkspaces() (*workspace.Restored, error) {
 	restored, err := w.folders.RestoreAll()
 	if err != nil {
-		return nil, err
+		restored = &workspace.Restored{Workspaces: []workspace.Info{}, Warning: err.Error()}
 	}
 	if w.remote != nil {
 		infos, remoteErr := w.remote.Restore()
@@ -110,6 +110,7 @@ func (w *Workbench) RestoreWorkspaces() (*workspace.Restored, error) {
 			restored.Warning += " " + remoteErr.Error()
 		}
 	}
+	restored.Session = w.folders.MigrateSession(restored.Workspaces)
 	return restored, nil
 }
 
@@ -120,7 +121,7 @@ func (w *Workbench) CloseWorkspace(root string) error {
 			return errors.New("another operation is running")
 		}
 		defer w.opMu.Unlock()
-		return w.remote.Close(root)
+		return w.folders.CloseCloud(root, true, func() error { return w.remote.Close(root) })
 	}
 	return w.folders.Close(root)
 }
@@ -128,7 +129,7 @@ func (w *Workbench) CloseWorkspace(root string) error {
 // CloseWorkspaceFile clears a workspace file selection without removing the source object.
 func (w *Workbench) CloseWorkspaceFile(root, relative string) error {
 	if isRemoteWorkspace(root) {
-		return w.remote.CloseFile(root, relative)
+		return w.folders.CloseCloud(root+"/"+relative, false, func() error { return w.remote.CloseFile(root, relative) })
 	}
 	return w.folders.CloseFile(root, relative)
 }
@@ -151,6 +152,9 @@ func (w *Workbench) OpenWorkspaceQuery(root string) (workspace.Query, error) {
 	if isRemoteWorkspace(root) {
 		q, err := w.remote.Saved(root, ".")
 		if err != nil {
+			return q, err
+		}
+		if err = w.folders.Remember(root, false); err != nil {
 			return q, err
 		}
 		return q, w.remote.Select(root, ".")
@@ -187,4 +191,9 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 		w.mu.Unlock()
 	}
 	return result, err
+}
+
+// CloseFile forgets an independent file while retaining its source bytes.
+func (w *Workbench) CloseFile(path string) error {
+	return w.folders.Forget(path)
 }

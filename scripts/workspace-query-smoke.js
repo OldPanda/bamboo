@@ -38,6 +38,11 @@ if (workspacePhase === "root-query-restore") {
     "workspace draft restored independently of last successful SQL",
   );
   assert(
+    !document.querySelector("#grid tbody tr") && $("export").disabled,
+    "restart does not run historical workspace SQL",
+  );
+  await click($("run"));
+  assert(
     document.querySelector("#grid tbody tr").textContent.includes("240") &&
       !$("export").disabled,
     "workspace JOIN result restored and export available",

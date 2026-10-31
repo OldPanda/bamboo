@@ -32,7 +32,7 @@ subprocess.run(
 )
 reports = {}
 with tempfile.TemporaryDirectory(prefix="bamboo-s3-validation-") as config:
-    for phase, count in [("s3", 24), ("s3-restore", 5)]:
+    for phase, count in [("s3", 24), ("s3-restore", 6)]:
         destination = OUT / phase
         destination.mkdir(parents=True, exist_ok=True)
         report_file = destination / "desktop-smoke.json"

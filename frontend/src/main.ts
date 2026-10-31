@@ -200,7 +200,9 @@ const workspaceQueries = new Map<
   { draft: string; applied: string; request: Request }
 >();
 const folders = new Map<string, Info>();
+let restoringSession = false;
 type DocumentState = {
+  pendingRestore?: boolean;
   file: DataFile;
   draft: string;
   applied: string;
@@ -488,7 +490,9 @@ async function activate(
   f: DataFile,
   saved?: { draft: string; applied: string },
 ) {
-  const cached = documents.get(f.path);
+  const remembered = documents.get(f.path);
+  const previewOnly = restoringSession || remembered?.pendingRestore;
+  const cached = remembered?.pendingRestore ? undefined : remembered;
   const draft = cached
     ? cached.draft
     : saved
@@ -506,7 +510,11 @@ async function activate(
     filterColumn: "",
     filterValue: "",
   };
-  let next = cached ? { ...cached.request } : { ...initial, sql: applied };
+  if (previewOnly) applied = initial.sql;
+  let next =
+    cached && !previewOnly
+      ? { ...cached.request }
+      : { ...initial, sql: applied };
   let loaded: Result,
     warning = "";
   try {
@@ -593,7 +601,7 @@ async function showWorkspace(info: Info) {
   await Workbench.clearPreview();
   let loaded: Result | null = null,
     warning = "";
-  if (applied) {
+  if (applied && !restoringSession) {
     try {
       loaded = await Workbench.queryWorkspace(info.root, next);
     } catch (e) {
@@ -680,6 +688,7 @@ async function closeDocument(path: string) {
       info.root,
       workspaceRelative(info.root, path),
     );
+  else await Workbench.closeFile(path);
   const paths = [...documents.keys()],
     index = paths.indexOf(path),
     wasActive = file?.path === path;
@@ -786,26 +795,18 @@ async function showFolder(info: Info, restore = false) {
   try {
     await directory(tree, info, ".");
   } catch (e) {
-    if (!isCloudRoot(info.root)) throw e;
     tree.replaceChildren(
       ui(
         "p",
-        "Cloud storage is unavailable. Refresh to retry, or reconnect with updated credentials.",
+        isCloudRoot(info.root)
+          ? "Cloud storage is unavailable. Refresh to retry, or reconnect with updated credentials."
+          : "Workspace is unavailable. Refresh to retry. Its saved state is preserved.",
         "aside-hint",
       ),
     );
     notify(String(e), true);
   }
-  if (restore && info.active && info.active !== ".") {
-    try {
-      await openFolderFile(info, info.active);
-    } catch (e) {
-      await showWorkspace(info);
-      notify("Last file is unavailable. Choose another file. {error}", true, {
-        error: String(e),
-      });
-    }
-  } else await showWorkspace(info);
+  if (!restore) await showWorkspace(info);
 }
 async function openFolder() {
   await task("Opening workspace…", async () => {
@@ -2218,16 +2219,70 @@ async function boot() {
       appearance = saved;
       markAppearance(saved);
     }
+    const restored = await Workbench.restoreWorkspaces();
+    if (restored)
+      await task("Restoring workspaces…", async () => {
+        restoringSession = true;
+        const warnings: string[] = [];
+        try {
+          for (const info of restored.workspaces) {
+            try {
+              await showFolder(info, true);
+            } catch (e) {
+              warnings.push(String(e));
+            }
+          }
+          const paths =
+            restored.session?.files ??
+            restored.workspaces
+              .filter((info) => info.active && info.active !== ".")
+              .map((info) => workspacePath(info.root, info.active));
+          for (const path of paths) {
+            // Closed cloud connections remain authoritative even if their session
+            // cleanup was interrupted. Inactive documents require no network read.
+            if (isCloudRoot(path) && !owner(path)) continue;
+            documents.set(path, {
+              file: {
+                path,
+                name: path.split(/[\\/]/).at(-1)!,
+                bytes: "",
+                rows: "",
+                rowGroups: "",
+                columns: [],
+              },
+              draft: "SELECT * FROM data",
+              applied: "SELECT * FROM data",
+              request: { ...request, sql: "SELECT * FROM data", offset: 0 },
+              view: "explore",
+              pendingRestore: true,
+            });
+          }
+          updateFolder();
+          const last = restored.workspaces.at(-1);
+          const active =
+            restored.session?.active ||
+            (last?.active && last.active !== "."
+              ? workspacePath(last.root, last.active)
+              : last?.root);
+          try {
+            if (active && documents.has(active)) await switchFile(active);
+            else if (active && folders.has(active))
+              await showWorkspace(folders.get(active)!);
+          } catch (e) {
+            warnings.push(
+              t("Last file is unavailable. Choose another file. {error}", {
+                error: String(e),
+              }),
+            );
+          }
+          if (restored.warning) warnings.push(restored.warning);
+          if (warnings.length) notify(warnings.join("\n"), true);
+        } finally {
+          restoringSession = false;
+        }
+      });
     const path = await Workbench.initialFile();
     if (path) await open(path);
-    else {
-      const restored = await Workbench.restoreWorkspaces();
-      if (restored)
-        await task("Restoring workspaces…", async () => {
-          for (const info of restored.workspaces) await showFolder(info, true);
-          if (restored.warning) notify(restored.warning, true);
-        });
-    }
   } catch (e) {
     notify(String(e), true);
   }

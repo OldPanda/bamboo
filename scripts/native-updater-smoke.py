@@ -8,6 +8,8 @@ import subprocess
 import tempfile
 import uuid
 
+from release_version import stamp_bundle
+
 r = pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix="bamboo-updater-smoke-") as tmp:
     root = pathlib.Path(tmp)
@@ -42,6 +44,7 @@ with tempfile.TemporaryDirectory(prefix="bamboo-updater-smoke-") as tmp:
         "SUVerifyUpdateBeforeExtraction": True,
     }
     (app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
+    stamp_bundle(app / "Contents/Info.plist", "0.1.0")
     source = root / "smoke.m"
     # Compile the implementation in the harness translation unit so policy checks
     # inspect the same controller used by the native bridge, without a test API.
@@ -60,12 +63,14 @@ int main(void) { @autoreleasepool {
  [NSApplication sharedApplication];
  [NSApp setActivationPolicy:NSApplicationActivationPolicyProhibited];
  [NSUserDefaults.standardUserDefaults removePersistentDomainForName:NSBundle.mainBundle.bundleIdentifier];
+ [NSUserDefaults.standardUserDefaults setBool:NO forKey:@"SUEnableAutomaticChecks"];
  // A stale preference must not enable unattended downloads or installation.
  [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"SUAutomaticallyUpdate"];
  int started=bamboo_updater_start();
  char *status=bamboo_updater_status();
  printf("start=%d state=%s\\n",started,status); free(status);
  if(started) return 1;
+ if([[(id)controller.updater valueForKey:@"updateCheckInterval"] doubleValue] != 3600) return 14;
  if([[(id)controller.updater valueForKey:@"allowsAutomaticUpdates"] boolValue]) return 5;
  if([[(id)controller.updater valueForKey:@"automaticallyDownloadsUpdates"] boolValue]) return 6;
  if(bamboo_updater_start()) return 2;
@@ -134,5 +139,5 @@ int main(void) { @autoreleasepool {
     assert initial["updateVersion"] == ""
     assert reminder_state["updateVersion"] == "0.2.0"
     print(
-        "Native Sparkle startup, preferences and mandatory user-confirmed update policy passed."
+        "Native Sparkle hourly interval, startup, preferences and mandatory user-confirmed update policy passed."
     )
