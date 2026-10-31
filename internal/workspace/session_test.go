@@ -87,6 +87,9 @@ func TestSessionMigrationOwnershipAndLimits(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if err = s.CloseFile(root, "../outside.parquet"); err == nil {
+		t.Fatal("close escaped workspace")
+	}
 	if err = s.Close(root); err != nil {
 		t.Fatal(err)
 	}
@@ -180,5 +183,22 @@ func TestCloudSessionCloseRollback(t *testing.T) {
 	os.WriteFile(filepath.Dir(s.path), nil, 0600)
 	if err := s.CloseCloud("r2://test", true, func() error { t.Fatal("cloud changed after session write failure"); return nil }); err == nil {
 		t.Fatal("write failure ignored")
+	}
+}
+
+func TestLegacyOverlappingSelectionsDeduplicate(t *testing.T) {
+	root := t.TempDir()
+	nested := filepath.Join(root, "nested")
+	file := filepath.Join(nested, "orders.parquet")
+	s := New(t.TempDir())
+	v := s.MigrateSession([]Info{{Root: root, Active: "nested/orders.parquet"}, {Root: nested, Active: "orders.parquet"}})
+	if !reflect.DeepEqual(v.Files, []string{file}) || v.Active != file {
+		t.Fatal(v)
+	}
+	if err := s.Remember(file, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(filepath.Dir(s.path)).RestoreAll(); err != nil {
+		t.Fatal(err)
 	}
 }

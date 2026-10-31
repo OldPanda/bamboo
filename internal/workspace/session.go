@@ -146,7 +146,9 @@ func (s *Store) MigrateSession(infos []Info) *Session {
 				if strings.Contains(info.Root, "://") {
 					location = info.Root + "/" + info.Active
 				}
-				v.Files = append(v.Files, location)
+				if !slices.Contains(v.Files, location) {
+					v.Files = append(v.Files, location)
+				}
 				v.Active = location
 			}
 		}

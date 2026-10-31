@@ -110,6 +110,10 @@ func New(dir string) *Store {
 			return s
 		}
 	}
+	if d.Last != "" && d.Profiles[d.Last] == nil {
+		s.loadErr = errors.New("invalid last workspace")
+		return s
+	}
 	if d.Session != nil && !validSession(d.Session) {
 		s.loadErr = errors.New("invalid saved session")
 		return s
@@ -475,6 +479,9 @@ func (s *Store) CloseFile(root, rel string) error {
 	p, err := s.currentProfile(root)
 	if err != nil {
 		return err
+	}
+	if !relative(rel) {
+		return errors.New("invalid file path")
 	}
 	d := s.copy()
 	forgetFile(&d, filepath.Join(root, filepath.FromSlash(rel)))
