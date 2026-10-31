@@ -105,3 +105,34 @@ func TestSessionAcrossProcesses(t *testing.T) {
 		}
 	}
 }
+
+func TestIndependentFileRemainsUsableWhenSessionSaveFails(t *testing.T) {
+	w, _, root := workbench(t)
+	ctx := context.Background()
+	for _, corrupt := range []bool{true, false} {
+		config := t.TempDir()
+		filename := filepath.Join(config, "workspaces.json")
+		if corrupt {
+			os.WriteFile(filename, []byte("unreadable settings"), 0600)
+		}
+		w.folders = workspace.New(config)
+		if !corrupt {
+			os.Remove(config)
+			os.WriteFile(config, nil, 0600)
+		}
+		f, err := w.OpenPath(ctx, filepath.Join(root, "orders.parquet"))
+		if err != nil || f == nil || f.Warning == "" {
+			t.Fatal(f, err)
+		}
+		result, err := w.Query(ctx, engine.Request{SQL: workspace.DefaultSQL, Limit: 100, Offset: 100})
+		if err != nil || len(result.Rows) != 100 {
+			t.Fatal(result, err)
+		}
+		if corrupt {
+			after, _ := os.ReadFile(filename)
+			if string(after) != "unreadable settings" {
+				t.Fatal("corrupt settings overwritten")
+			}
+		}
+	}
+}

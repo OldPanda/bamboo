@@ -52,6 +52,7 @@ export interface Entry {
 }
 
 export interface File {
+  warning?: string;
   name: string;
   path: string;
   bytes: string;

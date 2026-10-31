@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bamboo/internal/testutil"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -200,5 +201,31 @@ func TestLegacyOverlappingSelectionsDeduplicate(t *testing.T) {
 	}
 	if _, err := New(filepath.Dir(s.path)).RestoreAll(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUnavailableSessionPermissionsPreserveState(t *testing.T) {
+	s, root, config := fixture(t)
+	if err := s.Remember(filepath.Join(root, "sample.parquet"), true); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Private(t, s.path, 0600)
+	previous, _ := os.ReadFile(s.path)
+	testutil.DenyRead(t, root)
+	restored := New(config)
+	r, err := restored.RestoreAll()
+	if err != nil || len(r.Workspaces) != 1 || len(r.Session.Files) != 1 {
+		t.Fatal(r, err)
+	}
+	if _, err = restored.List(root, ".", 0); err == nil {
+		t.Fatal("denied root became readable")
+	}
+	testutil.DenyWrite(t, config)
+	if err = restored.Forget(r.Session.Files[0]); err == nil {
+		t.Fatal("denied write succeeded")
+	}
+	after, _ := os.ReadFile(s.path)
+	if string(previous) != string(after) {
+		t.Fatal("unavailable state was rewritten")
 	}
 }

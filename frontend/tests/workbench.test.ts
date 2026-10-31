@@ -1386,6 +1386,13 @@ it("restores a workspace-level query directly and keeps multiple workspace draft
     applied: "",
   });
   await click("open-folder");
+  expect(bridge.call).toHaveBeenCalledWith(
+    "Workbench.SaveWorkspaceQuery",
+    "/analysis",
+    ".",
+    "SELECT 42",
+    "SELECT 42",
+  );
   expect($<HTMLTextAreaElement>("sql").value).toBe("");
   value("sql", "SELECT 7");
   $("sql").dispatchEvent(new Event("input"));
@@ -3266,4 +3273,18 @@ describe("persistent sessions", () => {
     expect(document.querySelectorAll(".opened-file")).toHaveLength(2);
     expect($("breadcrumb").textContent).toBe("new.parquet");
   });
+});
+
+it("shows an independent file persistence warning while keeping its preview usable", async () => {
+  responses["Workbench.Open"] = () => ({
+    ...dataFile(),
+    warning: "settings denied",
+  });
+  await open();
+  expect($("notification").textContent).toContain(
+    "File opened, but its session could not be saved: settings denied",
+  );
+  expect(document.querySelectorAll("#grid tbody tr")).toHaveLength(2);
+  await click("next");
+  expect(lastRequest().offset).toBe(100);
 });

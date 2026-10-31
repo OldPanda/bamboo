@@ -551,6 +551,15 @@ async function activate(
   rememberCurrent();
   updateFolder();
   setText($("query-save"), folder ? "Saved locally" : "Kept for this session");
+  if (f.warning)
+    warning = [
+      warning,
+      t("File opened, but its session could not be saved: {error}", {
+        error: f.warning,
+      }),
+    ]
+      .filter(Boolean)
+      .join("\n");
   if (warning) notify(warning, true);
 }
 
@@ -616,17 +625,18 @@ async function showWorkspace(info: Info) {
   workspaceRoot = info.root;
   relativeFile = ".";
   result = null;
-  appliedSQL = loaded ? applied : "";
-  request = loaded
-    ? next
-    : {
-        ...next,
-        sql: "",
-        offset: 0,
-        filterColumn: "",
-        filterValue: "",
-        sort: "",
-      };
+  appliedSQL = loaded || restoringSession ? applied : "";
+  request =
+    loaded || restoringSession
+      ? next
+      : {
+          ...next,
+          sql: "",
+          offset: 0,
+          filterColumn: "",
+          filterValue: "",
+          sort: "",
+        };
   $("welcome").hidden = true;
   $("workspace").hidden = false;
   $("grid").querySelector("thead")!.replaceChildren();
