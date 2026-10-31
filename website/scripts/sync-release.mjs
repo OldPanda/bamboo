@@ -203,6 +203,9 @@ async function mainSnapshot(api) {
 export async function pullRequestChecks(api, pr, sha, baseSHA, wait = sleep) {
   const deadline = Date.now() + 75 * 60 * 1000;
   for (;;) {
+    // A PR opened after main advanced may never have a run for our old base.
+    // Rebuild promptly instead of waiting the entire CI deadline for that run.
+    if ((await api("git/ref/heads/main")).object.sha !== baseSHA) return false;
     const pending = [];
     for (const [workflow, name] of requiredWorkflows) {
       const runs = await collection(
@@ -241,7 +244,7 @@ export async function pullRequestChecks(api, pr, sha, baseSHA, wait = sleep) {
         `Missing successful PR gate: ${name}`,
       );
     }
-    if (!pending.length) return;
+    if (!pending.length) return true;
     assert(
       Date.now() < deadline,
       `Timed out waiting for PR checks: ${pending.join(", ")}`,
@@ -386,9 +389,9 @@ export async function synchronize({
       "Automation PR is closed; inspect before retrying",
     );
     console.log(`Checking ${pr.html_url} at ${head}`);
-    await pullRequestChecks(api, pr, head, base.sha, wait);
+    const checked = await pullRequestChecks(api, pr, head, base.sha, wait);
     const latest = await mainSnapshot(api);
-    if (latest.sha !== base.sha) {
+    if (!checked || latest.sha !== base.sha) {
       await api(`pulls/${pr.number}`, "PATCH", { state: "closed" });
       continue; // Rebuild the single-file proposal on fresh main and check again.
     }

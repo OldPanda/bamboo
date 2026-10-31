@@ -685,7 +685,10 @@ test("PR gates reject wrong events, workflows, forks, PRs, heads and bases", asy
   ]) {
     const wrong = structuredClone(good);
     mutate(wrong);
-    const api = async () => ({ total_count: 1, workflow_runs: [wrong] });
+    const api = async (path) =>
+      path === "git/ref/heads/main"
+        ? { object: { sha: "base" } }
+        : { total_count: 1, workflow_runs: [wrong] };
     await assert.rejects(
       pullRequestChecks(api, { number: 7 }, "head", "base", async () => {
         throw Error("not eligible");
@@ -696,11 +699,34 @@ test("PR gates reject wrong events, workflows, forks, PRs, heads and bases", asy
   const failed = { ...good, id: 21, conclusion: "failure" };
   await assert.rejects(
     pullRequestChecks(
-      async () => ({ total_count: 2, workflow_runs: [good, failed] }),
+      async (path) =>
+        path === "git/ref/heads/main"
+          ? { object: { sha: "base" } }
+          : { total_count: 2, workflow_runs: [good, failed] },
       { number: 7 },
       "head",
       "base",
     ),
     /ci.yml failed/,
   );
+});
+
+test("main advancing before PR checks exist promptly rebuilds instead of waiting for an obsolete base", async () => {
+  const paths = [];
+  assert.equal(
+    await pullRequestChecks(
+      async (path) => {
+        paths.push(path);
+        return { object: { sha: "newbase" } };
+      },
+      { number: 7 },
+      "head",
+      "oldbase",
+      async () => {
+        throw Error("must not wait");
+      },
+    ),
+    false,
+  );
+  assert.deepEqual(paths, ["git/ref/heads/main"]);
 });
