@@ -141,7 +141,7 @@ func TestExportDialogAndSnapshot(t *testing.T) {
 	if _, err := w.OpenPath(ctx, w.initial); err != nil {
 		t.Fatal(err)
 	}
-	r := readPage(t, w, "SELECT 9223372036854775807::BIGINT AS exact, NULL AS missing, '' AS empty, {'date': DATE '0001-01-01', 'time': TIME_NS '00:00:00.000000001'} AS int96")
+	r := readPage(t, w, "SELECT 9223372036854775807::BIGINT AS exact, NULL AS missing, '' AS empty, {'date': DATE '0001-01-01', 'time': TIME_NS '00:00:00.000000001'} AS exact_time")
 	if p, err := w.ExportPage(ctx); p != "" || err != nil {
 		t.Fatal("cancel export", p, err)
 	}
@@ -180,7 +180,7 @@ func TestExportDialogAndSnapshot(t *testing.T) {
 		t.Fatal("export was not a precise snapshot", got)
 	}
 	if got.Columns[3].Type != `STRUCT(date DATE, "time" TIME_NS)` || got.Rows[0][3] == nil || *got.Rows[0][3] != "{'date': 0001-01-01, 'time': '00:00:00.000000001'}" {
-		t.Fatal("export lost exact INT96 representation", got)
+		t.Fatal("export lost nested temporal precision", got)
 	}
 	testutil.Private(t, p, 0600)
 	if _, err := w.ExportPage(ctx); err == nil {

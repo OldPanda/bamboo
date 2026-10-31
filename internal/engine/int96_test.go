@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -102,7 +103,42 @@ func checkINT96(t *testing.T, e *engine.Engine, table string) {
 	}
 }
 
-func TestINT96PrecisionAndRange(t *testing.T) {
+func checkINT96Timestamp(t *testing.T, e *engine.Engine, table string) {
+	t.Helper()
+	// Preserve the existing TIMESTAMP contract, including its documented
+	// microsecond precision. Exact sub-microsecond reads are tested separately.
+	want := []string{
+		"1970-01-01 00:00:00",
+		"1970-01-01 00:00:00.123456",
+		"1969-12-31 23:59:59.999999",
+		"0001-01-01 00:00:00",
+		"9999-12-31 23:59:59.999999",
+	}
+	ctx := context.Background()
+	for i := 0; i < 6; i++ {
+		r, err := e.Query(ctx, engine.Request{SQL: "SELECT * FROM " + table, Offset: i, Limit: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(r.Rows) != 1 || len(r.Columns) != 1 || r.More != (i < 5) || r.Columns[0].Type != "TIMESTAMP" {
+			t.Fatalf("default INT96 schema or pagination: %+v", r)
+		}
+		if i == 5 {
+			if r.Rows[0][0] != nil {
+				t.Fatal("INT96 NULL changed")
+			}
+		} else if r.Rows[0][0] == nil || *r.Rows[0][0] != want[i] {
+			t.Fatalf("row %d: got %v, want %s", i, r.Rows[0][0], want[i])
+		}
+	}
+	// Ordinary timestamp functions, comparisons and ordering must keep working.
+	r, err := e.Query(ctx, engine.Request{SQL: "SELECT date_trunc('day', stamp) AS day, stamp + INTERVAL 1 SECOND AS later FROM " + table + " WHERE stamp >= TIMESTAMP '1970-01-01' AND stamp < TIMESTAMP '1970-01-02'", Limit: 10, Sort: "later", Desc: true})
+	if err != nil || len(r.Rows) != 2 || *r.Rows[0][0] != "1970-01-01 00:00:00" || *r.Rows[0][1] != "1970-01-01 00:00:01.123456" || *r.Rows[1][1] != "1970-01-01 00:00:01" {
+		t.Fatal("INT96 timestamp functions/sort", r, err)
+	}
+}
+
+func TestINT96CompatibilityAndExplicitPrecision(t *testing.T) {
 	path := int96File(t, t.TempDir())
 	before, err := os.ReadFile(path)
 	if err != nil {
@@ -114,12 +150,23 @@ func TestINT96PrecisionAndRange(t *testing.T) {
 	if _, err = e.OpenScoped(ctx, path, func(string) (string, error) { return path, nil }); err != nil {
 		t.Fatal(err)
 	}
-	checkINT96(t, e, "data")
-	checkINT96(t, e, `workspace."int96.parquet"`)
+	checkINT96Timestamp(t, e, "data")
+	checkINT96Timestamp(t, e, `workspace."int96.parquet"`)
+	// The existing scoped SQL reader can opt into full precision without
+	// changing the default schema or granting access to any additional paths.
+	quote := func(path string) string { return "'" + strings.ReplaceAll(path, "'", "''") + "'" }
+	exact := "read_parquet(" + quote(path) + ", int96_as='struct')"
+	checkINT96(t, e, exact)
+	checkINT96Timestamp(t, e, "data") // Opting in must not alter the default view.
+	unopened := int96File(t, t.TempDir())
+	if _, err = e.Query(ctx, engine.Request{SQL: "SELECT * FROM read_parquet(" + quote(unopened) + ", int96_as='struct')", Limit: 1}); err == nil {
+		t.Fatal("explicit INT96 reader accessed unopened file")
+	}
 	if _, err = e.Query(ctx, engine.Request{SQL: "SELECT CAST('invalid' AS BIGINT) FROM data", Limit: 1}); err == nil {
 		t.Fatal("invalid query accepted")
 	}
-	checkINT96(t, e, "data") // Recreated databases must use the same read options.
+	checkINT96Timestamp(t, e, "data") // Recreated databases retain the default schema.
+	checkINT96(t, e, exact)
 	server := cloudstoragetest.New(filepath.Dir(path))
 	defer server.Close()
 	extension, err := filepath.Abs("../../build/extensions/httpfs.duckdb_extension")
@@ -142,18 +189,22 @@ func TestINT96PrecisionAndRange(t *testing.T) {
 			if _, err = e.OpenRemote(ctx, info.Root+"/int96.parquet", "int96.parquet", store.Resolver(info.Root)); err != nil {
 				t.Fatal(err)
 			}
-			checkINT96(t, e, "data")
+			checkINT96Timestamp(t, e, "data")
 			transferred := server.Bytes.Load()
-			checkINT96(t, e, "data")
+			checkINT96Timestamp(t, e, "data")
 			if server.Bytes.Load() != transferred {
 				t.Fatal("repeat preview transferred more bytes")
 			}
-			checkINT96(t, e, `workspace."int96.parquet"`)
+			checkINT96Timestamp(t, e, `workspace."int96.parquet"`)
 			e.Close()
 		})
 	}
 	after, err := os.ReadFile(path)
 	if err != nil || sha256.Sum256(before) != sha256.Sum256(after) {
 		t.Fatal("source changed", err)
+	}
+	after, err = os.ReadFile(unopened)
+	if err != nil || sha256.Sum256(before) != sha256.Sum256(after) {
+		t.Fatal("unopened source changed", err)
 	}
 }
