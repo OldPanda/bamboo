@@ -378,6 +378,15 @@ describe("the shipped page through its generated IPC binding", () => {
     header.focus();
     header.click();
     await vi.waitFor(() => expect(finish).toBeDefined());
+    expect(header.disabled).toBe(false);
+    expect(header.getAttribute("aria-disabled")).toBe("true");
+    const queries = bridge.call.mock.calls.filter(
+      ([name]) => name === "Workbench.Query",
+    ).length;
+    header.click();
+    expect(
+      bridge.call.mock.calls.filter(([name]) => name === "Workbench.Query"),
+    ).toHaveLength(queries);
     $("grid-scroll").focus();
     expect(document.activeElement).toBe($("grid-scroll"));
     finish(page());

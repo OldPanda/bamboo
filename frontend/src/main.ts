@@ -1727,14 +1727,19 @@ function controls() {
       | HTMLSelectElement
       | HTMLTextAreaElement
     >("button,input,select,textarea")
-    .forEach(
-      (n) =>
-        (n.disabled =
+    .forEach((n) => {
+      if (n.matches("#grid th button")) {
+        // Native disabled buttons lose keyboard focus before an async sort
+        // finishes. task() already guards activation while work is in flight.
+        n.disabled = false;
+        n.setAttribute("aria-disabled", String(busy));
+      } else
+        n.disabled =
           busy &&
           n.id !== "cancel" &&
           n.id !== "r2-cancel" &&
-          n.id !== "settings-cancel"),
-    );
+          n.id !== "settings-cancel";
+    });
   updateControls();
   $("previous").toggleAttribute(
     "disabled",
