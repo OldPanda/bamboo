@@ -211,7 +211,7 @@ func TestExportFailureCleansUp(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "page.json")
 			sentinel := errors.New(stage + " failed")
 			var f *failingFile
-			err := writeExportWith(path, &engine.Result{}, func(p string) (io.WriteCloser, error) {
+			err := writeExportFormatWith(path, &engine.Result{}, "json", func(p string) (io.WriteCloser, error) {
 				raw, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 				if err != nil {
 					return nil, err
@@ -232,7 +232,7 @@ func TestExportFailureCleansUp(t *testing.T) {
 			}
 		})
 	}
-	if err := writeExport(filepath.Join(t.TempDir(), "missing", "page.json"), &engine.Result{}); err == nil || !strings.Contains(err.Error(), "new filename") {
+	if err := writeExportFormat(filepath.Join(t.TempDir(), "missing", "page.json"), &engine.Result{}, "json"); err == nil || !strings.Contains(err.Error(), "new filename") {
 		t.Fatal("creation failure", err)
 	}
 }

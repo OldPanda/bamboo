@@ -14,7 +14,7 @@ func TestExportPreservesValuesAndRefusesOverwrite(t *testing.T) {
 	exact := "9223372036854775807"
 	empty := ""
 	r := &engine.Result{Columns: []engine.Column{{Name: "id", Type: "BIGINT"}}, Rows: [][]*string{{&exact, nil, &empty}}}
-	if err := writeExport(p, r); err != nil {
+	if err := writeExportFormat(p, r, "json"); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(p)
@@ -25,12 +25,12 @@ func TestExportPreservesValuesAndRefusesOverwrite(t *testing.T) {
 	if *got.Rows[0][0] != exact || got.Rows[0][1] != nil || *got.Rows[0][2] != "" {
 		t.Fatal("export lost values")
 	}
-	if err := writeExport(p, r); err == nil {
+	if err := writeExportFormat(p, r, "json"); err == nil {
 		t.Fatal("overwrote existing file")
 	}
 	link := filepath.Join(dir, "link.json")
 	os.Symlink(p, link)
-	if err := writeExport(link, r); err == nil {
+	if err := writeExportFormat(link, r, "json"); err == nil {
 		t.Fatal("followed symlink")
 	}
 	after, _ := os.ReadFile(p)

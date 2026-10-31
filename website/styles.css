@@ -7,7 +7,6 @@
   --muted: #4b5563;
   --accent: #1e73ba;
   --accent-hover: #245cae;
-  --accent-soft: #eff6ff;
   --line: #e5e7eb;
   --sql-value: #9a4b10;
   --mark-filter: none;
@@ -28,7 +27,6 @@
     --muted: #b5b5b5;
     --accent: #8bb4f7;
     --accent-hover: #abcaff;
-    --accent-soft: #303b4c;
     --line: #3d3d3d;
     --sql-value: #f0ba82;
     --mark-filter: brightness(0) invert(0.96);
@@ -44,7 +42,6 @@
   --muted: #b5b5b5;
   --accent: #8bb4f7;
   --accent-hover: #abcaff;
-  --accent-soft: #303b4c;
   --line: #3d3d3d;
   --sql-value: #f0ba82;
   --mark-filter: brightness(0) invert(0.96);
