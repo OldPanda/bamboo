@@ -107,6 +107,11 @@ func TestAnalysisFullQueryAcrossScopes(t *testing.T) {
 func TestAnalysisFailuresAndSnapshotIsolation(t *testing.T) {
 	w, d, dir := workbench(t)
 	ctx := context.Background()
+	before, err := os.ReadFile(w.initial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attack := filepath.Join(dir, "injected.parquet")
 	if _, err := w.ProfileColumn(ctx, "x"); err == nil {
 		t.Fatal("missing query")
 	}
@@ -134,7 +139,7 @@ func TestAnalysisFailuresAndSnapshotIsolation(t *testing.T) {
 	if _, err := w.ProfileColumn(ctx, `a"b`); err != nil {
 		t.Fatal("quoted column", err)
 	}
-	for _, spec := range []engine.PivotSpec{{Group: "missing", Operation: "COUNT"}, {Group: `a"b`, Operation: "SUM", Metric: "missing"}, {Group: `a"b`, Operation: "COUNT); COPY data TO 'x'--"}} {
+	for _, spec := range []engine.PivotSpec{{Group: "missing", Operation: "COUNT"}, {Group: `a"b`, Operation: "SUM", Metric: "missing"}, {Group: `a"b`, Operation: "COUNT); COPY data TO '" + strings.ReplaceAll(attack, "'", "''") + "'--"}} {
 		if _, err := w.Pivot(ctx, spec); err == nil {
 			t.Fatal("unsafe aggregate", spec)
 		}
@@ -187,6 +192,13 @@ func TestAnalysisFailuresAndSnapshotIsolation(t *testing.T) {
 	}
 	if _, err = w.ExportPivotAs(ctx, "json"); err == nil {
 		t.Fatal("stale pivot after source switch")
+	}
+	after, err := os.ReadFile(w.initial)
+	if err != nil || sha256.Sum256(before) != sha256.Sum256(after) {
+		t.Fatal("analysis failures changed the source", err)
+	}
+	if _, err = os.Stat(attack); !os.IsNotExist(err) {
+		t.Fatal("aggregate injection created a side effect", err)
 	}
 }
 
@@ -278,6 +290,36 @@ func TestAnalysisActiveCancellation(t *testing.T) {
 				t.Fatal("analysis recovery after cancellation", profile, err)
 			}
 		})
+	}
+}
+
+func TestAnalysisNativeMemoryBudget(t *testing.T) {
+	w, _, _ := workbench(t)
+	ctx := context.Background()
+	if err := w.engine.Configure(engine.Resources{MemoryMiB: 128, TempGiB: 0, TimeoutSeconds: 15}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.OpenPath(ctx, w.initial); err != nil {
+		t.Fatal(err)
+	}
+	// A bounded preview fits, but the native grouping hash table cannot hold
+	// these distinct 4 KiB keys within 128 MiB with spill explicitly disabled.
+	readPage(t, w, `SELECT repeat(md5(i::VARCHAR),128) AS wide FROM range(200000) t(i)`)
+	preview := w.last
+	_, profileErr := w.ProfileColumn(ctx, "wide")
+	_, pivotErr := w.Pivot(ctx, engine.PivotSpec{Group: "wide", Operation: "COUNT"})
+	for _, err := range []error{profileErr, pivotErr} {
+		if err == nil || !strings.Contains(strings.ToLower(err.Error()), "out of memory") {
+			t.Fatal("native aggregation must respect the memory/no-spill budget", err)
+		}
+	}
+	if w.last != preview || w.pivot != nil {
+		t.Fatal("resource failure changed the selected snapshot")
+	}
+	readPage(t, w, "SELECT city FROM data")
+	profile, err := w.ProfileColumn(ctx, "city")
+	if err != nil || profile.Total != "240" {
+		t.Fatal("recovery after native resource exhaustion", profile, err)
 	}
 }
 
