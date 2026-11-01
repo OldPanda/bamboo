@@ -53,6 +53,9 @@ also validate the DMG and signed appcast with the committed public key, inspect
 the mounted bundle read-only, and compare the configured latest-feed bytes when
 GitHub identifies the verified tag as the latest release. Rerunning an older
 release still verifies its versioned feed and archive signatures independently.
+The CI metadata lookup uses the workflow's read-only repository token to avoid
+shared-runner anonymous API limits. That token is restricted to the fixed GitHub
+API request, rejects redirects, and is not sent to public assets or the app.
 Native launch checks never run on a developer's desktop; local inspection is:
 
 ```sh
@@ -64,3 +67,12 @@ requires the real signed appcast; `--launch` is restricted to disposable CI.
 Reports live in `artifacts/macos-package-smoke/`. Archive signatures, installed
 startup, native feature smoke and an actual updater install/relaunch are separate
 evidence; these checks do not claim a cross-version Sparkle update was performed.
+
+If hosted macOS verification needs repaired tooling after a release is published,
+dispatch `verify-published-macos.yml` on `main` with its existing stable tag. It
+uses the trusted current downloader with a separate checkout of the tag's original
+verifier and pinned resources (available from 0.2.0), requires that commit in main
+history, and checks matching package version and executable provenance. It only
+downloads and verifies; it never
+rebuilds, replaces a tag or uploads release assets. The metadata token is scoped
+to the download step and is absent from the installed app's environment.

@@ -28,7 +28,9 @@ class DownloadReleaseTests(unittest.TestCase):
             with (
                 self.subTest(bytes=len(data)),
                 patch.object(
-                    DOWNLOAD.urllib.request, "urlopen", return_value=io.BytesIO(data)
+                    DOWNLOAD.urllib.request.OpenerDirector,
+                    "open",
+                    return_value=io.BytesIO(data),
                 ),
                 self.assertRaises(ValueError),
             ):
@@ -40,15 +42,20 @@ class DownloadReleaseTests(unittest.TestCase):
             with (
                 patch.object(DOWNLOAD, "ROOT", Path(temp)),
                 patch.object(DOWNLOAD.platform, "system", return_value="Darwin"),
-                patch.dict(os.environ, GITHUB_ACTIONS="true", BAMBOO_VERSION="v0.2.0"),
+                patch.dict(
+                    os.environ,
+                    GITHUB_ACTIONS="true",
+                    BAMBOO_VERSION="v0.2.0",
+                    GH_TOKEN="synthetic-read-token",
+                ),
                 patch.object(DOWNLOAD.urllib.request, "urlretrieve") as retrieve,
                 patch.object(
-                    DOWNLOAD.urllib.request,
-                    "urlopen",
+                    DOWNLOAD.urllib.request.OpenerDirector,
+                    "open",
                     return_value=io.BytesIO(
                         json.dumps({"tag_name": "v0.3.0"}).encode()
                     ),
-                ),
+                ) as metadata,
             ):
                 DOWNLOAD.main()
                 self.assertEqual(
@@ -57,6 +64,15 @@ class DownloadReleaseTests(unittest.TestCase):
                     ).read_text(),
                     "0.3.0\n",
                 )
+            self.assertEqual(
+                metadata.call_args.args[0].get_header("Authorization"),
+                "Bearer synthetic-read-token",
+            )
+            self.assertEqual(
+                metadata.call_args.args[0].full_url,
+                "https://api.github.com/repos/OldPanda/bamboo/releases/latest",
+            )
+            self.assertTrue(all(not call.kwargs for call in retrieve.call_args_list))
             self.assertEqual(
                 [call.args[1].name for call in retrieve.call_args_list],
                 [
@@ -70,6 +86,32 @@ class DownloadReleaseTests(unittest.TestCase):
                 retrieve.call_args.args[0],
                 "https://github.com/OldPanda/bamboo/releases/latest/download/appcast.xml",
             )
+
+    def test_metadata_credentials_never_follow_redirects(self):
+        """Reject redirects before the scoped token can reach a download host."""
+        request = DOWNLOAD.urllib.request.Request(
+            "https://api.github.com/repos/OldPanda/bamboo/releases/latest",
+            headers={"Authorization": "Bearer synthetic-read-token"},
+        )
+        handler = DOWNLOAD.MetadataRedirectHandler()
+        for code in (301, 302, 303, 307, 308):
+            with self.subTest(code=code), self.assertRaises(ValueError):
+                handler.redirect_request(
+                    request, None, code, "Redirect", {}, "https://example.invalid/asset"
+                )
+
+    def test_local_public_metadata_lookup(self):
+        """A local public lookup does not invent or discover API credentials."""
+        with (
+            patch.dict(os.environ, GH_TOKEN=""),
+            patch.object(
+                DOWNLOAD.urllib.request.OpenerDirector,
+                "open",
+                return_value=io.BytesIO(b'{"tag_name":"v0.2.0"}'),
+            ) as metadata,
+        ):
+            self.assertEqual(DOWNLOAD.latest_release_version(), "0.2.0")
+        self.assertIsNone(metadata.call_args.args[0].get_header("Authorization"))
 
     def test_native_assets(self):
         """Fetch both formats and checksums from the versioned public release."""

@@ -12,16 +12,28 @@ from release_version import parse_version
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class MetadataRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Keep the repository token on the one fixed metadata endpoint."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        """Reject redirects before urllib can forward authenticated headers."""
+        raise ValueError("Release metadata redirects are not allowed")
+
+
 def latest_release_version():
     """Read the public latest-tag identity separately from its mutable feed URL."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Bamboo-release-verification",
+    }
+    if token := os.environ.get("GH_TOKEN"):
+        headers["Authorization"] = "Bearer " + token
     request = urllib.request.Request(
         "https://api.github.com/repos/OldPanda/bamboo/releases/latest",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "Bamboo-release-verification",
-        },
+        headers=headers,
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    opener = urllib.request.build_opener(MetadataRedirectHandler())
+    with opener.open(request, timeout=30) as response:
         data = response.read(1024 * 1024 + 1)
     if len(data) > 1024 * 1024:
         raise ValueError("Latest release metadata exceeds verification budget")
