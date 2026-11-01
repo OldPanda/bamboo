@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -119,5 +120,80 @@ func TestStreamCancellationAndConsumerFailure(t *testing.T) {
 	<-e.gate
 	if _, err := e.Query(ctx, req("SELECT 42")); err != nil {
 		t.Fatal("recovery", err)
+	}
+}
+
+func TestStreamLargeParquetLowMemory(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "stream.parquet")
+	generator, err := sql.Open("duckdb", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = generator.Exec("COPY (SELECT i AS id, repeat(md5(i::VARCHAR),64) AS payload FROM range(150000) t(i)) TO " + literal(path) + " (FORMAT PARQUET,COMPRESSION UNCOMPRESSED,ROW_GROUP_SIZE 2048)")
+	generator.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := os.Stat(path)
+	if err != nil || st.Size() < 256<<20 {
+		t.Fatal("fixture must exceed twice the memory budget", st, err)
+	}
+	e := New()
+	defer e.Close()
+	if err = e.Configure(Resources{MemoryMiB: 128, TempGiB: 0, TimeoutSeconds: 60}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.Open(ctx, path); err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	err = e.Stream(ctx, req("SELECT * FROM data"), func(_ []Column, row []*string) error {
+		if row != nil {
+			if *row[0] != fmt.Sprint(count) || len(*row[1]) != 2048 {
+				t.Fatal(row[0])
+			}
+			count++
+		}
+		return nil
+	})
+	if err != nil || count != 150000 {
+		t.Fatalf("incremental low-memory scan: rows=%d error=%v", count, err)
+	}
+	count = 0
+	err = e.Stream(ctx, req(`SELECT id AS "duplicate", NULL AS "duplicate" FROM data ORDER BY id DESC`), func(_ []Column, row []*string) error {
+		if row != nil {
+			if *row[0] != fmt.Sprint(149999-count) || row[1] != nil {
+				t.Fatal("sorted duplicate-column output", row)
+			}
+			count++
+		}
+		return nil
+	})
+	if err != nil || count != 150000 {
+		t.Fatalf("ordered scan: rows=%d error=%v", count, err)
+	}
+	count = 0
+	err = e.Stream(ctx, req("SELECT CASE WHEN id=149999 THEN error('late row failure') ELSE payload END FROM data"), func(_ []Column, row []*string) error {
+		if row != nil {
+			count++
+		}
+		return nil
+	})
+	if err == nil || count == 0 || count >= 150000 {
+		t.Fatalf("expected rows before late execution failure: rows=%d error=%v", count, err)
+	}
+	child, cancel := context.WithCancel(ctx)
+	defer cancel()
+	count = 0
+	err = e.Stream(child, req("SELECT * FROM data"), func(_ []Column, row []*string) error {
+		if row != nil {
+			count++
+			cancel()
+		}
+		return nil
+	})
+	if err == nil || count != 1 {
+		t.Fatalf("incremental cancellation: rows=%d error=%v", count, err)
 	}
 }

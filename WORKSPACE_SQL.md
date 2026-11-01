@@ -52,9 +52,13 @@ request. Opening another file or workspace clears export eligibility until a
 query succeeds. Sources can change outside Bamboo between preview and export;
 this is a captured query, not a transactional copy of the original source bytes.
 
-Complete exports stream rows through Go directly into a private temporary file
-beside the destination. They do not accumulate the result in the WebView or a Go
-slice. Schema and 64 KiB cell limits remain; each streamed row is limited to
+Complete exports stream rows through a native scalar sink into a private
+temporary file beside the destination. A private single-threaded query connection
+preserves row order; the driver receives only the sink's scalar aggregate, since
+its ordinary cursor would materialize the full native result. Sorts and joins can
+still require their own intermediate memory or spill space. The exported result
+does not accumulate in native result storage, the WebView or a Go slice.
+Schema and 64 KiB cell limits remain; each streamed row is limited to
 4 MiB of value text. Query memory, temporary disk and timeout settings still
 apply. The growing export file itself is not query spill and requires enough
 space on the destination volume. Progress reports rows written, without running

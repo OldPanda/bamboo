@@ -26,7 +26,7 @@ func (e *Engine) StreamRemoteWorkspace(parent context.Context, r Request, resolv
 	return e.stream(parent, &Engine{remote: resolve}, r, sink)
 }
 
-func (e *Engine) stream(parent context.Context, scoped *Engine, r Request, sink RowSink) error {
+func (e *Engine) stream(parent context.Context, scoped *Engine, r Request, sink RowSink) (failure error) {
 	if sink == nil {
 		return errors.New("export requires a row consumer")
 	}
@@ -35,9 +35,25 @@ func (e *Engine) stream(parent context.Context, scoped *Engine, r Request, sink 
 		return err
 	}
 	defer done()
-	if scoped != e {
-		scoped.resources, scoped.httpfs = e.resources, e.httpfs
+	// Export owns a fresh single-threaded database. It preserves the existing
+	// scoped range cache but never leaves a writer callback in a preview reader.
+	if e.db != nil {
+		err = e.db.Close()
+		e.db = nil
+		if err != nil {
+			return err
+		}
 	}
+	if scoped == e {
+		scoped = &Engine{file: e.file, resolve: e.resolve, remote: e.remote, remoteRef: e.remoteRef, remoteKeep: e.remoteKeep}
+	}
+	scoped.resources, scoped.httpfs = e.resources, e.httpfs
+	scoped.resources.exportStream = true
+	defer func() {
+		if scoped.db != nil {
+			failure = errors.Join(failure, scoped.db.Close())
+		}
+	}()
 	_, err = scoped.run(ctx, r, sink)
 	return err
 }

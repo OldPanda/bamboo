@@ -340,11 +340,14 @@ func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output 
 	// timestamps never round-trip through float64 or JavaScript numbers.
 	pageSize := min(r.Limit, MaxPageCells/max(1, len(cols)))
 	statement := "SELECT CAST(COLUMNS(*) AS VARCHAR) FROM (" + q + "\n) AS bamboo_page"
-	if len(stream) == 0 {
-		statement += fmt.Sprintf(" LIMIT %d OFFSET %d", pageSize+1, r.Offset)
-	} else if err := stream[0](cols, nil); err != nil {
-		return nil, err
+	if len(stream) != 0 {
+		if err := stream[0](cols, nil); err != nil {
+			return nil, err
+		}
+		err := consumeResult(ctx, db, statement, args, cols, stream[0])
+		return &Result{Columns: cols, Rows: [][]*string{}}, err
 	}
+	statement += fmt.Sprintf(" LIMIT %d OFFSET %d", pageSize+1, r.Offset)
 	rows, err := db.QueryContext(ctx, statement, args...)
 	if err != nil {
 		return nil, err
@@ -353,7 +356,7 @@ func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output 
 	out := &Result{Columns: cols, Rows: [][]*string{}, Offset: r.Offset, PageSize: pageSize}
 	size := 0
 	for rows.Next() {
-		if len(stream) == 0 && len(out.Rows) == pageSize {
+		if len(out.Rows) == pageSize {
 			out.More = true
 			break
 		}
@@ -379,17 +382,7 @@ func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output 
 		if size > MaxResult {
 			return nil, errors.New("page exceeds 4 MiB; select fewer columns or a smaller page")
 		}
-		if len(stream) != 0 {
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			if err := stream[0](cols, row); err != nil {
-				return nil, err
-			}
-			size = 0
-		} else {
-			out.Rows = append(out.Rows, row)
-		}
+		out.Rows = append(out.Rows, row)
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err
