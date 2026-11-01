@@ -111,6 +111,9 @@ requested, and update their tests together.
 - Update English and Chinese together in `frontend/src/i18n.ts`. Use existing
   design tokens, accessible labels, keyboard behavior and visible focus states.
   Check both appearances, longer translations and narrow windows.
+- Verify text-size preferences on rendered ordinary, NULL and empty-string cells
+  and nested result tables. A parent's computed size does not prove descendants
+  inherit it; use real browser computed styles and native result fixtures.
 - Use the existing product artwork and provider assets. Preserve transparent
   in-app artwork and the native Dock tile treatment as separate uses.
 
