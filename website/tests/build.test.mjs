@@ -412,6 +412,9 @@ test("documentation has static bilingual content, working routes and page-specif
       "cloudflare-r2",
       "sql",
       "int96",
+      "text-files",
+      "analysis",
+      "display",
     ]) {
       assert(html.includes(`id="${id}"`), id);
     }
