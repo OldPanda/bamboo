@@ -285,7 +285,7 @@ func (e *Engine) QueryWorkspace(parent context.Context, r Request, resolve func(
 	scoped := &Engine{resolve: resolve, resources: e.resources}
 	return scoped.run(ctx, r)
 }
-func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure error) {
+func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output *Result, failure error) {
 	if e.file == nil && e.db == nil && e.resolve == nil && e.remote == nil {
 		return nil, errors.New("open a Parquet file first")
 	}
@@ -339,7 +339,13 @@ func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure er
 	// DuckDB formats values before IPC: decimals, nested types and nanosecond
 	// timestamps never round-trip through float64 or JavaScript numbers.
 	pageSize := min(r.Limit, MaxPageCells/max(1, len(cols)))
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("SELECT CAST(COLUMNS(*) AS VARCHAR) FROM (%s\n) AS bamboo_page LIMIT %d OFFSET %d", q, pageSize+1, r.Offset), args...)
+	statement := "SELECT CAST(COLUMNS(*) AS VARCHAR) FROM (" + q + "\n) AS bamboo_page"
+	if len(stream) == 0 {
+		statement += fmt.Sprintf(" LIMIT %d OFFSET %d", pageSize+1, r.Offset)
+	} else if err := stream[0](cols, nil); err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx, statement, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +353,7 @@ func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure er
 	out := &Result{Columns: cols, Rows: [][]*string{}, Offset: r.Offset, PageSize: pageSize}
 	size := 0
 	for rows.Next() {
-		if len(out.Rows) == pageSize {
+		if len(stream) == 0 && len(out.Rows) == pageSize {
 			out.More = true
 			break
 		}
@@ -373,7 +379,17 @@ func (e *Engine) run(ctx context.Context, r Request) (output *Result, failure er
 		if size > MaxResult {
 			return nil, errors.New("page exceeds 4 MiB; select fewer columns or a smaller page")
 		}
-		out.Rows = append(out.Rows, row)
+		if len(stream) != 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			if err := stream[0](cols, row); err != nil {
+				return nil, err
+			}
+			size = 0
+		} else {
+			out.Rows = append(out.Rows, row)
+		}
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err

@@ -149,6 +149,20 @@ func (w *Workbench) ClearPreview() error {
 
 // OpenWorkspaceQuery restores the independent folder query and remembers this view.
 func (w *Workbench) OpenWorkspaceQuery(root string) (workspace.Query, error) {
+	if !w.opMu.TryLock() {
+		return workspace.Query{}, errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	q, err := w.openWorkspaceQuery(root)
+	if err == nil {
+		w.mu.Lock()
+		w.last = nil
+		w.mu.Unlock()
+	}
+	return q, err
+}
+
+func (w *Workbench) openWorkspaceQuery(root string) (workspace.Query, error) {
 	if isRemoteWorkspace(root) {
 		q, err := w.remote.Saved(root, ".")
 		if err != nil {
@@ -177,6 +191,8 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 		if err == nil {
 			w.mu.Lock()
 			w.last = result
+			w.lastRequest = r
+			w.lastRoot = root
 			w.mu.Unlock()
 		}
 		return result, err
@@ -188,6 +204,8 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 	if err == nil {
 		w.mu.Lock()
 		w.last = result
+		w.lastRequest = r
+		w.lastRoot = root
 		w.mu.Unlock()
 	}
 	return result, err

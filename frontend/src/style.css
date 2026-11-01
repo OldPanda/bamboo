@@ -2117,3 +2117,9 @@ button.danger:hover:not(:disabled) {
 #update-message:empty {
   display: none;
 }
+
+#export-scope {
+  appearance: auto;
+  -webkit-appearance: auto;
+  cursor: pointer;
+}

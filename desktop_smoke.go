@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bamboo/internal/engine"
 	"encoding/json"
 	"fmt"
 	"github.com/egoist/mygo"
@@ -11,6 +12,23 @@ import (
 	"runtime"
 	"time"
 )
+
+// Native smoke exercises the real UI/IPC and production writer with a synthetic
+// save destination. It does not claim coverage of the OS save-picker gesture.
+type smokeFileDialogs struct {
+	fileDialogs
+	directory string
+}
+
+func (d smokeFileDialogs) Save(options mygo.SaveDialogOptions) (string, error) {
+	return filepath.Join(d.directory, filepath.Base(options.DefaultPath)), nil
+}
+
+func configureSmokeDialogs(w *Workbench) {
+	if dir := os.Getenv("BAMBOO_SMOKE"); dir != "" {
+		w.dialogs = smokeFileDialogs{fileDialogs: w.dialogs, directory: dir}
+	}
+}
 
 // Smoke is opt-in developer automation against the real WKWebView and IPC.
 func smoke(win *mygo.Window) {
@@ -76,6 +94,15 @@ func smoke(win *mygo.Window) {
 	if err != nil {
 		report["error"] = fmt.Sprint(err)
 		return
+	}
+	if workspacePhase == "" {
+		data, err := os.ReadFile(filepath.Join(dir, "bamboo-result.json"))
+		var exported engine.Result
+		if err != nil || json.Unmarshal(data, &exported) != nil || len(exported.Rows) != 240 || exported.More || *exported.Rows[0][0] != "1001" || *exported.Rows[239][0] != "1240" {
+			report["error"] = "native complete export did not preserve all 240 rows"
+			return
+		}
+		report["exportRows"] = len(exported.Rows)
 	}
 	mygo.Theme.SetSource(mygo.ThemeDark)
 	time.Sleep(200 * time.Millisecond)
