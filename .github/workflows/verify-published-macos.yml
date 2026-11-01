@@ -1,0 +1,86 @@
+name: Verify published macOS release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable release tag to download and verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify unchanged hosted macOS package
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      BAMBOO_VERSION: ${{ inputs.tag }}
+      GOTOOLCHAIN: go1.27.3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          path: verification
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: verification/go.mod
+          cache: false
+      - name: Resolve the stable tag in main history
+        id: source
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+          sys.path.insert(0, "verification/scripts")
+          from release_version import parse_version
+          tag = os.environ["BAMBOO_VERSION"]
+          version, _, prerelease = parse_version(tag)
+          if prerelease or tag != "v" + version:
+              raise ValueError("Expected an existing stable vMAJOR.MINOR.PATCH tag")
+          def git(*args):
+              return subprocess.check_output(["git", "-C", "verification", *args], text=True).strip()
+          sha = git("rev-parse", "--verify", "refs/tags/" + tag + "^{commit}")
+          git("merge-base", "--is-ancestor", sha, "HEAD")
+          if json.loads(git("show", sha + ":package.json"))["version"] != version:
+              raise ValueError("Tag and source package version differ")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("sha=" + sha + "\n")
+          PY
+      - name: Check out the immutable release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          path: source
+          persist-credentials: false
+      - name: Download actual public bytes with corrected verification tooling
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import importlib.util, sys
+          from pathlib import Path
+          sys.path.insert(0, "verification/scripts")
+          spec = importlib.util.spec_from_file_location("download", "verification/scripts/download-desktop-release.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          module.ROOT = Path("source").resolve()
+          module.main()
+          PY
+      - name: Verify original provenance, signatures and installed startup
+        working-directory: source
+        run: python3 scripts/verify-macos-package.py --feed --launch
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: published-macos-verification-${{ github.run_attempt }}
+          path: source/artifacts/macos-package-smoke/
+          if-no-files-found: error
+          retention-days: 14

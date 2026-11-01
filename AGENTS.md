@@ -172,6 +172,9 @@ npm run build
   x64 together: DMG, Windows setup EXE and ZIP, Linux DEB and tar.gz, each with
   SHA-256. Require all native gates before publishing the complete release set;
   update the website only after the actual hosted assets are verified.
+- Authenticate CI metadata requests with the scoped workflow token; shared
+  runners can exhaust anonymous API limits. Keep that token out of public asset
+  downloads and installed app processes, and reject metadata redirects.
 
 - Keep README concise: product logo, purpose, useful capabilities and a short
   start path. Put implementation detail in the relevant reference document.
