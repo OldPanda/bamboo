@@ -35,6 +35,10 @@ export async function checkDocs({ send, evaluate, origin, screenshot }) {
       overflow: document.documentElement.scrollWidth > innerWidth,
       home: document.querySelector('.brand').getAttribute('href'),
       docsLink: document.querySelector('a[data-route="docs"]').getAttribute('href'),
+      alternates: [...document.querySelectorAll('head link[rel="alternate"][hreflang]')].map(node => new URL(node.href).pathname),
+      language: document.getElementById('language-select').value,
+      languageOptions: [...document.querySelectorAll('#language-select option')].map(node => node.value).sort(),
+      footerLanguageLinks: [...document.querySelectorAll('footer a')].filter(node => node.hasAttribute('hreflang') || ['English', '中文'].includes(node.textContent.trim())).length,
     };
   })()`);
   const assertAnchorVisible = async () => {
@@ -68,6 +72,10 @@ export async function checkDocs({ send, evaluate, origin, screenshot }) {
     assert.equal(state.sectionCount, 3);
     assert.equal(state.home, `/${language}/`);
     assert.equal(state.docsLink, `/${language}/docs/`);
+    assert.deepEqual(state.alternates, ["/en/docs/", "/zh/docs/", "/docs/"]);
+    assert.equal(state.language, language);
+    assert.deepEqual(state.languageOptions, ["en", "zh"]);
+    assert.equal(state.footerLanguageLinks, 0);
     assert.deepEqual(state.missingAnchors, []);
     assert.equal(state.packages.length, 5);
     assert(state.copy.every((t) => t.trim() && t !== "undefined"));
@@ -138,6 +146,10 @@ export async function checkDocs({ send, evaluate, origin, screenshot }) {
               await evaluate("document.documentElement.dataset.theme"),
               chosen,
             );
+            await evaluate(
+              "document.querySelector('footer').scrollIntoView({behavior: 'instant', block: 'end'})",
+            );
+            await screenshot(`docs-footer-${other}-${width}`);
           }
           results.push({ width, language, javascript: !disabled });
         } finally {

@@ -60,6 +60,16 @@ async function fixture(t) {
 function success(result) {
   assert.equal(result.status, 0, result.stderr || String(result.error));
 }
+function languageNavigation(html) {
+  const select = html.match(
+    /<select\b[^>]*id="language-select"[\s\S]*?<\/select>/,
+  )?.[0];
+  assert(select, "Keep the header language selector");
+  assert(select.includes('value="en"') && select.includes('value="zh"'));
+  const footer = html.match(/<footer\b[\s\S]*?<\/footer>/)?.[0];
+  assert(footer);
+  assert(!/<a\b[^>]*hreflang=|>English<|>中文</.test(footer));
+}
 async function files(root, prefix = "") {
   const result = [];
   for (const entry of await readdir(join(root, prefix), {
@@ -214,6 +224,7 @@ test("both locale routes serve translated content and reciprocal SEO without Jav
     ["zh", "index.html", "/"],
   ]) {
     const html = await readFile(join(f.site, file), "utf8");
+    languageNavigation(html);
     const canonical = `https://getbamboo.app${route}`;
     assert(
       html.includes(`<html lang="${language === "en" ? "en" : "zh-CN"}">`),
@@ -352,6 +363,7 @@ test("documentation has static bilingual content, working routes and page-specif
     ["zh", "/docs/"],
   ]) {
     const html = await readFile(join(f.site, route, "index.html"), "utf8");
+    languageNavigation(html);
     assert(html.includes('data-page="docs"'));
     assert.equal([...html.matchAll(/<h1\b/g)].length, 1);
     assert(!html.includes('id="hero-heading"'));
@@ -393,8 +405,6 @@ test("documentation has static bilingual content, working routes and page-specif
       assert.equal(match[2], expected, match[1]);
     }
     assert(html.includes(`href="/${language}/#download"`));
-    assert(html.includes('href="/en/docs/" hreflang="en"'));
-    assert(html.includes('href="/zh/docs/" hreflang="zh-CN"'));
     for (const match of html.matchAll(/<a\b[^>]*href="(#[^"]+)"/g))
       assert(ids.includes(match[1].slice(1)), match[1]);
     assert(!/<!-- (?:PACKAGE|LINUX_DEB_NAME)|undefined|\/Users\//.test(html));
@@ -443,8 +453,7 @@ test("documentation downloads follow the catalog and its preview is self-contain
       preview,
     ),
   );
-  assert(preview.includes('href="?lang=en" hreflang'));
-  assert(preview.includes('href="?lang=zh" hreflang'));
+  languageNavigation(preview);
   for (const [key, asset] of Object.entries(catalog.packages)) {
     if (asset)
       assert(preview.includes(`data-package="${key}" href="${asset.url}"`));

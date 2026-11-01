@@ -411,6 +411,18 @@ try {
       assert.equal(header.destination, "https://github.com/OldPanda/bamboo");
     }
 
+    if (width === 320) {
+      await evaluate(
+        "document.querySelector('footer').scrollIntoView({behavior: 'instant', block: 'end'})",
+      );
+      const footerShot = await send("Page.captureScreenshot", {
+        format: "png",
+      });
+      await writeFile(
+        join(output, `footer-${width}-${mode}.png`),
+        Buffer.from(footerShot.data, "base64"),
+      );
+    }
     for (const id of ["terms", "privacy"]) {
       await evaluate(
         `document.querySelector('.footer-links a[href="#${id}"]').click()`,

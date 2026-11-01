@@ -29,7 +29,10 @@ export async function checkSEO({ send, evaluate, origin }) {
       image: meta('og:image'), twitterImage: meta('twitter:image'),
       schemaURL: schema['@graph'].find(item => item['@type'] === 'WebPage').url,
       translatedText: [...document.querySelectorAll('[data-i18n]')].map(node => node.textContent),
-      links: [...document.querySelectorAll('a[hreflang]')].map(node => new URL(node.href).pathname),
+      alternates: [...document.querySelectorAll('head link[rel="alternate"][hreflang]')].map(node => new URL(node.href).pathname),
+      language: document.getElementById('language-select').value,
+      languageOptions: [...document.querySelectorAll('#language-select option')].map(node => node.value).sort(),
+      footerLanguageLinks: [...document.querySelectorAll('footer a')].filter(node => node.hasAttribute('hreflang') || ['English', '中文'].includes(node.textContent.trim())).length,
       overflow: document.documentElement.scrollWidth > innerWidth,
     };
   })()`);
@@ -47,7 +50,10 @@ export async function checkSEO({ send, evaluate, origin }) {
         language === "en" ? "Parquet data" : "让 Parquet 数据",
       ),
     );
-    assert(state.links.includes("/en/") && state.links.includes("/zh/"));
+    assert.deepEqual(state.alternates, ["/en/", "/zh/", "/"]);
+    assert.equal(state.language, language);
+    assert.deepEqual(state.languageOptions, ["en", "zh"]);
+    assert.equal(state.footerLanguageLinks, 0);
     assert(
       !state.translatedText.some(
         (text) => !text.trim() || text === "undefined",

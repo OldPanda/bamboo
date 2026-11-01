@@ -34,9 +34,7 @@ const docsTemplate = renderPackages(
       /href="#(features|install|faq|download)"/g,
       'data-route="home" href="/zh/#$1"',
     )
-    .replaceAll('data-route="docs"', 'aria-current="page" data-route="docs"')
-    .replace('href="/en/" hreflang', 'href="/en/docs/" hreflang')
-    .replace('href="/zh/" hreflang', 'href="/zh/docs/" hreflang'),
+    .replaceAll('data-route="docs"', 'aria-current="page" data-route="docs"'),
   catalog,
 ).replace(
   "<!-- LINUX_DEB_NAME -->",
@@ -119,16 +117,6 @@ if (process.argv.includes("--standalone")) {
         `data:${mime};base64,${bytes.toString("base64")}`,
       );
     }
-    // Language links in the portable file stay in the file; production has real routes.
-    standalone = standalone
-      .replace(
-        `href="/en/${path === "/docs/" ? "docs/" : ""}" hreflang`,
-        'href="?lang=en" hreflang',
-      )
-      .replace(
-        `href="/zh/${path === "/docs/" ? "docs/" : ""}" hreflang`,
-        'href="?lang=zh" hreflang',
-      );
     await writeFile(join(root, "build", filename), standalone);
   }
 }
