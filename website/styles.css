@@ -438,6 +438,9 @@ h1 {
   line-height: 1.95;
   color: var(--muted);
 }
+.feature-description p + p {
+  margin-top: 10px;
+}
 .source-art {
   display: grid;
   grid-template-columns:

@@ -4,7 +4,7 @@ export const pageMetadata = {
   en: {
     title: "Bamboo — Open-source Parquet viewer and SQL workbench",
     description:
-      "Explore Parquet files with Bamboo, a free, open-source desktop SQL workbench. Preview local, Amazon S3 and Cloudflare R2 data and query it on your device.",
+      "Explore Parquet and local CSV/TSV with Bamboo, a free desktop SQL workbench. Query S3/R2 Parquet, export complete results, and analyze columns and pivots.",
     locale: "en_US",
     image: `${siteOrigin}/assets/bamboo-en-light-f277933fc4b586f1.png`,
     imageAlt:
@@ -13,7 +13,7 @@ export const pageMetadata = {
   zh: {
     title: "Bamboo — 开源 Parquet 查看器与 SQL 工作台",
     description:
-      "Bamboo 是免费的开源桌面 Parquet 查看器与 SQL 工作台。预览本地、Amazon S3 和 Cloudflare R2 文件，在自己的设备上用 SQL 探索数据。",
+      "Bamboo 是免费的开源桌面 SQL 工作台。打开 Parquet 与本地 CSV/TSV，查询 S3/R2 Parquet，导出完整结果，并进行列统计与透视分析。",
     locale: "zh_CN",
     image: `${siteOrigin}/assets/bamboo-zh-light-2a213558990ae26a.png`,
     imageAlt: "Bamboo SQL 工作台：查询合成的 Parquet 订单数据",
@@ -51,13 +51,21 @@ export const translations = {
   t18: { zh: "你的文件，你的 SQL。", en: "Your files. Your SQL." },
   t19: { zh: "一个轻巧的工作台。", en: "One lightweight workbench." },
   t20: {
-    zh: "不必先建库、写脚本。打开 Parquet，就能开始探索。",
-    en: "No database setup or scripts. Open Parquet and start exploring.",
+    zh: "不必先建库、写脚本。打开 Parquet 或本地 CSV/TSV，就能开始探索。",
+    en: "No database setup or scripts. Open Parquet or local CSV/TSV and start exploring.",
   },
   t21: { zh: "会写 SQL，就会用。", en: "Know SQL? You're ready." },
   t22: {
-    zh: "预览行、查看字段、筛选与排序。用熟悉的 SQL 做关联和聚合，跨文件查询，再把结果导出为 CSV 或 JSON。",
-    en: "Preview rows, inspect columns, filter and sort. Join and aggregate with familiar SQL, query across files, and export results as CSV or JSON.",
+    zh: "预览、筛选和排序，用 SQL 跨文件关联与聚合。导出可选当前页或完整结果，支持 CSV、TSV、JSON 和 JSONL，并可取消。",
+    en: "Preview, filter and sort. Join and aggregate across files with SQL. Export the current page or complete result as CSV, TSV, JSON or JSONL, with cancellation.",
+  },
+  analysisFeature: {
+    zh: "主动查看完整查询的列统计，生成并导出 COUNT/SUM/AVG/MIN/MAX 透视；不把当前页当作全量。",
+    en: "Request full-query column statistics, then build and export a COUNT/SUM/AVG/MIN/MAX pivot. Analysis is complete, never a page-only summary.",
+  },
+  displayFeature: {
+    zh: "在设置中调整 75%–200% 应用缩放与数据字号，重启后继续使用。",
+    en: "Set app zoom from 75% to 200% and adjust data text size. Your choices restore after restart.",
   },
   t23: { zh: "本地", en: "Local" },
   t24: {
@@ -66,7 +74,7 @@ export const translations = {
   },
   t25: {
     zh: "打开电脑上的文件或整个文件夹，也能直接连接 Amazon S3 和 Cloudflare R2。多个工作区，在同一个窗口里切换。",
-    en: "Open a file or an entire folder on your Mac, or connect directly to Amazon S3 and Cloudflare R2. Switch between workspaces in one window.",
+    en: "Open a file or an entire folder on your computer, or connect directly to Amazon S3 and Cloudflare R2. Switch between workspaces in one window.",
   },
   t26: {
     zh: "打开并返回前 100 行，不含界面绘制。本地为历史 3 次中位数；S3 / R2 均为随机顺序 5 轮中位数。云端含连接初始化，未控制缓存与网络。",
@@ -78,8 +86,8 @@ export const translations = {
   t30: { zh: "R2 耗时", en: "R2 time" },
   t32: { zh: "大文件，秒开预览。", en: "Big files. Fast previews." },
   t33: {
-    zh: "按需读取需要的数据，不用先把整个文件塞进内存。GB 级文件也能快速看见首屏，内存与临时磁盘预算由你掌握。",
-    en: "Read only the data you need without loading the whole file into memory. Preview GB-scale files quickly, with control over memory and temporary disk budgets.",
+    zh: "Parquet 按需读取需要的数据，不用先把整个文件塞进内存。GB 级 Parquet 也能快速看见首屏，内存与临时磁盘预算由你掌握。以下性能数据仅适用于 Parquet。",
+    en: "Read the Parquet data you need without loading the whole file into memory. Preview GB-scale Parquet quickly, with control over memory and temporary disk budgets. The measurements below apply only to Parquet.",
   },
   t34: {
     zh: "从下载，到第一条查询",
@@ -177,8 +185,8 @@ export const translations = {
     en: "Which platforms and file formats are supported?",
   },
   t70: {
-    zh: "Bamboo 支持 macOS Apple Silicon、Windows x64 和 Linux x64。正式下载以页面底部下载区和 GitHub Releases 为准；预览构建不等于正式发布。不提供 Intel Mac 或 Windows/Linux ARM64 安装包。macOS 要求 12 及以上，可在  → 关于本机查看芯片与系统版本。支持读取 Parquet，并将结果导出为 CSV 或 JSON。",
-    en: "Bamboo supports macOS on Apple Silicon, Windows x64 and Linux x64. Published downloads are shown in the downloads section at the bottom of this page and GitHub Releases; preview builds are not stable releases. No Intel Mac or Windows/Linux ARM64 packages are provided. macOS requires version 12 or later; check your chip and OS under  → About This Mac. Read Parquet files and export results as CSV or JSON.",
+    zh: "Bamboo 支持 macOS Apple Silicon、Windows x64 和 Linux x64。正式下载以页面底部下载区和 GitHub Releases 为准；预览构建不等于正式发布。不提供 Intel Mac 或 Windows/Linux ARM64 安装包。macOS 要求 12 及以上，可在  → 关于本机查看芯片与系统版本。本地支持 Parquet、CSV 和 TSV，S3/R2 支持 Parquet。可导出当前页、完整查询或透视快照，格式包括 CSV、TSV、JSON 和 JSONL。",
+    en: "Bamboo supports macOS on Apple Silicon, Windows x64 and Linux x64. Published downloads are shown in the downloads section at the bottom of this page and GitHub Releases; preview builds are not stable releases. No Intel Mac or Windows/Linux ARM64 packages are provided. macOS requires version 12 or later; check your chip and OS under  → About This Mac. Open local Parquet, CSV and TSV; S3/R2 support Parquet. Export a page, complete query or pivot snapshot as CSV, TSV, JSON or JSONL.",
   },
   t71: {
     zh: "文件需要上传吗？云端凭据放在哪里？",
@@ -334,8 +342,8 @@ export const translations = {
     en: "2. Files, queries and local storage",
   },
   t119: {
-    zh: "本地 Parquet 数据和 SQL 在你的设备上处理，不会上传给 Bamboo 维护者。应用会在本地保存设置、工作区路径、连接配置和 SQL 草稿；这些内容可能包含敏感信息。查询可能使用本地缓存及临时磁盘，导出结果保存在你选择的位置。异常退出后可能遗留临时数据。",
-    en: "Local Parquet data and SQL are processed on your device and are not uploaded to the Bamboo maintainer. The app saves settings, workspace paths, connection configurations and SQL drafts locally; these may contain sensitive information. Queries may use local caches and temporary disk space, and exports are saved to your chosen location. Temporary data can remain after an abnormal exit.",
+    zh: "本地 Parquet、CSV、TSV 数据和 SQL 在你的设备上处理，不会上传给 Bamboo 维护者。应用会在本地保存设置、工作区路径、连接配置和 SQL 草稿；这些内容可能包含敏感信息。查询可能使用本地缓存及临时磁盘，导出结果保存在你选择的位置。异常退出后可能遗留临时数据。",
+    en: "Local Parquet, CSV, TSV data and SQL are processed on your device and are not uploaded to the Bamboo maintainer. The app saves settings, workspace paths, connection configurations and SQL drafts locally; these may contain sensitive information. Queries may use local caches and temporary disk space, and exports are saved to your chosen location. Temporary data can remain after an abnormal exit.",
   },
   t120: {
     zh: "关闭工作区或卸载应用不一定清除已保存的配置、凭据、临时文件和导出结果。你可以在设置中删除不需要的云连接，并按需清理本机应用数据、系统凭据库条目和自行导出的文件。删除云连接不会删除云端对象。",
@@ -513,7 +521,7 @@ export const docsMetadata = {
     ...pageMetadata.en,
     title: "Bamboo Docs — Installation, files and SQL",
     description:
-      "Install Bamboo on macOS, Windows or Linux. Open local, S3 and R2 Parquet files, query them with SQL, and preserve INT96 nanosecond precision explicitly.",
+      "Install Bamboo on macOS, Windows or Linux. Open local CSV/TSV and local or cloud Parquet, export full queries, analyze columns and pivots, and adjust display size.",
   },
 };
 
@@ -663,8 +671,8 @@ Object.assign(translations, {
     en: "Local files and folders",
   },
   docsLocalStep1: {
-    zh: "点击「打开数据 → 本机 → 打开文件」，选择 .parquet 文件；也可将文件拖入欢迎页的放置区域。",
-    en: "Choose Open data → This computer → Open file and select a .parquet file, or drag a file into the welcome page’s drop area.",
+    zh: "点击「打开数据 → 本机 → 打开文件」，选择 .parquet、.csv 或 .tsv 文件；也可将文件拖入欢迎页的放置区域。",
+    en: "Choose Open data → This computer → Open file and select a .parquet, .csv or .tsv file, or drag a file into the welcome page’s drop area.",
   },
   docsLocalStep2: {
     zh: "打开文件后，在「探索数据」查看预览，在「结构」查看列名与类型。当前文件在 SQL 中叫 data。",
@@ -787,8 +795,48 @@ Object.assign(translations, {
     en: "Results, export and limits",
   },
   docsResults: {
-    zh: "列很多时，每页实际行数可能自动减少，所有列仍可横向滚动查看。「导出」保存当前成功查询的结果页为 CSV 或 JSON，不是整个文件；若需要区分 NULL、空字符串与精确类型，请优先使用 JSON。",
-    en: "Wide results may reduce rows per page; all columns remain available by horizontal scrolling. Export saves the current successful result page as CSV or JSON, not the entire file. Prefer JSON to distinguish NULL, empty text and precise types.",
+    zh: "列很多时，预览页行数可能自动减少，所有列仍可横向滚动。「导出」可选当前页或完整结果，支持 CSV、TSV、JSON、JSONL。完整导出重新执行最后成功查询，保留筛选、排序和列投影，显示进度并可取消；不覆盖已有文件，失败时不发布不完整文件。",
+    en: "Wide previews may reduce rows per page; all columns remain available by horizontal scrolling. Export offers the current page or complete result in CSV, TSV, JSON and JSONL. Complete export reruns the last successful query with its filter, sorting and projection, shows progress and supports cancellation. Existing files are never overwritten; failed exports are not published as complete files.",
+  },
+  docsExportFormats: {
+    zh: "JSON 保留列名、类型及字符串/NULL 行值。JSONL 首行为列元数据，之后每行为一个 row 数组记录。精确数字以字符串传递，不经 JavaScript 浮点数。CSV/TSV 为公式样式的文本加单引号保护，但 NULL 和空文本均为空字段；需保留这种区别时选择 JSON/JSONL。",
+    en: "JSON retains column names/types and string-or-null row values. JSONL begins with column metadata, followed by one row-array record per line. Exact numeric values travel as strings, without JavaScript floating-point conversion. CSV/TSV prefix formula-like text with an apostrophe; NULL and empty text both become empty fields. Choose JSON/JSONL to preserve that distinction.",
+  },
+  docsTextTitle: {
+    zh: "CSV/TSV 读取选项",
+    en: "CSV/TSV reading options",
+  },
+  docsTextOptions: {
+    zh: "支持本地 UTF-8 CSV/TSV，包括 BOM、引号内分隔符和多行字段；云端本轮仍仅支持 Parquet。默认将首条记录作为表头并保留文本值，可在「读取选项」选择分隔符、关闭表头或启用保守类型推断。选项按文件保存，也适用于工作区查询。无表头文件请关闭表头，以免首行被解释为列名。",
+    en: "Local UTF-8 CSV/TSV supports a BOM, quoted delimiters and multiline fields; cloud input remains Parquet-only. Defaults use the first record as headers and preserve values as text. Reading options let you choose a delimiter, disable headers or enable conservative type inference. Options persist per file and apply to workspace queries. Disable headers for headerless files so the first record is treated as data.",
+  },
+  docsTextTypes: {
+    zh: "CSV 默认自动检测分隔符，TSV 默认制表符；空字段为 NULL，带引号的空文本保持为空字符串。推断仅尝试布尔、整数和日期，可能改变前导零；精确小数和时间文本可在 SQL 中显式 CAST。非法 UTF-8、格式错误或超出记录预算会报错，不静默跳行。不支持 Excel/JSON 输入、其他编码或通过任意路径调用 CSV reader。",
+    en: "CSV detects its delimiter by default; TSV uses tabs. Empty fields are NULL, while quoted empty text stays an empty string. Inference tries booleans, integers and dates and may remove leading zeros; explicitly CAST precise decimals or time text in SQL. Invalid UTF-8, malformed input or records exceeding the budget fail visibly instead of skipping rows. Excel/JSON input, other encodings and arbitrary-path CSV reader calls are not supported.",
+  },
+  docsAnalysisTitle: {
+    zh: "按需列统计与透视",
+    en: "On-demand column statistics and pivots",
+  },
+  docsAnalysis: {
+    zh: "成功查询后点击「分析」，选择列并主动计算总行数、NULL 数、不同非 NULL 值、最小/最大值和频次最高的 20 个值。使用完整查询及其筛选，保留 SQL LIMIT，不受预览页码限制，不进行采样。超过 10,000 个不同非 NULL 值会报错，可先筛选查询。",
+    en: "After a successful query, choose Analyze, select a column and request total rows, NULL counts, distinct non-NULL values, min/max and the 20 most frequent values. Analysis uses the complete query and filter, retains SQL LIMIT, and ignores preview pagination. It never samples. More than 10,000 distinct non-NULL values produces an error; filter the query first.",
+  },
+  docsPivot: {
+    zh: "透视可选一个分组维度和 COUNT/SUM/AVG/MIN/MAX 指标，完整结果最多 1,000 组、4 MiB 值文本；超限报错，不静默截断。COUNT 计入 NULL 行，其他聚合遵循 DuckDB 语义；AVG 可返回浮点值。文本数字先 CAST。点击「导出透视结果」保存独立快照，不替换原查询预览或导出目标。",
+    en: "Choose one grouping dimension and COUNT/SUM/AVG/MIN/MAX metric for a pivot. Complete results allow up to 1,000 groups and 4 MiB of value text; exceeding either limit fails without silent truncation. COUNT includes NULL rows; other aggregates follow DuckDB semantics and AVG may return floating-point values. CAST text numbers first. Export pivot saves its independent snapshot without replacing the normal query preview or export target.",
+  },
+  docsAnalysisSources: {
+    zh: "完整导出与分析会重新读取数据源，外部修改可能影响结果，不是预览时源字节的事务快照。内存、临时磁盘、超时和只读路径范围继续生效；可点击取消或按 Escape 中止分析。",
+    en: "Complete export and analysis read sources again, so external changes may affect results; they are not transactional copies of the preview's source bytes. Memory, temporary disk, timeout and read-only path scopes still apply. Cancel or Escape interrupts analysis.",
+  },
+  docsDisplayTitle: {
+    zh: "字号与缩放",
+    en: "Text size and zoom",
+  },
+  docsDisplay: {
+    zh: "在「设置 → 通用」调整应用缩放（75%–200%）与数据字号（12–20 px），点击应用或重置。SQL 字号比数据字号大 1 px。偏好会在重启后恢复；高缩放下可在设置和表格内部滚动，使用 Tab 导航。",
+    en: "In Settings → General, set app zoom (75–200%) and data text size (12–20 px), then apply or reset. SQL text is one pixel larger than data text. Preferences restore after restart. At high zoom, scroll inside settings and tables and use Tab to navigate.",
   },
   docsSQLLimits: {
     zh: "支持 SELECT、WITH、JOIN、UNION、聚合与窗口函数。写入、建表、COPY、PRAGMA、安装扩展及多语句执行受限制。查询不会修改源文件。内存、临时磁盘和超时可在「设置 → 性能」调整；LIMIT 不保证排序或聚合只读取少量数据。",

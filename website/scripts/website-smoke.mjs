@@ -338,12 +338,18 @@ try {
         const grid = document.querySelector('.feature-grid');
         const items = [...grid.querySelectorAll('.feature-card')];
         const rects = selector => items.map(card => { const r = card.querySelector(selector).getBoundingClientRect(); return {top:r.top, bottom:r.bottom}; });
-        return {columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length, art:rects('.feature-art'), headings:rects('h3'), paragraphs:rects('.feature-copy p'), clipped:items.some(card => {const art=card.querySelector('.feature-art'); return art.scrollHeight > art.clientHeight + 1;})};
+        const overlappingCopy=items.some(card=>{const copy=[...card.querySelectorAll('.feature-copy p')].map(p=>p.getBoundingClientRect());return copy.some((r,i)=>r.bottom>card.getBoundingClientRect().bottom || (i>0 && r.top<copy[i-1].bottom));});
+        return {columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length, art:rects('.feature-art'), headings:rects('h3'), paragraphs:rects('.feature-copy p'), overlappingCopy, clipped:items.some(card => {const art=card.querySelector('.feature-art'); return art.scrollHeight > art.clientHeight + 1;})};
       })()`);
       assert.equal(
         cards.clipped,
         false,
         "Feature visual content must not be clipped",
+      );
+      assert.equal(
+        cards.overlappingCopy,
+        false,
+        "Feature paragraphs must fit without overlap",
       );
       if (cards.columns === 3) {
         for (const row of [cards.art, cards.headings, cards.paragraphs]) {

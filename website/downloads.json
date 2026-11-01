@@ -1,30 +1,30 @@
 {
-  "tag": "v0.1.5",
+  "tag": "v0.2.0",
   "packages": {
     "macosDmg": {
-      "name": "Bamboo-0.1.5-macOS-arm64.dmg",
-      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.5/Bamboo-0.1.5-macOS-arm64.dmg",
-      "size": 34391633
+      "name": "Bamboo-0.2.0-macOS-arm64.dmg",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-macOS-arm64.dmg",
+      "size": 34372887
     },
     "windowsSetup": {
-      "name": "Bamboo-0.1.5-windows-x64-setup.exe",
-      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.5/Bamboo-0.1.5-windows-x64-setup.exe",
-      "size": 48515287
+      "name": "Bamboo-0.2.0-windows-x64-setup.exe",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-windows-x64-setup.exe",
+      "size": 48557612
     },
     "windowsZip": {
-      "name": "Bamboo-0.1.5-windows-x64.zip",
-      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.5/Bamboo-0.1.5-windows-x64.zip",
-      "size": 48695225
+      "name": "Bamboo-0.2.0-windows-x64.zip",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-windows-x64.zip",
+      "size": 48738625
     },
     "linuxDeb": {
-      "name": "Bamboo-0.1.5-linux-x64.deb",
-      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.5/Bamboo-0.1.5-linux-x64.deb",
-      "size": 28957118
+      "name": "Bamboo-0.2.0-linux-x64.deb",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-linux-x64.deb",
+      "size": 28985608
     },
     "linuxTar": {
-      "name": "Bamboo-0.1.5-linux-x64.tar.gz",
-      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.1.5/Bamboo-0.1.5-linux-x64.tar.gz",
-      "size": 38987267
+      "name": "Bamboo-0.2.0-linux-x64.tar.gz",
+      "url": "https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-linux-x64.tar.gz",
+      "size": 39025547
     }
   }
 }

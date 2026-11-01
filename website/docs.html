@@ -172,7 +172,7 @@
         <h3 data-i18n="docsLocalTitle" id="local-files">本地文件与文件夹</h3>
         <ol>
           <li data-i18n="docsLocalStep1">
-            点击「打开数据 → 本机 → 打开文件」，选择 .parquet
+            点击「打开数据 → 本机 → 打开文件」，选择 .parquet、.csv 或 .tsv
             文件；也可将文件拖入欢迎页的放置区域。
           </li>
           <li data-i18n="docsLocalStep2">
@@ -188,6 +188,11 @@
           重新启动或升级后，已打开的工作区、独立文件和活动选择会恢复。主动关闭的项目不会自动重开；暂时离线或无权限的记录会保留。恢复时只预览数据，不会自动运行历史
           SQL。
         </p>
+        <h3 data-i18n="docsTextTitle" id="text-files">CSV/TSV 读取选项</h3>
+        <p data-i18n="docsTextOptions">
+          支持本地 UTF-8 CSV/TSV，可调整分隔符、表头和类型推断。
+        </p>
+        <p data-i18n="docsTextTypes">默认保留文本，错误输入不会静默跳行。</p>
         <h3 data-i18n="docsCloudTitle">云端连接</h3>
         <p data-i18n="docsCloudIntro">
           从「打开数据 →
@@ -350,10 +355,19 @@
 <span class="sql-keyword">GROUP</span> <span class="sql-keyword">BY</span> city;</code></pre>
         <h3 data-i18n="docsResultsTitle">结果、导出与边界</h3>
         <p data-i18n="docsResults">
-          列很多时，每页实际行数可能自动减少，所有列仍可横向滚动查看。「导出」保存当前成功查询的结果页为
-          CSV 或 JSON，不是整个文件；若需要区分
-          NULL、空字符串与精确类型，请优先使用 JSON。
+          「导出」可选择当前页或完整查询结果，支持 CSV、TSV、JSON 和 JSONL。
         </p>
+        <p data-i18n="docsExportFormats">
+          JSON 和 JSONL 保留精确字符串、类型与 NULL。
+        </p>
+        <h3 data-i18n="docsAnalysisTitle" id="analysis">按需列统计与透视</h3>
+        <p data-i18n="docsAnalysis">基于完整查询进行精确统计，不采样。</p>
+        <p data-i18n="docsPivot">选择分组和聚合指标，导出独立透视快照。</p>
+        <p data-i18n="docsAnalysisSources">
+          分析与完整导出重新读取源数据，资源预算与取消继续生效。
+        </p>
+        <h3 data-i18n="docsDisplayTitle" id="display">字号与缩放</h3>
+        <p data-i18n="docsDisplay">在通用设置中调整并保存字号与缩放。</p>
         <p data-i18n="docsSQLLimits">
           支持
           SELECT、WITH、JOIN、UNION、聚合与窗口函数。写入、建表、COPY、PRAGMA、安装扩展及多语句执行受限制。查询不会修改源文件。内存、临时磁盘和超时可在「设置

@@ -301,12 +301,18 @@
             </div>
             <div class="feature-copy">
               <h3><span data-i18n="t21">会写 SQL，就会用。</span></h3>
-              <p>
-                <span data-i18n="t22"
-                  >预览行、查看字段、筛选与排序。用熟悉的 SQL
-                  做关联和聚合，跨文件查询，再把结果导出为 CSV 或 JSON。</span
-                >
-              </p>
+              <div class="feature-description">
+                <p>
+                  <span data-i18n="t22"
+                    >预览行、查看字段、筛选与排序。用熟悉的 SQL
+                    做关联和聚合，跨文件查询，再把完整结果导出为 CSV、TSV、JSON
+                    或 JSONL。</span
+                  >
+                </p>
+                <p data-i18n="analysisFeature">
+                  主动查看完整查询的列统计，生成并导出透视结果。
+                </p>
+              </div>
             </div>
           </article>
           <article class="feature-card">
@@ -375,12 +381,17 @@
             </div>
             <div class="feature-copy">
               <h3><span data-i18n="t24">本地、云端，一样顺手。</span></h3>
-              <p>
-                <span data-i18n="t25"
-                  >打开电脑上的文件或整个文件夹，也能直接连接 Amazon S3 和
-                  Cloudflare R2。多个工作区，在同一个窗口里切换。</span
-                >
-              </p>
+              <div class="feature-description">
+                <p>
+                  <span data-i18n="t25"
+                    >打开电脑上的文件或整个文件夹，也能直接连接 Amazon S3 和
+                    Cloudflare R2。多个工作区，在同一个窗口里切换。</span
+                  >
+                </p>
+                <p data-i18n="displayFeature">
+                  调整应用缩放与数据字号，重启后继续使用。
+                </p>
+              </div>
             </div>
           </article>
           <article class="feature-card">
@@ -517,7 +528,8 @@
                 <span class="step-number" aria-hidden="true">03</span>
                 <h3><span data-i18n="t47">打开文件，写下 SQL</span></h3>
                 <p>
-                  <span data-i18n="t48">将</span> <strong>.parquet</strong>
+                  <span data-i18n="t48">将</span>
+                  <strong>.parquet / .csv / .tsv</strong>
                   <span data-i18n="t49">文件拖进欢迎页的大框，或点击</span>
                   <strong
                     ><span data-i18n="t50">Open data（打开数据）</span></strong

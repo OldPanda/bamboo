@@ -25,6 +25,10 @@ Browser readiness polls must tolerate an absent document element during navigati
 and distinguish the new page from the previous document before testing controls.
 Keep a regression for transient empty/loading documents when changing these waits.
 
+When expanding feature-card copy, check every paragraph's rendered bounds for
+overlap and clipping. Aligned headings and first paragraphs do not establish that
+additional paragraphs fit a shared grid row.
+
 The performance table's four size labels are fixed, in this order: `128MB`,
 `512MB`, `1GB`, `2GB` (no spaces). Preserve them across releases, translations,
 refactors and benchmark updates unless the user explicitly requests a change.
