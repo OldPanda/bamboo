@@ -2164,3 +2164,94 @@ button.danger:hover:not(:disabled) {
 #text-dismiss {
   margin-left: auto;
 }
+
+.general-display {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 20px;
+}
+.general-display h4 {
+  margin: 0 0 8px;
+}
+.general-display p {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.display-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+.display-number {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.display-number input {
+  min-width: 0;
+  max-width: 120px;
+}
+.display-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+#display-status {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+#grid,
+#schema-panel table {
+  font-size: var(--data-font-size, 13px);
+}
+#sql,
+.sql-caret-mirror,
+#sql-ghost {
+  font-size: calc(var(--data-font-size, 13px) + 1px);
+}
+@media (max-width: 420px) {
+  .display-fields {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+/* At high page zoom, keep navigation beside the scrollable settings content. */
+@media (max-height: 420px) {
+  .settings-layout {
+    grid-template-columns: 110px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .settings-nav {
+    padding: 12px 6px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+  }
+  .settings-nav h2 {
+    font-size: 16px;
+    margin: 0 6px 16px;
+  }
+  .settings-nav [role="tablist"] {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 2px;
+  }
+  .settings-nav [role="tab"] {
+    flex-basis: auto;
+    padding: 6px;
+    font-size: 12px;
+  }
+  .settings-nav [role="tab"] svg {
+    display: none;
+  }
+  .settings-content {
+    padding: 14px;
+  }
+  .general-appearance,
+  .general-language {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

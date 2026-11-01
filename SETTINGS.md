@@ -37,3 +37,28 @@ above the current allowance is rejected. Automatic mode grants no spill space
 when detection fails. The existing periodic free-space guard, cancellation and
 private temporary-directory cleanup remain in effect. The reserve is best effort
 when other processes write concurrently; this does not reserve disk space upfront.
+
+## Text and zoom
+
+Settings → General → Text and zoom saves app zoom (75–200%) and data text size
+(12–20 px). Defaults are 100% and 13 px; the SQL editor remains one pixel larger
+than table text. Apply saves first, then updates the calling native WebView; a
+failed save retains the previous display. Reset display saves the defaults.
+
+Zoom uses MyGo's platform page-zoom API on macOS arm64, Windows x64 and Linux x64.
+It affects the whole interface without resizing the application window. The next
+launch sets native zoom before the page opens and restores the data font. Settings
+keeps a fixed outer size for a given viewport, scrolling inside; the editor and
+table retain their independent scrolling at large sizes. Invalid display settings
+fall back to normal size. Preferences are private in `display.json`.
+
+“设置 → 通用 → 字号与缩放”提供 75–200% 应用缩放和 12–20 像素数据字号。默认
+为 100% 与 13 像素，SQL 编辑器比表格大 1 像素。保存后应用原生 WebView 缩放，
+失败时保留原显示；“重置显示设置”恢复并保存默认值。重启后自动恢复，设置内部、
+查询编辑器和表格保持可滚动。
+
+Native CI runs `scripts/display-smoke.js` in two processes with isolated settings,
+verifying the actual native zoom factor, the effective viewport, maximum zoom,
+reset, persisted fonts and subsequent queries on all three desktop platforms.
+Headless browser checks separately cover bilingual themes, an effective 350×260
+CSS-pixel viewport and real keyboard input with a deferred save response.

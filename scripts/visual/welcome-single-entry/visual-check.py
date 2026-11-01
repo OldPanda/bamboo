@@ -13,6 +13,7 @@ mock = """globalThis.mygo={on:()=>()=>{},call:async(method,...args)=>{
  if(method==='Workbench.Resources')return {memoryMiB:28672,memoryAuto:!new URLSearchParams(location.search).has('custom'),tempGiB:4,timeoutSeconds:300};
  if(method==='Workbench.DiskLimits')return {detected:true,availableGiB:257,reserveGiB:1,maxTempGiB:256,autoTempGiB:64};
  if(method==='Workbench.ResourceLimits')return {physicalMiB:32768,maxMemoryMiB:32768,autoMemoryMiB:8192};
+ if(method==='Workbench.Display')return {zoomPercent:100,dataFontSize:13};
  if(method==='Workbench.Appearance')return 'system';
  if(method==='Workbench.InitialFile')return '';
  if(method==='Workbench.RestoreWorkspaces')return {workspaces:[],warning:''};

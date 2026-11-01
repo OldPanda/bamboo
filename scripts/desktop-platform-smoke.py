@@ -51,6 +51,34 @@ def main():
     report = json.loads((output / "desktop-smoke.json").read_text())
     if report.get("error") or not report.get("result"):
         raise SystemExit(f"Native UI acceptance failed: {report}")
+    for phase in ["display", "display-restore"]:
+        destination = output / phase
+        destination.mkdir(exist_ok=True)
+        with (destination / "process.log").open("w") as log:
+            subprocess.run(
+                [
+                    str(ROOT / f"build/bamboo-smoke{suffix}"),
+                    "--file",
+                    str(fixtures / "orders.parquet"),
+                ],
+                cwd=ROOT,
+                env={
+                    **env,
+                    "BAMBOO_CONFIG_DIR": str(output / "display-config"),
+                    "BAMBOO_SMOKE": str(destination),
+                    "BAMBOO_WORKSPACE_SMOKE": phase,
+                },
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                timeout=120,
+                check=True,
+            )
+        display = json.loads((destination / "desktop-smoke.json").read_text())
+        if display.get("error") or display.get("nativeZoom") != 1.25:
+            raise SystemExit(f"Native display acceptance failed: {display}")
+        expected = 6 if phase == "display" else 5
+        if len(display["result"]["checks"]) != expected:
+            raise SystemExit(f"Incomplete native display checks: {display}")
     for name, digest in before.items():
         if hashlib.sha256(Path(name).read_bytes()).hexdigest() != digest:
             raise SystemExit("Source Parquet changed during UI acceptance")

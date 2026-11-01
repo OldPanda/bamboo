@@ -45,6 +45,15 @@ export interface DiskLimits {
   autoTempGiB: number;
 }
 
+/**
+ * DisplayPreferences controls native page zoom and table text size. The SQL
+ * editor remains one pixel larger than the table, preserving the default design.
+ */
+export interface DisplayPreferences {
+  zoomPercent: number;
+  dataFontSize: number;
+}
+
 export interface Entry {
   name: string;
   path: string;
@@ -202,6 +211,13 @@ export const Workbench = {
     return call("Workbench.DiskLimits");
   },
   /**
+   * Display returns persisted display preferences, falling back to normal size
+   * when absent or invalid. It does not alter the native page.
+   */
+  display(): Promise<DisplayPreferences> {
+    return call("Workbench.Display");
+  },
+  /**
    * ExportFullAs re-executes the last successful query, including its filter and
    * sort, within its original workspace. Pagination is excluded. Source changes
    * outside Bamboo are not transactional. The destination is created only after
@@ -308,6 +324,13 @@ export const Workbench = {
   /** SetAutomaticUpdates changes only Sparkle's automatic-check preference. */
   setAutomaticUpdates(enabled: boolean): Promise<void> {
     return call("Workbench.SetAutomaticUpdates", enabled);
+  },
+  /**
+   * SetDisplay privately saves validated preferences, then applies the native
+   * WebView zoom to the calling window. Failed saves preserve the current zoom.
+   */
+  setDisplay(display: DisplayPreferences): Promise<void> {
+    return call("Workbench.SetDisplay", display);
   },
   /** SetLanguage saves the interface language independently of data and appearance. */
   setLanguage(language: string): Promise<void> {

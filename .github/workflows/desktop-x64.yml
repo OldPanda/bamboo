@@ -122,5 +122,8 @@ jobs:
             artifacts/platform-smoke/desktop-smoke.json
             artifacts/platform-smoke/process.log
             artifacts/platform-smoke/*.png
+            artifacts/platform-smoke/display*/desktop-smoke.json
+            artifacts/platform-smoke/display*/process.log
+            artifacts/platform-smoke/display*/*.png
             artifacts/package-smoke/*.json
             artifacts/package-smoke/*.log

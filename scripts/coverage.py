@@ -215,6 +215,19 @@ def main():
         run([str(ROOT / "build/bamboo-fixtures"), str(fixture_dir)], "fixtures.log")
         fixture = fixture_dir / "orders.parquet"
         smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop)
+        with tempfile.TemporaryDirectory(prefix="bamboo-display-config-") as config:
+            for phase, count in [("display", 6), ("display-restore", 5)]:
+                smoke(
+                    ROOT / "build/bamboo-covered",
+                    fixture,
+                    ROOT,
+                    desktop / phase,
+                    extra_env={
+                        "BAMBOO_CONFIG_DIR": config,
+                        "BAMBOO_WORKSPACE_SMOKE": phase,
+                    },
+                    expected_checks=count,
+                )
         (fixture.parent / "nested").mkdir(exist_ok=True)
         shutil.copyfile(fixture, fixture.parent / "nested/orders-copy.parquet")
         with tempfile.TemporaryDirectory(prefix="bamboo-workspace-config-") as config:

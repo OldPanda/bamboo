@@ -75,6 +75,11 @@ func smoke(win *mygo.Window) {
 		if workspacePhase == "root-query" || workspacePhase == "root-query-restore" {
 			scriptPath = "scripts/workspace-query-smoke.js"
 		}
+		if workspacePhase == "display" || workspacePhase == "display-restore" {
+			scriptPath = "scripts/display-smoke.js"
+			win.SetSize(700, 640)
+			time.Sleep(100 * time.Millisecond)
+		}
 		if workspacePhase == "stable-narrow" {
 			win.SetSize(700, 640)
 			time.Sleep(100 * time.Millisecond)
@@ -103,6 +108,13 @@ func smoke(win *mygo.Window) {
 			return
 		}
 		report["exportRows"] = len(exported.Rows)
+	}
+	if workspacePhase == "display" || workspacePhase == "display-restore" {
+		report["nativeZoom"] = win.Page().ZoomFactor()
+		if win.Page().ZoomFactor() != 1.25 {
+			report["error"] = "native page zoom differs from saved preferences"
+			return
+		}
 	}
 	mygo.Theme.SetSource(mygo.ThemeDark)
 	time.Sleep(200 * time.Millisecond)
