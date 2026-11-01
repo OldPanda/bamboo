@@ -1,0 +1,430 @@
+<main id="main" class="docs-page">
+  <div class="shell docs-intro">
+    <p data-i18n="docsLabel" class="eyebrow">使用文档</p>
+    <h1 data-i18n="docsTitle">从安装到你的第一条 SQL</h1>
+    <p data-i18n="docsIntro" class="docs-lede">
+      安装 Bamboo，连接你的数据，再用只读 SQL 探索。查询在你的电脑上执行。
+    </p>
+  </div>
+  <div class="shell docs-layout">
+    <nav
+      class="docs-toc"
+      aria-label="文档目录"
+      data-i18n-aria-label="docsContents"
+    >
+      <p data-i18n="docsContents" class="docs-toc-title">文档目录</p>
+      <ol>
+        <li>
+          <a href="#installation"
+            ><span aria-hidden="true">01</span
+            ><span data-i18n="docsNav01">下载安装</span></a
+          >
+        </li>
+        <li>
+          <a href="#opening-files"
+            ><span aria-hidden="true">02</span
+            ><span data-i18n="docsNav02">打开数据</span></a
+          >
+        </li>
+        <li>
+          <a href="#sql"
+            ><span aria-hidden="true">03</span
+            ><span data-i18n="docsNav03">SQL 语法使用</span></a
+          >
+        </li>
+      </ol>
+      <a href="#int96" class="docs-toc-extra"
+        ><span data-i18n="docsJumpINT96">INT96 时间精度</span></a
+      >
+    </nav>
+    <div class="docs-content">
+      <section
+        id="installation"
+        tabindex="-1"
+        aria-labelledby="installation-title"
+      >
+        <p data-i18n="docsStep1" class="eyebrow">01 / 开始使用</p>
+        <h2 data-i18n="docsInstallTitle" id="installation-title">下载安装</h2>
+        <p data-i18n="docsInstallLead">
+          选择目标电脑的系统与芯片。下面的链接来自官网同一份正式版本清单。
+        </p>
+        <div class="docs-platform" id="install-macos" tabindex="-1">
+          <h3>
+            <svg aria-hidden="true"><use href="#i-apple" /></svg> macOS
+          </h3>
+          <p data-i18n="docsMacRequirements">
+            Apple Silicon（M 系列）· macOS 12 或更新版本；不提供 Intel Mac
+            安装包。
+          </p>
+          <div class="docs-packages"><!-- PACKAGE:macosDmg --></div>
+          <ol>
+            <li data-i18n="docsMacStep1">
+              在「关于本机」确认芯片与 macOS 版本，再下载 DMG。
+            </li>
+            <li data-i18n="docsMacStep2">
+              双击 DMG，将 Bamboo 拖入
+              Applications（应用程序），然后推出安装磁盘。
+            </li>
+            <li data-i18n="docsMacStep3">
+              从「应用程序」打开 Bamboo。首次启动后选择「打开数据」。
+            </li>
+          </ol>
+          <details class="docs-note">
+            <summary data-i18n="docsMacBlocked">
+              首次启动被 macOS 拦截？
+            </summary>
+            <p data-i18n="docsMacWarning">
+              当前安装包尚未经过 Apple
+              公证。若提示无法验证开发者，先确认下载来自本页链接的官方 GitHub
+              Release，尝试打开一次，再到「系统设置 →
+              隐私与安全性」选择「仍要打开」并确认。
+            </p>
+            <p data-i18n="docsMacDanger">
+              若提示会损坏电脑或文件已损坏，请停止并重新下载；持续出现问题时提交
+              Issue。无需关闭系统安全保护。
+            </p>
+            <a href="https://support.apple.com/zh-cn/102445" data-apple-support
+              ><span data-i18n="docsAppleHelp">Apple 官方说明 ↗</span></a
+            >
+          </details>
+        </div>
+        <div class="docs-platform" id="install-windows" tabindex="-1">
+          <h3>
+            <svg aria-hidden="true"><use href="#i-windows" /></svg> Windows
+          </h3>
+          <p data-i18n="docsWindowsRequirements">
+            Windows 10/11 · x64；需要 Microsoft Edge WebView2 Evergreen x64
+            Runtime。不提供 Windows ARM64 包。
+          </p>
+          <div class="docs-packages">
+            <div><!-- PACKAGE:windowsSetup --></div>
+            <div><!-- PACKAGE:windowsZip --></div>
+          </div>
+          <ol>
+            <li data-i18n="docsWindowsStep1">
+              推荐下载 EXE 安装器，运行后按提示安装到当前用户。
+            </li>
+            <li data-i18n="docsWindowsStep2">
+              若使用 ZIP 便携包，完整解压后运行 Bamboo/bamboo.exe；保留旁边的
+              extensions 和 licenses 文件夹。
+            </li>
+            <li data-i18n="docsWindowsStep3">
+              若缺少 WebView2，从下方 Microsoft 官方页面安装 x64 Runtime，再打开
+              Bamboo。
+            </li>
+          </ol>
+          <a href="https://developer.microsoft.com/microsoft-edge/webview2/"
+            ><span data-i18n="docsWebView">下载 Microsoft WebView2 ↗</span></a
+          >
+          <p data-i18n="docsWindowsSigning" class="docs-note">
+            当前 Windows 包未签名，可能显示 SmartScreen
+            提示。核对下载来源和版本说明；企业管理的电脑请联系管理员，保持系统保护开启。
+          </p>
+        </div>
+        <div class="docs-platform" id="install-linux" tabindex="-1">
+          <h3>
+            <svg aria-hidden="true"><use href="#i-linux" /></svg> Linux
+          </h3>
+          <p data-i18n="docsLinuxRequirements">
+            x64 桌面环境；已验证 Ubuntu 22.04，需要 GTK 3、WebKitGTK 4.1 和
+            libsecret。其他发行版的兼容性未验证，不提供 ARM64 包。
+          </p>
+          <div class="docs-packages">
+            <div><!-- PACKAGE:linuxDeb --></div>
+            <div><!-- PACKAGE:linuxTar --></div>
+          </div>
+          <p data-i18n="docsLinuxDeb">
+            在下载目录安装 DEB，包管理器会处理可用的依赖：
+          </p>
+          <pre
+            tabindex="0"
+            aria-label="Terminal"
+          ><code>sudo apt install ./<!-- LINUX_DEB_NAME --></code></pre>
+          <p data-i18n="docsLinuxTar">
+            也可以解压 tar.gz 并运行
+            Bamboo/bamboo。便携包不会安装系统依赖，需要先准备相同的桌面库。
+          </p>
+          <p data-i18n="docsLinuxVault">
+            连接云存储还需要活动的用户 D-Bus 会话和已解锁的 Secret Service（例如
+            GNOME Keyring）。凭据库不可用时，本地文件仍可使用。
+          </p>
+        </div>
+        <aside class="docs-note">
+          <h3 data-i18n="docsUpdatesTitle">后续更新</h3>
+          <p data-i18n="docsUpdates">
+            macOS 可每小时自动检查更新，也可以在「设置 →
+            通用」手动检查；安装和重启始终由你确认。Windows/Linux
+            的「检查更新」会打开 Releases 页面，由你下载安装。
+          </p>
+          <a href="https://github.com/OldPanda/bamboo/releases"
+            ><span data-i18n="docsReleaseNotes">版本说明与校验文件 ↗</span></a
+          >
+        </aside>
+      </section>
+      <section id="opening-files" tabindex="-1" aria-labelledby="opening-title">
+        <p data-i18n="docsStep2" class="eyebrow">02 / 连接数据</p>
+        <h2 data-i18n="docsOpenTitle" id="opening-title">打开本地或云端文件</h2>
+        <p data-i18n="docsPrivacy">
+          Bamboo 没有接收你数据的后端服务器。本地文件、SQL
+          和查询处理留在你的电脑上；云端数据由你的电脑直接从所配置的 S3 或 R2
+          按需读取。
+        </p>
+        <h3 data-i18n="docsLocalTitle" id="local-files">本地文件与文件夹</h3>
+        <ol>
+          <li data-i18n="docsLocalStep1">
+            点击「打开数据 → 本机 → 打开文件」，选择 .parquet
+            文件；也可将文件拖入欢迎页的放置区域。
+          </li>
+          <li data-i18n="docsLocalStep2">
+            打开文件后，在「探索数据」查看预览，在「结构」查看列名与类型。当前文件在
+            SQL 中叫 data。
+          </li>
+          <li data-i18n="docsLocalStep3">
+            要查询多个文件，选择「打开数据 → 本机 →
+            打开文件夹」。展开侧栏目录，或点击工作区名称进入独立 SQL 编辑器。
+          </li>
+        </ol>
+        <p data-i18n="docsRestore">
+          重新启动或升级后，已打开的工作区、独立文件和活动选择会恢复。主动关闭的项目不会自动重开；暂时离线或无权限的记录会保留。恢复时只预览数据，不会自动运行历史
+          SQL。
+        </p>
+        <h3 data-i18n="docsCloudTitle">云端连接</h3>
+        <p data-i18n="docsCloudIntro">
+          从「打开数据 →
+          云存储」选择提供商。「测试并连接」会打开工作区；在「设置 →
+          云连接」添加并保存的连接，可以稍后再打开。
+        </p>
+        <div class="docs-provider" id="amazon-s3">
+          <h4>Amazon S3</h4>
+          <ol>
+            <li data-i18n="docsS3Step1">
+              选择 Amazon S3，填写存储桶所在 AWS Region、Bucket 和可选的
+              Prefix。Prefix 是桶内目录前缀，不是完整 s3:// 地址。
+            </li>
+            <li data-i18n="docsS3Step2">
+              填写 Access Key ID 与 Secret Access
+              Key；使用临时凭据时，同时填写对应的 Session Token。
+            </li>
+            <li data-i18n="docsS3Step3">
+              选择「测试并连接」。在工作区展开目录，点击 Parquet
+              文件即可预览；也可直接查询同工作区内的文件。
+            </li>
+          </ol>
+          <p data-i18n="docsS3Permissions">
+            凭据至少需要目标范围的 s3:ListBucket 和 s3:GetObject；KMS
+            加密对象还可能需要相应密钥权限。临时凭据过期后需手动更新。Bamboo
+            不读取 AWS CLI profile 或自动刷新 SSO/STS 凭据。
+          </p>
+        </div>
+        <div class="docs-provider" id="cloudflare-r2">
+          <h4>Cloudflare R2</h4>
+          <ol>
+            <li data-i18n="docsR2Step1">
+              在 Cloudflare 为目标存储桶创建「Object Read only」凭据，取得
+              Access Key ID、Secret Access Key 和该桶的 HTTPS S3 endpoint。
+            </li>
+            <li data-i18n="docsR2Step2">
+              选择 Cloudflare R2，填写 endpoint、Bucket、可选 Prefix
+              及两项密钥。使用控制台提供的
+              endpoint，包含需要的区域/司法辖区部分。
+            </li>
+            <li data-i18n="docsR2Step3">
+              选择「测试并连接」，再从工作区打开文件。这里需要 S3 访问密钥，不是
+              Cloudflare 通用 API Token。
+            </li>
+          </ol>
+          <a href="https://developers.cloudflare.com/r2/api/tokens/"
+            ><span data-i18n="docsR2Help">Cloudflare R2 凭据说明 ↗</span></a
+          >
+        </div>
+        <p data-i18n="docsCloudVault">
+          凭据保存到系统凭据库：macOS 钥匙串、Windows Credential Manager 或
+          Linux Secret
+          Service。编辑连接时，所有凭据字段留空可保留现有凭据；更换时提供完整的新凭据。
+        </p>
+        <p data-i18n="docsCloudClose">
+          关闭工作区会保留连接配置。删除连接需要确认，只移除本机保存的配置和凭据，不会删除云端文件。修改桶、前缀或
+          endpoint 前先关闭工作区。
+        </p>
+        <aside class="docs-note">
+          <h4 data-i18n="docsCloudTroubleTitle">连接失败时检查什么？</h4>
+          <p data-i18n="docsCloudTrouble">
+            检查 Region/endpoint、桶名、Prefix、读取权限、Session Token
+            是否过期，以及系统凭据库是否已解锁。Bamboo
+            仅提供读取与本地导出，不上传、重命名或删除云端对象。排序、聚合和
+            JOIN 仍可能读取大量远程数据。
+          </p>
+        </aside>
+      </section>
+      <section id="sql" tabindex="-1" aria-labelledby="sql-title">
+        <p data-i18n="docsStep3" class="eyebrow">03 / 探索数据</p>
+        <h2 data-i18n="docsSQLTitle" id="sql-title">SQL 语法使用</h2>
+        <p data-i18n="docsSQLLead">
+          Bamboo 使用 DuckDB SQL
+          的只读查询能力。下面的订单字段和文件名为示例，请替换为你的实际数据。
+        </p>
+        <p data-i18n="docsRun">
+          输入 SQL 后点击「运行查询」，或按 ⌘ Enter（macOS）/ Ctrl
+          Enter（Windows、Linux）。可以在运行过程中取消。
+        </p>
+        <h3 data-i18n="docsFileSQL" id="sql-file">查询当前文件</h3>
+        <p data-i18n="docsDataAlias">
+          打开一个文件后，data
+          指向该文件。仅选中工作区、没有打开文件时，请使用下一节的 workspace
+          引用。
+        </p>
+        <pre
+          tabindex="0"
+          aria-label="SQL"
+          data-code-example="preview"
+        ><code><span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> data <span class="sql-keyword">LIMIT</span> <span class="sql-value">100</span>;</code></pre>
+        <pre
+          tabindex="0"
+          aria-label="SQL"
+          data-code-example="filter"
+        ><code><span class="sql-keyword">SELECT</span> order_id, city, amount
+<span class="sql-keyword">FROM</span> data
+<span class="sql-keyword">WHERE</span> amount &gt;= <span class="sql-value">100</span> <span class="sql-keyword">AND</span> city = <span class="sql-value">'Shanghai'</span>
+<span class="sql-keyword">ORDER</span> <span class="sql-keyword">BY</span> amount <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">LIMIT</span> <span class="sql-value">50</span>;</code></pre>
+        <p data-i18n="docsNulls">
+          字符串用单引号，列名用双引号。NULL 使用 IS NULL / IS NOT NULL
+          判断，空字符串使用 = &#x27;&#x27;；二者不同。
+        </p>
+        <pre
+          tabindex="0"
+          aria-label="SQL"
+          data-code-example="nulls"
+        ><code><span class="sql-keyword">SELECT</span> "order id", note
+<span class="sql-keyword">FROM</span> data
+<span class="sql-keyword">WHERE</span> note <span class="sql-keyword">IS</span> <span class="sql-value">NULL</span> <span class="sql-keyword">OR</span> note = <span class="sql-value">''</span>;</code></pre>
+        <h3 data-i18n="docsAggregate">分组与聚合</h3>
+        <pre
+          tabindex="0"
+          aria-label="SQL"
+          data-code-example="aggregate"
+        ><code><span class="sql-keyword">SELECT</span> city, <span class="sql-function">COUNT</span>(*) <span class="sql-keyword">AS</span> orders, <span class="sql-function">SUM</span>(amount) <span class="sql-keyword">AS</span> total
+<span class="sql-keyword">FROM</span> data
+<span class="sql-keyword">GROUP</span> <span class="sql-keyword">BY</span> city
+<span class="sql-keyword">HAVING</span> <span class="sql-function">COUNT</span>(*) &gt; <span class="sql-value">1</span>
+<span class="sql-keyword">ORDER</span> <span class="sql-keyword">BY</span> total <span class="sql-keyword">DESC</span>;</code></pre>
+        <h3 data-i18n="docsWorkspaceSQL" id="sql-workspace">
+          同一工作区内跨文件查询
+        </h3>
+        <p data-i18n="docsWorkspaceRefs">
+          使用
+          workspace.&quot;相对路径.parquet&quot;，保留扩展名和子目录。文件不必先在侧栏打开；「工作区表」可把已发现的文件名插入光标处。每条查询限同一工作区，最多引用
+          32 个不同文件。
+        </p>
+        <pre
+          tabindex="0"
+          aria-label="SQL"
+          data-code-example="join"
+        ><code><span class="sql-keyword">SELECT</span> o.order_id, o.amount, c.customer_name
+<span class="sql-keyword">FROM</span> workspace."orders.parquet" <span class="sql-keyword">AS</span> o
+<span class="sql-keyword">JOIN</span> workspace."nested/customers.parquet" <span class="sql-keyword">AS</span> c
+  <span class="sql-keyword">ON</span> o.customer_id = c.customer_id
+<span class="sql-keyword">ORDER</span> <span class="sql-keyword">BY</span> o.order_id;</code></pre>
+        <pre
+          tabindex="0"
+          aria-label="SQL"
+          data-code-example="union"
+        ><code><span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> workspace."2025/orders.parquet"
+<span class="sql-keyword">UNION</span> <span class="sql-keyword">ALL</span> <span class="sql-keyword">BY</span> NAME
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> workspace."2026/orders.parquet";</code></pre>
+        <p data-i18n="docsWorkspaceScope">
+          同样的引用语法适用于本地文件夹、S3 和 R2
+          工作区。不能在一条查询里跨越独立工作区，也不能用 ../、任意路径或 URL
+          读取未授权文件。
+        </p>
+        <h3 data-i18n="docsCTETitle">用 CTE 组织查询</h3>
+        <pre
+          tabindex="0"
+          aria-label="SQL"
+          data-code-example="cte"
+        ><code><span class="sql-keyword">WITH</span> paid <span class="sql-keyword">AS</span> (
+  <span class="sql-keyword">SELECT</span> city, amount <span class="sql-keyword">FROM</span> data <span class="sql-keyword">WHERE</span> fulfilled = <span class="sql-value">true</span>
+)
+<span class="sql-keyword">SELECT</span> city, <span class="sql-function">SUM</span>(amount) <span class="sql-keyword">AS</span> total
+<span class="sql-keyword">FROM</span> paid
+<span class="sql-keyword">GROUP</span> <span class="sql-keyword">BY</span> city;</code></pre>
+        <h3 data-i18n="docsResultsTitle">结果、导出与边界</h3>
+        <p data-i18n="docsResults">
+          列很多时，每页实际行数可能自动减少，所有列仍可横向滚动查看。「导出」保存当前成功查询的结果页为
+          CSV 或 JSON，不是整个文件；若需要区分
+          NULL、空字符串与精确类型，请优先使用 JSON。
+        </p>
+        <p data-i18n="docsSQLLimits">
+          支持
+          SELECT、WITH、JOIN、UNION、聚合与窗口函数。写入、建表、COPY、PRAGMA、安装扩展及多语句执行受限制。查询不会修改源文件。内存、临时磁盘和超时可在「设置
+          → 性能」调整；LIMIT 不保证排序或聚合只读取少量数据。
+        </p>
+        <section
+          class="docs-int96"
+          id="int96"
+          tabindex="-1"
+          aria-labelledby="int96-title"
+        >
+          <h3 data-i18n="docsINT96Title" id="int96-title">
+            INT96：保留纳秒精度
+          </h3>
+          <p data-i18n="docsINT96Default">
+            某些旧 Parquet 文件使用 INT96 存储时间。默认读取仍返回
+            TIMESTAMP，保留现有日期函数、比较和运算，但只保留微秒：
+          </p>
+          <pre
+            tabindex="0"
+            aria-label="INT96"
+          ><code>1970-01-01 00:00:00.123456789
+→ 1970-01-01 00:00:00.123456</code></pre>
+          <p data-i18n="docsINT96Loss">
+            默认结果的导出也遵循这个精度。读完再 CAST 为 TIMESTAMP_NS
+            无法恢复已经截断的三位。现代 INT64 时间列保持自身原有类型与精度。
+          </p>
+          <p data-i18n="docsINT96Opt">
+            需要完整精度时，先打开本地文件，再通过以下显式查询读取。将示例路径替换成该文件的绝对规范路径；Windows
+            路径可使用 C:/Data/file.parquet。
+          </p>
+          <pre
+            tabindex="0"
+            aria-label="SQL"
+            data-code-example="int96-exact"
+          ><code><span class="sql-keyword">SELECT</span> *
+<span class="sql-keyword">FROM</span> <span class="sql-function">read_parquet</span>(<span class="sql-value">'/path/to/file.parquet'</span>, int96_as=<span class="sql-value">'struct'</span>);</code></pre>
+          <p data-i18n="docsINT96Struct">
+            只有这条显式查询会把 INT96 列返回为 STRUCT(date DATE,
+            &quot;time&quot; TIME_NS)，同时保留 0001–9999 年范围、九位小数和
+            NULL。默认 data / workspace 视图不会改变。
+          </p>
+          <pre
+            tabindex="0"
+            aria-label="SQL"
+            data-code-example="int96-fields"
+          ><code><span class="sql-keyword">SELECT</span> stamp.date <span class="sql-keyword">AS</span> day, stamp.time <span class="sql-keyword">AS</span> exact_time
+<span class="sql-keyword">FROM</span> <span class="sql-function">read_parquet</span>(<span class="sql-value">'/path/to/file.parquet'</span>, int96_as=<span class="sql-value">'struct'</span>)
+<span class="sql-keyword">ORDER</span> <span class="sql-keyword">BY</span> stamp.date, stamp.time;</code></pre>
+          <p data-i18n="docsINT96Fields">
+            把 stamp 替换成实际 INT96
+            列名。日期与时间子字段可分别查询和排序；普通 timestamp
+            函数需要有意识地转换，转换时需自行确认精度与日期范围。
+          </p>
+          <p data-i18n="docsINT96Scope" class="docs-note">
+            这一方法仅适用于已打开、获准读取的本地文件，不提供云端高精度开关，也不允许访问任意
+            URL。精确查询的结果页可直接导出。单独使用
+            int96_as=&#x27;timestamp_ns&#x27;
+            不是全日期范围的替代方案，超出范围的日期可能变为 infinity。
+          </p>
+        </section>
+        <div class="docs-further">
+          <a href="https://duckdb.org/docs/stable/sql/query_syntax/select"
+            ><span data-i18n="docsDuckDB">DuckDB SQL 参考 ↗</span></a
+          >
+          <a
+            href="https://github.com/OldPanda/bamboo/blob/main/docs/parquet-compatibility.md"
+            ><span data-i18n="docsCompatibility">Bamboo 类型兼容说明 ↗</span></a
+          >
+        </div>
+      </section>
+    </div>
+  </div>
+</main>

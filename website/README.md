@@ -6,6 +6,7 @@ The official website lives in the Bamboo repository but builds and deploys indep
 website/
   index.html             # Shared semantic HTML template
   styles.css             # App-matching light/dark theme
+  docs.html / docs.css    # User documentation and responsive reading layout
   content.js             # Shared English/Chinese copy and metadata
   site.js                # Browser interactions and language switching
   downloads.json         # Verified stable-release installer catalog
@@ -33,9 +34,17 @@ npm --prefix website test
 node website/scripts/website-build.mjs --standalone
 ```
 
-The deployable directory is `build/website/`; the optional single-file preview is `build/bamboo-website-preview.html`. `build/` stays ignored. To browse the deployable version locally, run `python3 -m http.server 8080 --directory build/website` and open `http://localhost:8080`. The browser smoke test runs its own private HTTP server with the actual Pages headers.
+The deployable directory is `build/website/`; the optional single-file previews are `build/bamboo-website-preview.html` and `build/bamboo-docs-preview.html`. `build/` stays ignored. To browse the deployable version locally, run `python3 -m http.server 8080 --directory build/website` and open `http://localhost:8080`. The browser smoke test runs its own private HTTP server with the actual Pages headers.
 
 The site includes bilingual capabilities, real native App screenshots, the [first-install guide](../docs/first-install.md), FAQ, Issues/Discussions links, Terms/Privacy and creator attribution.
+
+## User documentation
+
+`/en/docs/` and `/zh/docs/` provide complete static documentation; `/docs/` is the language-adaptive fallback. Header, mobile and footer links open the matching language. Documentation shares the site's navigation, preferences and legal dialogs, with a table of contents and keyboard-focusable section anchors.
+
+The three sections cover platform installation, local/S3/R2 files and read-only SQL. Installer links and the Linux DEB command come from `downloads.json`, so release catalog updates also update the documentation. SQL examples are illustrative and use the actual `data` and `workspace` aliases. The INT96 subsection distinguishes default microsecond decoding from the explicit, local-file-only `int96_as='struct'` query; it does not promise nanosecond precision for the default preview or cloud files.
+
+Keep prose and metadata in `content.js`, page markup in `docs.html`, and layout in `docs.css`. The builder reuses the homepage shell. Build regressions verify all locale routes, download availability and self-contained output. Browser checks cover static/scripted pages at 320/1280 px, both themes, language switching with anchors, mobile navigation, keyboard focus and theme persistence under the production CSP.
 
 ## Cloudflare Pages deployment
 
@@ -225,6 +234,6 @@ The English native captures are recorded under `localizedCaptures.en` in the scr
 - Share `/en/` or `/zh/` for language-specific link cards. Legacy query links still work in the browser, but static hosting cannot vary raw HTML by query string. Tracking parameters and dialog hashes are excluded from canonicals and the sitemap.
 - Open Graph and Twitter cards use localized copy, absolute production URLs, and unchanged 2560 × 1576 product screenshots with descriptive alternative text. Client-side language changes keep the metadata in sync.
 - JSON-LD describes the WebSite, WebPage and free, MIT-licensed SoftwareApplication. It includes no ratings, reviews, user counts, release version or unverified download information. This does not claim eligibility for a search rich result.
-- `robots.txt` allows crawling and references the three-URL sitemap. The sitemap has no fabricated modification dates or ranking priorities. HTML and crawler files revalidate; hashed assets retain immutable caching.
+- `robots.txt` allows crawling and references the six-URL sitemap (home and documentation, each with two locales and a fallback). Documentation has its own canonical, alternate URLs, metadata and structured page description. The sitemap has no fabricated modification dates or ranking priorities. HTML and crawler files revalidate; hashed assets retain immutable caching.
 
 The Node build tests inspect raw HTML, language copy, asset/image dimensions, canonical/alternate URLs, sharing fields, JSON-LD and crawler files. The browser suite checks both locale routes with scripts disabled, explicit-route preference precedence, legacy legal links, switching/reload, and matching runtime metadata under the production CSP. Existing responsive, theme and screenshot checks remain in place. These checks establish the output's behavior, not indexing or search rankings. Production changes take effect only after an authorized merge and successful Pages deployment; no Search Console submission or production configuration change is part of this build.
