@@ -30,6 +30,7 @@ import { onFileDrop } from "mygo-runtime";
 import "./style.css";
 import { attachSQLGhost } from "./sql-ghost";
 import { attachResourceSlider } from "./resource-slider";
+import { updateWideTable } from "./result-table";
 import type { SQLTable } from "./sql-completion";
 
 const $ = <T extends HTMLElement>(id: string) =>
@@ -2030,7 +2031,8 @@ function render(r: Result) {
   const focusedColumn = result?.columns[focusedIndex]?.name;
   result = r;
   head.replaceChildren();
-  body.replaceChildren();
+  const wide = updateWideTable($<HTMLTableElement>("grid"), r);
+  if (!wide) body.replaceChildren();
   const tr = document.createElement("tr");
   tr.append(el("th", "#", "row-number"));
   r.columns.forEach((c) => {
@@ -2060,27 +2062,28 @@ function render(r: Result) {
   Array.from(head.querySelectorAll("button"))
     .find((_, index) => r.columns[index].name === focusedColumn)
     ?.focus({ preventScroll: true });
-  r.rows.forEach((row, i) => {
-    const tr = document.createElement("tr");
-    tr.append(el("td", fmt(String(r.offset + i + 1)), "row-number"));
-    row.forEach((v, j) => {
-      const td = el(
-        "td",
-        v === null ? "NULL" : v === "" ? "empty" : v,
-        v === null
-          ? "null"
-          : v === ""
-            ? "empty-string"
-            : /INT|DECIMAL|FLOAT|DOUBLE/.test(r.columns[j].type)
-              ? "numeric"
-              : "",
-      );
-      if (v === "") setText(td, "empty");
-      td.dataset.type = r.columns[j].type;
-      tr.append(td);
+  if (!wide)
+    r.rows.forEach((row, i) => {
+      const tr = document.createElement("tr");
+      tr.append(el("td", fmt(String(r.offset + i + 1)), "row-number"));
+      row.forEach((v, j) => {
+        const td = el(
+          "td",
+          v === null ? "NULL" : v === "" ? "empty" : v,
+          v === null
+            ? "null"
+            : v === ""
+              ? "empty-string"
+              : /INT|DECIMAL|FLOAT|DOUBLE/.test(r.columns[j].type)
+                ? "numeric"
+                : "",
+        );
+        if (v === "") setText(td, "empty");
+        td.dataset.type = r.columns[j].type;
+        tr.append(td);
+      });
+      body.append(tr);
     });
-    body.append(tr);
-  });
   $("empty-result").hidden = r.rows.length !== 0;
   setText($("page-label"), "Page {page}", {
     page: Math.floor(r.offset / (r.pageSize || request.limit)) + 1,

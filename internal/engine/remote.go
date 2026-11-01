@@ -133,6 +133,9 @@ func (e *Engine) QueryRemoteWorkspace(parent context.Context, r Request, resolve
 		return nil, err
 	}
 	defer done()
+	if e.workspaceReuse != nil {
+		e.workspaceReuse.close()
+	}
 	scoped := &Engine{remote: resolve, httpfs: e.httpfs, resources: e.resources}
 	return scoped.run(ctx, r)
 }

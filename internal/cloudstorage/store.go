@@ -285,6 +285,7 @@ func (s *Store) client(root string) (*Client, error) {
 		return nil, errors.New("Cloud workspace is closed")
 	}
 	if previous := s.clients[root]; previous != nil && previous != created {
+		previous.closeRetainedRanges()
 		previous.http.CloseIdleConnections()
 	}
 	s.clients[root] = created
@@ -295,6 +296,7 @@ func (s *Store) dropClientLocked(root string) {
 		return
 	}
 	if client := s.clients[root]; client != nil {
+		client.closeRetainedRanges()
 		client.http.CloseIdleConnections()
 		delete(s.clients, root)
 	}

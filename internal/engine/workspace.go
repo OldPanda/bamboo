@@ -193,6 +193,16 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*database, fu
 		}
 		paths = append(paths, path)
 	}
+	key, err := e.reuseKey(refs, paths)
+	if err != nil {
+		return nil, nil, err
+	}
+	if e.workspaceReuse != nil {
+		if kept := e.workspaceReuse.take(key); kept != nil {
+			e.db = kept
+			return kept, func() { e.releaseWorkspace(kept, key, refs, paths) }, nil
+		}
+	}
 	db, err := openDatabase(ctx, paths, e.resources)
 	if err != nil {
 		return nil, nil, err
@@ -214,6 +224,10 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*database, fu
 	if err != nil {
 		closeDB()
 		return nil, nil, err
+	}
+	if key != "" {
+		e.db = db
+		return db, func() { e.releaseWorkspace(db, key, refs, paths) }, nil
 	}
 	return db, closeDB, nil
 }

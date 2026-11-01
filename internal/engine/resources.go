@@ -64,6 +64,9 @@ func (e *Engine) Configure(r Resources, save func() error) error {
 		e.db.Close()
 		e.db = nil
 	}
+	if e.workspaceReuse != nil {
+		e.workspaceReuse.close()
+	}
 	e.resources = r
 	return nil
 }

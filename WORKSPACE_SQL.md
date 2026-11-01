@@ -28,10 +28,22 @@ Queries remain read-only. JOIN, UNION, CTEs, aggregation, result paging/filterin
 - Only the selected workspace (or the workspace owning the active file) is resolved. Independent sibling roots and outside files are unavailable. A nested directory is within its parent workspace; when the active document belongs to a separately opened nested root, references are relative to that more specific root.
 - Each query resolves its direct `workspace."relative.parquet"` references against the still-open root and verifies regular supported files (Parquet/CSV/TSV locally; Parquet in cloud workspaces). Absolute paths, traversal, escaping symlinks, wildcard filenames, directories and remote URLs are rejected. Closing the workspace revokes future references.
 - Up to 32 distinct referenced files per query. Names use exact relative paths including the supported file extension; DuckDB identifiers are case insensitive, so two paths differing only in case cannot both be registered in one query.
-- An ephemeral DuckDB connection registers only the referenced files as views, plus `data` when there is an active file. Its exact canonical path allowlist is locked before SQL runs. No directory-wide permission, dataset copying, eager recursive scan or upfront opening of all files. Unreferenced malformed siblings do not interfere.
-- File queries without workspace references reuse the active connection. Workspace-only queries use an ephemeral connection even for a constant query such as `SELECT 1`; there is no implicit active file. Cross-file queries rebuild their lightweight catalog per execution (including pages), then close it; they do not cache whole files. Data can change between pages if another process edits a source.
+- A scoped DuckDB connection registers only the referenced files as views, plus `data` when there is an active file. Its exact canonical path allowlist is locked before SQL runs. No directory-wide permission, dataset copying, eager recursive scan or upfront opening of all files. Unreferenced malformed siblings do not interfere.
+- File queries without workspace references reuse the active connection. A local workspace-only Parquet query can retain one exact catalog for 30 seconds of inactivity. Every execution still resolves and opens every reference to check permission, canonical path, file identity, size, modification/change time and resource settings. A changed root or file set, a failed query, spill, settings change or workspace closure discards it. File identities use native macOS/Linux metadata and Windows handle metadata; unavailable identity information falls back to a fresh connection. CSV/TSV, active-file cross-references and constant workspace queries always bind a fresh catalog. There is no implicit `data` alias in a workspace editor. Neither retained metadata nor rechecking establishes a transactional snapshot of concurrent writers; data can change during a query or between pages.
 - Wide files and query results are not restricted to 256 columns. All columns are retained; pages return at most the requested 1–500 rows and 128,000 cells, automatically reducing the row count for wide results. Paging uses that effective row count without skipping rows. Column names/types plus a 64-byte per-column allowance are bounded to 1 MiB; schemas beyond that budget can still be queried through a workspace with an explicit column selection. Values remain bounded to 64 KiB/cell and 4 MiB/page. Metadata operations use a 15-second timeout; query timeout, memory and disk-spill budgets follow Settings → Performance. These are not total process-memory guarantees. Very large joins may hit those limits.
 - Only references directly present in SQL are registered. SQL strings passed to dynamic functions do not discover or grant additional file access.
+
+Wide result tables keep every returned column and exact cell in the native DOM.
+Above 64 columns, font-relative fixed column widths and reused cells reduce page
+update work. Long content remains selectable even when visually ellipsized;
+browser find, cross-column text selection and native table semantics remain
+available. Widths follow the current page within a bounded range. First display
+still creates the complete bounded page; this is not column virtualization.
+
+本地工作区的 Parquet 查询可短暂复用同一组文件的目录，空闲 30 秒后释放。每次查询
+仍会重新验证路径、读取权限、文件身份和资源设置；文件变化、错误、磁盘溢出或关闭
+工作区会丢弃缓存。CSV/TSV 每次重新绑定读取选项。宽表保留全部列和原始文本，通过
+复用单元格及固定列宽减少翻页开销，不移除屏幕外的列。
 
 ## Verification
 

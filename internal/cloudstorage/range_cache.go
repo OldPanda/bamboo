@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -13,6 +14,24 @@ const rangeBlockSize int64 = 8 << 20
 const rangeCacheBytes = 64 << 20
 const rangeCacheEntries = 256
 const rangeFetchBytes int64 = 32 << 20
+
+// All readers, including retained workspace scopes, share these payload budgets.
+// Returned slices may outlive eviction while an HTTP response is being written;
+// these are retention/fetch limits, not a bound on total process memory.
+var appRangeBytes atomic.Int64
+var appRangeFetch = semaphore.NewWeighted(rangeFetchBytes)
+
+func reserveRangeBytes(size int) bool {
+	for {
+		used := appRangeBytes.Load()
+		if used+int64(size) > rangeCacheBytes {
+			return false
+		}
+		if appRangeBytes.CompareAndSwap(used, used+int64(size)) {
+			return true
+		}
+	}
+}
 
 type rangeKey struct {
 	Object     Object
@@ -28,7 +47,7 @@ type rangeFlight struct {
 	err  error
 }
 
-// A cache belongs to one scoped reader, never to saved credentials or disk.
+// A cache belongs to a scoped reader or a briefly retained exact workspace set.
 // Payload retention is bounded independently of concurrent fetch buffers.
 type rangeCache struct {
 	mu      sync.Mutex
@@ -43,7 +62,7 @@ type rangeCache struct {
 
 func newRangeCache(ctx context.Context) *rangeCache {
 	ctx, cancel := context.WithCancel(ctx)
-	return &rangeCache{lru: list.New(), pending: make(map[rangeKey]*rangeFlight), budget: semaphore.NewWeighted(rangeFetchBytes), ctx: ctx, cancel: cancel}
+	return &rangeCache{lru: list.New(), pending: make(map[rangeKey]*rangeFlight), budget: appRangeFetch, ctx: ctx, cancel: cancel}
 }
 func (c *rangeCache) close() {
 	c.cancel()
@@ -51,6 +70,7 @@ func (c *rangeCache) close() {
 	defer c.mu.Unlock()
 	c.closed = true
 	c.lru.Init()
+	appRangeBytes.Add(-int64(c.size))
 	c.size = 0
 }
 
@@ -137,10 +157,15 @@ func (c *rangeCache) read(ctx context.Context, o Object, start, end int64, fetch
 			for c.size+len(body) > rangeCacheBytes || c.lru.Len() >= rangeCacheEntries {
 				el := c.lru.Back()
 				c.size -= len(el.Value.(rangeEntry).body)
+				appRangeBytes.Add(-int64(len(el.Value.(rangeEntry).body)))
 				c.lru.Remove(el)
 			}
-			c.lru.PushFront(rangeEntry{key, body})
-			c.size += len(body)
+			// Other readers can consume the global budget. Serve a validated miss
+			// without retaining it rather than multiplying the cap per connection.
+			if reserveRangeBytes(len(body)) {
+				c.lru.PushFront(rangeEntry{key, body})
+				c.size += len(body)
+			}
 		} else {
 			body = nil
 		}

@@ -51,7 +51,21 @@ func testStore(t *testing.T, handler http.HandlerFunc) (*Store, *httptest.Server
 	t.Cleanup(server.Close)
 	v := &memoryVault{data: map[string]Credentials{}}
 	s := New(t.TempDir(), v)
-	s.clientFactory = func(c Config, cred Credentials) *Client { c.Endpoint = server.URL; return newClient(c, cred) }
+	s.clientFactory = func(c Config, cred Credentials) *Client {
+		client := newClient(c, cred)
+		transport := client.http.Transport.(*http.Transport)
+		// Keep the production config identity: changing Endpoint here would
+		// silently force Store.client to replace the client on every lookup.
+		client.http.Transport = signingTransport(func(request *http.Request) (*http.Response, error) {
+			clone := request.Clone(request.Context())
+			clone.URL.Scheme = "http"
+			clone.URL.Host = server.Listener.Addr().String()
+			return transport.RoundTrip(clone)
+		})
+		t.Cleanup(transport.CloseIdleConnections)
+		t.Cleanup(client.closeRetainedRanges)
+		return client
+	}
 	return s, server, v
 }
 func listingXML(prefix string) string {
@@ -363,6 +377,70 @@ func TestRemotePreviewDoesNotRepeatRanges(t *testing.T) {
 			t.Fatalf("range %s fetched %d times", rng, n)
 		}
 	}
+}
+
+func TestWorkspaceRangeReuseRealParquet(t *testing.T) {
+	dir := t.TempDir()
+	if err := fixtures.Generate(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	source, err := os.ReadFile(filepath.Join(dir, "orders.parquet"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var heads, transferred atomic.Int64
+	s, _, _ := testStore(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("list-type") == "2" {
+			fmt.Fprint(w, listingXML("data/"))
+			return
+		}
+		w.Header().Set("ETag", `"fixture"`)
+		if r.Method == "HEAD" {
+			heads.Add(1)
+			w.Header().Set("Content-Length", fmt.Sprint(len(source)))
+			return
+		}
+		var first, last int64
+		if r.Header.Get("If-Match") != `"fixture"` {
+			t.Error("unconditional range")
+		}
+		if _, err := fmt.Sscanf(r.Header.Get("Range"), "bytes=%d-%d", &first, &last); err != nil || first < 0 || last >= int64(len(source)) {
+			w.WriteHeader(416)
+			return
+		}
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", first, last, len(source)))
+		w.Header().Set("Content-Length", fmt.Sprint(last-first+1))
+		w.WriteHeader(206)
+		n, _ := w.Write(source[first : last+1])
+		transferred.Add(int64(n))
+	})
+	info, err := s.Connect(context.Background(), input())
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := engine.New()
+	defer e.Close()
+	extension, _ := filepath.Abs("../../build/extensions/httpfs.duckdb_extension")
+	e.SetHTTPFS(extension)
+	q := req(`SELECT a.order_id, b.amount FROM workspace."orders.parquet" a JOIN workspace."copy.parquet" b USING(order_id) ORDER BY a.order_id`)
+	var firstBytes int64
+	for _, offset := range []int{0, 0, 100} {
+		q.Offset = offset
+		r, err := e.QueryRemoteWorkspace(context.Background(), q, s.Resolver(info.Root))
+		if err != nil || len(r.Rows) != 100 || *r.Rows[0][0] != fmt.Sprint(1001+offset) {
+			t.Fatal("real workspace result", r, err)
+		}
+		if firstBytes == 0 {
+			firstBytes = transferred.Load()
+		}
+		if firstBytes == 0 || transferred.Load() != firstBytes {
+			t.Fatal("repeated page downloaded object bytes", firstBytes, transferred.Load())
+		}
+	}
+	if heads.Load() != 6 {
+		t.Fatal("workspace query skipped HEAD", heads.Load())
+	}
+	t.Logf("two-object JOIN repeat/next pages: 2 HEAD each, initial %d object bytes, 0 additional bytes", firstBytes)
 }
 func TestGatewayAndFailures(t *testing.T) {
 	var failure atomic.Int64

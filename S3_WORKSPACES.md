@@ -50,6 +50,10 @@ Bamboo derives the HTTPS regional S3 endpoint and signs each request with SigV4 
 
 All cloud requests are read-only listing, HEAD or ranged GET. DuckDB receives only short-lived loopback URLs for explicitly referenced objects, never AWS credentials. Reads verify ETag/If-Match and exact byte-range responses, with bounded transfer chunks; no fallback full-file download. Aggregations or sorting can still scan substantial data and incur AWS request/transfer charges. No remote upload, delete, rename or policy change is implemented.
 
+Workspace range reuse follows the shared [cache lifetime and application-wide budgets](R2_WORKSPACES.md#data-and-credentials). Every new scope still checks current access and object metadata; databases and capability URLs are never reused.
+
+工作区分块缓存与 R2 共用全应用预算和空闲释放规则，每次新查询范围仍重新验证权限及对象版本。
+
 ## Validation and current limits
 
 - Backend tests cover regional endpoints, SigV4 scope, session headers, escaped object names, wrong regions, denied/expired credentials, legacy R2 restoration, mixed provider persistence, token rotation/retention and deletion isolation.

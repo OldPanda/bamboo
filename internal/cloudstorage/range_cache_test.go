@@ -235,6 +235,7 @@ func TestGatewayCachesLargeRangesAndReopenChecksVersion(t *testing.T) {
 	}))
 	defer server.Close()
 	c := newClient(Config{Endpoint: server.URL, Bucket: "fixture", Prefix: "data"}, Credentials{AccessKey: "synthetic", SecretKey: "synthetic"})
+	defer c.closeRetainedRanges()
 	scope, err := c.scope(context.Background(), []string{"large.parquet"})
 	if err != nil {
 		t.Fatal(err)

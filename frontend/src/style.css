@@ -423,6 +423,14 @@ table {
   font-size: var(--text-sm);
   text-align: left;
 }
+.wide-result {
+  table-layout: fixed;
+}
+.wide-result th button {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 #data-panel:not([hidden]) thead,
 #schema-panel:not([hidden]) thead {
   position: sticky;

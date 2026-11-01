@@ -123,7 +123,15 @@ func (w *Workbench) CloseWorkspace(root string) error {
 		defer w.opMu.Unlock()
 		return w.folders.CloseCloud(root, true, func() error { return w.remote.Close(root) })
 	}
-	return w.folders.Close(root)
+	if !w.opMu.TryLock() {
+		return errors.New("another operation is running")
+	}
+	defer w.opMu.Unlock()
+	if err := w.folders.Close(root); err != nil {
+		return err
+	}
+	w.engine.DiscardWorkspaceReuse()
+	return nil
 }
 
 // CloseWorkspaceFile clears a workspace file selection without removing the source object.
@@ -203,7 +211,7 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 	if _, err := w.folders.Resolve(root, "."); err != nil {
 		return nil, err
 	}
-	result, err := w.engine.QueryWorkspace(ctx, r, func(relative string) (string, error) { return w.folders.Resolve(root, relative) })
+	result, err := w.engine.QueryWorkspace(ctx, r, func(relative string) (string, error) { return w.folders.Resolve(root, relative) }, root)
 	if err == nil {
 		w.mu.Lock()
 		w.last = result

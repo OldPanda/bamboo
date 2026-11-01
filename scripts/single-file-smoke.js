@@ -303,6 +303,101 @@ assert(
     document.querySelectorAll("#grid tbody tr").length === 100,
   "native Parquet recovery after CSV",
 );
+// Exercise the production wide renderer through native IPC on every platform.
+// The source is the real generated Parquet; the projection keeps the SQL bounded.
+const wideColumns = Array.from({ length: 2048 }, (_, i) => `1 c${i}`);
+wideColumns[0] = "order_id c0";
+wideColumns[1] = "9007199254740993::BIGINT c1";
+wideColumns[2] = "NULL::VARCHAR c2";
+wideColumns[3] = "'' c3";
+wideColumns[2047] = "12345678901234567890.1234::DECIMAL(30,4) c2047";
+$("sql").value =
+  `SELECT ${wideColumns.join(",")} FROM data ORDER BY order_id`;
+await click("run");
+const wideGrid = $("grid");
+assert(
+  wideGrid.classList.contains("wide-result") &&
+    wideGrid.tBodies[0].rows.length === 62 &&
+    [...wideGrid.tBodies[0].rows].every((row) => row.cells.length === 2049),
+  "native wide page retains all 2048 columns within 128000 cells",
+);
+let wideRow = wideGrid.tBodies[0].rows[0];
+assert(
+  wideRow.cells[2].textContent === "9007199254740993" &&
+    wideRow.cells[3].textContent === "NULL" &&
+    wideRow.cells[4].className === "empty-string" &&
+    wideRow.cells[2048].textContent === "12345678901234567890.1234",
+  "native wide page preserves exact integers decimals NULL and empty text",
+);
+const wideSelection = document.createRange();
+wideSelection.setStart(wideRow.cells[2].firstChild, 0);
+wideSelection.setEnd(wideRow.cells[2048].firstChild, 25);
+getSelection().removeAllRanges();
+getSelection().addRange(wideSelection);
+assert(
+  getSelection().toString().includes("9007199254740993") &&
+    getSelection().toString().includes("12345678901234567890.1234"),
+  "native selection spans offscreen columns without losing values",
+);
+getSelection().removeAllRanges();
+const wideViewport = innerWidth;
+for (const [zoom, font] of [
+  [75, 12],
+  [200, 20],
+  [100, 13],
+]) {
+  $("settings").click();
+  $("display-zoom").value = String(zoom);
+  $("display-font").value = String(font);
+  $("display-form").requestSubmit();
+  for (let attempt = 0; attempt < 150; attempt++) {
+    if (
+      $("display-form").getAttribute("aria-busy") === "false" &&
+      Math.abs((innerWidth * zoom) / 100 - wideViewport) <= 3
+    )
+      break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  $("settings-dismiss").click();
+  assert(
+    Math.abs((innerWidth * zoom) / 100 - wideViewport) <= 3 &&
+      [wideRow.cells[1], wideRow.cells[3], wideRow.cells[4]].every(
+        (cell) => getComputedStyle(cell).fontSize === font + "px",
+      ),
+    "native wide ordinary NULL and empty cells at " +
+      zoom +
+      "% zoom and " +
+      font +
+      "px",
+  );
+}
+$("grid-scroll").scrollLeft = 1000000;
+await new Promise((resolve) => setTimeout(resolve, 80));
+assert(
+  wideRow.cells[2048].getBoundingClientRect().left <
+    $("grid-scroll").getBoundingClientRect().right,
+  "native horizontal scrolling reaches the last wide column",
+);
+await click("next");
+wideRow = wideGrid.tBodies[0].rows[0];
+assert(
+  wideRow.cells[1].textContent === "1063" &&
+    wideGrid.tBodies[0].rows.length === 62,
+  "native wide pagination reuses cells at the effective row offset",
+);
+await click("previous");
+assert(
+  wideGrid.tBodies[0].rows[0].cells[1].textContent === "1001",
+  "native wide previous page restores exact first row",
+);
+$("sql").value = "SELECT * FROM data";
+await click("run");
+assert(
+  !wideGrid.classList.contains("wide-result") &&
+    !wideGrid.querySelector("colgroup") &&
+    wideGrid.tBodies[0].rows.length === 100,
+  "native narrow table recovers auto layout after a wide result",
+);
 assert($("notification").hidden, "no frontend error");
 return {
   checks,
