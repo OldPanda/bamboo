@@ -75,6 +75,8 @@ jobs:
           else
             printf '%s\n' "macOS Apple Silicon (arm64). This build is ad-hoc signed and is not Apple-notarized." > build/releases/release-notes.md
           fi
+      - name: Verify signed DMG and installed startup
+        run: python3 scripts/verify-macos-package.py --feed --launch
       - name: Upload verified installer
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -83,6 +85,38 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+
+  verify-published-macos:
+    name: Verify hosted macOS installer
+    needs: publish
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      BAMBOO_VERSION: ${{ github.ref_name }}
+      GOTOOLCHAIN: go1.27.3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Download and install actual hosted bytes
+        run: |
+          python3 scripts/download-desktop-release.py
+          python3 scripts/verify-macos-package.py --feed --launch
+      - name: Upload hosted macOS verification
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: macos-published-verification
+          path: artifacts/macos-package-smoke/
+          if-no-files-found: error
+          retention-days: 14
 
   verify-published:
     name: Verify hosted Windows and Linux installers

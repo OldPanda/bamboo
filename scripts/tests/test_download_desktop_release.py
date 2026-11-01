@@ -1,6 +1,8 @@
 """Check public asset selection and fail-closed handling without network access."""
 
 import importlib.util
+import io
+import json
 import os
 import sys
 import tempfile
@@ -19,6 +21,55 @@ SPEC.loader.exec_module(DOWNLOAD)
 
 class DownloadReleaseTests(unittest.TestCase):
     """Only fresh, native, explicitly versioned public assets may reach acceptance."""
+
+    def test_latest_metadata_rejects_invalid_or_oversized_responses(self):
+        """An invalid latest-tag response cannot disable the feed comparison."""
+        for data in (b'{"tag_name":"../0.2.0"}', b"x" * (1024 * 1024 + 1)):
+            with (
+                self.subTest(bytes=len(data)),
+                patch.object(
+                    DOWNLOAD.urllib.request, "urlopen", return_value=io.BytesIO(data)
+                ),
+                self.assertRaises(ValueError),
+            ):
+                DOWNLOAD.latest_release_version()
+
+    def test_macos_and_latest_feed(self):
+        """Download the DMG plus both versioned and configured latest feed bytes."""
+        with tempfile.TemporaryDirectory() as temp:
+            with (
+                patch.object(DOWNLOAD, "ROOT", Path(temp)),
+                patch.object(DOWNLOAD.platform, "system", return_value="Darwin"),
+                patch.dict(os.environ, GITHUB_ACTIONS="true", BAMBOO_VERSION="v0.2.0"),
+                patch.object(DOWNLOAD.urllib.request, "urlretrieve") as retrieve,
+                patch.object(
+                    DOWNLOAD.urllib.request,
+                    "urlopen",
+                    return_value=io.BytesIO(
+                        json.dumps({"tag_name": "v0.3.0"}).encode()
+                    ),
+                ),
+            ):
+                DOWNLOAD.main()
+                self.assertEqual(
+                    (
+                        Path(temp) / "build/releases/latest-release-version.txt"
+                    ).read_text(),
+                    "0.3.0\n",
+                )
+            self.assertEqual(
+                [call.args[1].name for call in retrieve.call_args_list],
+                [
+                    "Bamboo-0.2.0-macOS-arm64.dmg",
+                    "Bamboo-0.2.0-macOS-arm64.dmg.sha256",
+                    "appcast.xml",
+                    "latest-appcast.xml",
+                ],
+            )
+            self.assertEqual(
+                retrieve.call_args.args[0],
+                "https://github.com/OldPanda/bamboo/releases/latest/download/appcast.xml",
+            )
 
     def test_native_assets(self):
         """Fetch both formats and checksums from the versioned public release."""

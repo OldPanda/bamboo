@@ -185,6 +185,7 @@ function harness({
     "Release quality gate / PR quality gate",
     "Build macOS DMG",
     "Publish GitHub Release",
+    "Verify hosted macOS installer",
     ...[
       "Build Windows and Linux packages",
       "Verify hosted Windows and Linux installers",
