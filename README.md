@@ -19,7 +19,7 @@ Query with DuckDB, without importing your data into a database.
 
 ## Features
 
-- **Explore files.** Preview rows, inspect schemas, sort and filter columns.
+- **Explore files.** Preview Parquet and local CSV/TSV, inspect schemas, sort and filter columns.
 - **Query across files.** Write SQL with inline completion, joins and aggregations.
 - **Connect your storage.** Open local folders, S3 or R2 workspaces; cloud credentials stay in macOS Keychain.
 - **Pick up where you left off.** Keep multiple files open and restore saved query drafts.
@@ -41,13 +41,13 @@ open build/Bamboo.app
 
 The build downloads Go 1.27.3 as needed. Local builds are ad-hoc signed, not notarized.
 
-**2 · Open data.** Choose a file, folder or cloud workspace, or drop a Parquet file into the welcome area.
+**2 · Open data.** Choose a file, folder or cloud workspace, or drop a Parquet, CSV or TSV file into the welcome area.
 
 **3 · Query.** Use `data` for the selected file, or `workspace."orders.parquet"` for a file in the active workspace.
 
 ## Documentation
 
-[Cross-file SQL](WORKSPACE_SQL.md) · [Amazon S3](S3_WORKSPACES.md) · [Cloudflare R2](R2_WORKSPACES.md) · [Development and tests](CONTRIBUTING.md)
+[Cross-file SQL](WORKSPACE_SQL.md) · [CSV / TSV](TEXT_FILES.md) · [Amazon S3](S3_WORKSPACES.md) · [Cloudflare R2](R2_WORKSPACES.md) · [Development and tests](CONTRIBUTING.md)
 
 ## License
 

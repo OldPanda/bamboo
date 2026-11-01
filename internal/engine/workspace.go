@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bamboo/internal/datafile"
 	"context"
 	"errors"
 	"fmt"
@@ -156,7 +157,7 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*database, fu
 			if err != nil {
 				return nil, nil, err
 			}
-			if err = createView(ctx, db, "data", e.file.Path); err != nil {
+			if err = e.createLocalView(ctx, db, "data", e.file.Path); err != nil {
 				db.Close()
 				return nil, nil, err
 			}
@@ -173,22 +174,22 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*database, fu
 	}
 	start := len(paths)
 	for _, ref := range refs {
-		if !strings.EqualFold(filepath.Ext(ref), ".parquet") || strings.ContainsAny(ref, "*?[]\x00") {
-			return nil, nil, errors.New("workspace tables must name a .parquet file without wildcards")
+		if !datafile.Supported(ref) || strings.ContainsAny(ref, "*?[]\x00") {
+			return nil, nil, errors.New("workspace tables must name a Parquet, CSV or TSV file without wildcards")
 		}
 		path, err := e.resolve(ref)
 		if err != nil {
 			return nil, nil, fmt.Errorf("workspace table %q: %w", ref, err)
 		}
-		if !filepath.IsAbs(path) || !strings.EqualFold(filepath.Ext(path), ".parquet") || strings.ContainsAny(path, "*?[]\x00") {
-			return nil, nil, errors.New("workspace table must resolve to an absolute Parquet path without wildcards")
+		if !filepath.IsAbs(path) || !datafile.Supported(path) || strings.ContainsAny(path, "*?[]\x00") {
+			return nil, nil, errors.New("workspace table must resolve to an absolute supported data path without wildcards")
 		}
 		st, err := os.Stat(path)
 		if err != nil {
 			return nil, nil, err
 		}
 		if !st.Mode().IsRegular() {
-			return nil, nil, errors.New("workspace table must be a regular Parquet file")
+			return nil, nil, errors.New("workspace table must be a regular data file")
 		}
 		paths = append(paths, path)
 	}
@@ -198,14 +199,14 @@ func (e *Engine) queryDatabase(ctx context.Context, query string) (*database, fu
 	}
 	closeDB := func() { db.Close() }
 	if e.file != nil {
-		err = createView(ctx, db, "data", e.file.Path)
+		err = e.createLocalView(ctx, db, "data", e.file.Path)
 	}
 	if err == nil {
 		_, err = db.ExecContext(ctx, "CREATE SCHEMA workspace")
 	}
 	if err == nil {
 		for i, ref := range refs {
-			if err = createView(ctx, db, "workspace."+ident(ref), paths[i+start]); err != nil {
+			if err = e.createLocalView(ctx, db, "workspace."+ident(ref), paths[i+start]); err != nil {
 				break
 			}
 		}

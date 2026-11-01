@@ -2123,3 +2123,44 @@ button.danger:hover:not(:disabled) {
   -webkit-appearance: auto;
   cursor: pointer;
 }
+
+.text-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.text-info button {
+  margin-left: auto;
+}
+#text-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+#text-dialog p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+#text-dialog select {
+  display: block;
+  width: 100%;
+  appearance: auto;
+  margin: 6px 0 16px;
+}
+#text-dialog .text-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+#text-dialog .text-check input {
+  width: auto;
+  margin: 0;
+}
+#text-dismiss {
+  margin-left: auto;
+}

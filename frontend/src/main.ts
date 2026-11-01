@@ -59,13 +59,14 @@ app.innerHTML = `
     <h1 id="welcome-title">Explore your data</h1>
     <div id="welcome-drop-zone" class="welcome-drop-zone" role="region" aria-labelledby="welcome-drop-title">
       <svg class="welcome-file-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M27 5H12a3 3 0 0 0-3 3v32a3 3 0 0 0 3 3h16M27 5v11h11L27 5Zm11 11v8M16 23h14M16 29h9M16 35h7M36 43V30m-6 6 6-6 6 6"/></svg>
-      <h2 id="welcome-drop-title" aria-live="polite">Drop a Parquet file here</h2>
+      <h2 id="welcome-drop-title" aria-live="polite">Drop a Parquet, CSV or TSV file here</h2>
       <p id="welcome-description">Or open a file, folder, or cloud workspace.</p>
       <button id="welcome-data" class="primary" aria-haspopup="dialog" aria-controls="source-dialog">Open data</button>
     </div>
   </section>
   <section id="workspace" hidden>
     <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
+    <div id="text-info" class="text-info" hidden><span id="text-summary"></span><button id="text-options" class="quiet" aria-haspopup="dialog" aria-controls="text-dialog">Reading options</button></div>
     <nav class="tabs" aria-label="Views"><button id="tab-explore" class="active" aria-selected="true">Explore Data</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
     <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span id="query-scope">Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p id="workspace-table-help">Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><div class="sql-input-wrap"><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea></div><div class="editor-footer"><span>Ctrl / ⌘ + Enter to run <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
     <div id="data-panel" class="data-panel">
@@ -73,11 +74,22 @@ app.innerHTML = `
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
       <footer class="table-footer"><div><span id="result-summary">Ready</span><div id="page-size-note" hidden></div></div><div class="pagination"><button id="previous" aria-label="Previous page">←</button><span id="page-label">Page 1</span><button id="next" aria-label="Next page">→</button></div></footer>
     </div>
-    <div id="schema-panel" class="schema-panel" hidden><div class="schema-note">Types are read directly from the Parquet file. Values stay exact across the desktop bridge.</div><table><thead><tr><th>#</th><th>Column</th><th>Logical type</th></tr></thead><tbody id="schema-body"></tbody></table></div>
+    <div id="schema-panel" class="schema-panel" hidden><div class="schema-note">Types reflect the file and its reading options. Values stay exact across the desktop bridge.</div><table><thead><tr><th>#</th><th>Column</th><th>Logical type</th></tr></thead><tbody id="schema-body"></tbody></table></div>
   </section>
   <div id="notification" role="status" aria-live="polite" hidden></div>
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Reading your file…</span><button id="cancel">Cancel</button></div>
 </main>
+<dialog id="text-dialog" class="connection-dialog" aria-labelledby="text-title">
+ <form id="text-form">
+  <div class="connection-heading"><h2 id="text-title" tabindex="-1">CSV / TSV reading options</h2><button id="text-dismiss" type="button" class="quiet" aria-label="Close reading options">×</button></div>
+  <p>UTF-8 only, including BOM. Quoted multiline fields are supported. Invalid records stop the query.</p>
+  <label for="text-delimiter">Delimiter</label><select id="text-delimiter"><option value="">Automatic</option><option value=",">Comma</option><option value="tab">Tab</option><option value=";">Semicolon</option><option value="|">Pipe</option></select>
+  <label class="text-check"><input id="text-header" type="checkbox">First record contains column names</label>
+  <label for="text-types">Column types</label><select id="text-types"><option value="text">Preserve every value as text</option><option value="infer">Infer integers, booleans and dates</option></select>
+  <p>Text preserves leading zeros and exact decimals. Inference may normalize values; decimals and timestamps stay text. Use SQL CAST for explicit types. Unquoted empty fields are NULL; quoted empty fields stay empty text.</p>
+  <button id="text-apply" class="primary" type="submit">Apply and reopen</button>
+ </form>
+</dialog>
 <dialog id="export-dialog" class="connection-dialog" aria-labelledby="export-title" aria-describedby="export-description">
  <div class="connection-heading"><div><h2 id="export-title" tabindex="-1">Export data</h2><p id="export-description">Choose the result scope and format.</p></div><button id="export-dismiss" class="quiet" aria-label="Close export chooser">×</button></div>
  <label for="export-scope">Export scope</label><select id="export-scope"><option value="page">Current page</option><option value="full">Complete result</option></select>
@@ -91,7 +103,7 @@ app.innerHTML = `
  <div class="connection-heading"><div><h2 id="source-title">Open data</h2><p>Choose where your data lives.</p></div><button id="source-dismiss" class="quiet" aria-label="Close data source chooser">×</button></div>
  <div class="source-tabs" role="tablist" aria-label="Data location"><button id="source-local" role="tab" aria-selected="true" aria-controls="sources-local"><svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>This computer</button><button id="source-cloud" role="tab" aria-selected="false" aria-controls="sources-cloud" tabindex="-1"><svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 20 10a4 4 0 0 1 0 8H7Z"/></svg>Cloud storage</button></div>
  <div id="sources-local" role="tabpanel" aria-labelledby="source-local">
-  <button id="open" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg><span><strong>Open file</strong><small>Browse a Parquet file</small></span><kbd>Ctrl / ⌘ + O</kbd></button>
+  <button id="open" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg><span><strong>Open file</strong><small>Browse a Parquet, CSV or TSV file</small></span><kbd>Ctrl / ⌘ + O</kbd></button>
   <button id="open-folder" class="source-option"><svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg><span><strong>Open folder</strong><small>Query files together as a workspace</small></span><span class="source-arrow" aria-hidden="true">›</span></button>
  </div>
  <div id="sources-cloud" role="tabpanel" aria-labelledby="source-cloud" hidden>
@@ -485,7 +497,7 @@ async function directory(
     container.append(more);
   } else if (!container.children.length)
     container.append(
-      ui("p", "No visible folders or Parquet files", "aside-hint"),
+      ui("p", "No visible folders or supported data files", "aside-hint"),
     );
   updateFolder();
 }
@@ -642,6 +654,7 @@ async function showWorkspace(info: Info) {
         };
   $("welcome").hidden = true;
   $("workspace").hidden = false;
+  $("text-info").hidden = true;
   $("grid").querySelector("thead")!.replaceChildren();
   $("grid").querySelector("tbody")!.replaceChildren();
   $("column-list").replaceChildren();
@@ -887,6 +900,38 @@ let editingConnection = "";
 let connectionProvider = "r2";
 let connectionOrigin: "source" | "settings" = "source";
 const settingsDialog = $<HTMLDialogElement>("settings-dialog");
+const textDialog = $<HTMLDialogElement>("text-dialog");
+$("text-options").onclick = () => {
+  if (!file?.textOptions || busy) return;
+  const options = file.textOptions;
+  $<HTMLSelectElement>("text-delimiter").value =
+    options.delimiter === "\t" ? "tab" : options.delimiter;
+  $<HTMLInputElement>("text-header").checked = options.header;
+  $<HTMLSelectElement>("text-types").value = options.inferTypes
+    ? "infer"
+    : "text";
+  textDialog.showModal();
+  $("text-title").focus();
+};
+$("text-dismiss").onclick = () => textDialog.close();
+textDialog.onclose = () => $("text-options").focus();
+$("text-form").onsubmit = (event) => {
+  event.preventDefault();
+  if (!file?.textOptions || busy) return;
+  const path = file.path;
+  const delimiter = $<HTMLSelectElement>("text-delimiter").value;
+  const options = {
+    delimiter: delimiter === "tab" ? "\t" : delimiter,
+    header: $<HTMLInputElement>("text-header").checked,
+    inferTypes: $<HTMLSelectElement>("text-types").value === "infer",
+  };
+  textDialog.close();
+  void task("Applying reading options…", async () => {
+    await saveQuery();
+    await Workbench.setTextOptions(path, options);
+    await switchFile(path);
+  }).finally(() => $("text-options").focus());
+};
 const connectionPicker = $<HTMLDialogElement>("connection-picker");
 let connectionLoad = 0;
 function connectionLocation(c: Connection) {
@@ -1850,10 +1895,22 @@ function showFile(f: DataFile) {
   rawText($("file-name"), f.name);
   rawText($("file-path"), f.path);
   $("file-path").title = f.path;
-  $("row-count").textContent = fmt(f.rows);
+  $("row-count").textContent = f.rows ? fmt(f.rows) : "—";
   $("metric-columns").textContent = String(f.columns.length);
   $("file-size").textContent = size(f.bytes);
-  $("row-groups").textContent = fmt(f.rowGroups);
+  $("row-groups").textContent = f.rowGroups ? fmt(f.rowGroups) : "—";
+  $("text-info").hidden = !f.textOptions;
+  if (f.textOptions)
+    setText($("text-summary"), "UTF-8 · {header} · {types}", {
+      header: t(
+        f.textOptions.header ? "First record is a header" : "No header",
+      ),
+      types: t(
+        f.textOptions.inferTypes
+          ? "Type inference enabled"
+          : "Values preserved as text",
+      ),
+    });
   $("column-count").textContent = String(f.columns.length);
   const list = $("column-list");
   list.replaceChildren();
@@ -2007,7 +2064,7 @@ async function run(next: Request) {
   render(r);
 }
 async function open(path?: string) {
-  await task("Opening Parquet…", async () => {
+  await task("Opening data…", async () => {
     await saveQuery();
     const f = path ? await Workbench.openPath(path) : await Workbench.open();
     if (f) {
@@ -2136,6 +2193,7 @@ for (const format of ["json", "csv", "jsonl", "tsv"])
 document.addEventListener("keydown", (e) => {
   if (
     (r2Dialog.open ||
+      textDialog.open ||
       settingsDialog.open ||
       connectionPicker.open ||
       exportDialog.open) &&
@@ -2168,7 +2226,7 @@ dropFeedback.hidden = true;
 dropFeedback.setAttribute("popover", "manual");
 dropFeedback.setAttribute("role", "status");
 dropFeedback.innerHTML =
-  '<div class="drop-feedback-card"><strong>Drop to open Parquet</strong><span>Release the file anywhere in this window.</span></div>';
+  '<div class="drop-feedback-card"><strong>Drop to open data</strong><span>Release the file anywhere in this window.</span></div>';
 localizeStatic(dropFeedback);
 app.append(dropFeedback);
 const welcomeDropZone = $("welcome-drop-zone");
@@ -2190,13 +2248,14 @@ function markWelcomeDrop(active: boolean) {
   welcomeDropZone.classList.toggle("drag-active", active);
   setText(
     $("welcome-drop-title"),
-    active ? "Release to open Parquet" : "Drop a Parquet file here",
+    active ? "Release to open data" : "Drop a Parquet, CSV or TSV file here",
   );
 }
 let dragDepth = 0;
 const acceptsDrop = () =>
   !busy &&
   !r2Dialog.open &&
+  !textDialog.open &&
   !settingsDialog.open &&
   !connectionPicker.open &&
   !exportDialog.open;

@@ -1,6 +1,6 @@
 # Folder workspaces
 
-> Historical single-workspace delivery record. The current multiple-root/file behavior and fresh validation are documented in [MULTIPLE_FILES.md](MULTIPLE_FILES.md). Coverage links below now point to the latest measurement; figures in this record describe the original folder-workspace release.
+> Historical single-workspace delivery record. The current multiple-root/file behavior and fresh validation are documented in [MULTIPLE_FILES.md](MULTIPLE_FILES.md). Local file discovery now also includes [CSV/TSV](TEXT_FILES.md). Coverage links below now point to the latest measurement; figures in this record describe the original folder-workspace release.
 
 Bamboo now opens a directory as a real workspace. Open Folder selects the root, the sidebar lazily lists its directories and Parquet files, and clicking a file opens Explore Data. The pencil edits the workspace display name without renaming the source folder. Single-file mode remains available and uses a File breadcrumb.
 

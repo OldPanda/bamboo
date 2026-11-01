@@ -85,7 +85,7 @@ func smoke(win *mygo.Window) {
 		report["error"] = err.Error()
 		return
 	}
-	source := fmt.Sprintf("const smokePlatform = %q;\n", runtime.GOOS) + string(script)
+	source := fmt.Sprintf("const smokePlatform = %q; const smokeDirectory = %q;\n", runtime.GOOS, filepath.ToSlash(dir)) + string(script)
 	if workspacePhase != "" {
 		source = fmt.Sprintf("const workspacePhase = %q;\n", workspacePhase) + source
 	}

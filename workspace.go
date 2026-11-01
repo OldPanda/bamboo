@@ -1,13 +1,12 @@
 package main
 
 import (
+	"bamboo/internal/datafile"
 	"bamboo/internal/engine"
 	"bamboo/internal/workspace"
 	"context"
 	"errors"
 	"github.com/egoist/mygo"
-	"path/filepath"
-	"strings"
 )
 
 // WorkspaceFile combines file metadata, restored SQL and any persistence warning.
@@ -63,7 +62,7 @@ func (w *Workbench) SaveWorkspaceQuery(root, relative, draft, applied string) er
 	return w.folders.Save(root, relative, workspace.Query{Draft: draft, Applied: applied})
 }
 
-// OpenWorkspaceFile opens a scoped Parquet reader and restores its saved query.
+// OpenWorkspaceFile opens a scoped local data reader and restores its saved query.
 func (w *Workbench) OpenWorkspaceFile(ctx context.Context, root, relative string) (*WorkspaceFile, error) {
 	if !w.opMu.TryLock() {
 		return nil, errors.New("another operation is running")
@@ -76,8 +75,8 @@ func (w *Workbench) OpenWorkspaceFile(ctx context.Context, root, relative string
 	if err != nil {
 		return nil, err
 	}
-	if !strings.EqualFold(filepath.Ext(path), ".parquet") {
-		return nil, errors.New("choose a Parquet file")
+	if !datafile.Supported(path) {
+		return nil, errors.New("choose a Parquet, CSV or TSV file")
 	}
 	q, err := w.folders.Saved(root, relative)
 	if err != nil {

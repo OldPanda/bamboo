@@ -3,6 +3,54 @@ export type Language = "en" | "zh-CN";
 type Params = Record<string, string | number>;
 /** App-owned Chinese translations keyed by their English UI text. */
 export const chinese: Record<string, string> = {
+  "Reading options": "读取选项",
+  "CSV / TSV reading options": "CSV / TSV 读取选项",
+  "Close reading options": "关闭读取选项",
+  "UTF-8 only, including BOM. Quoted multiline fields are supported. Invalid records stop the query.":
+    "仅支持 UTF-8（含 BOM），支持引号内多行字段。无效记录会终止查询。",
+  Delimiter: "分隔符",
+  Automatic: "自动",
+  Comma: "逗号",
+  Tab: "制表符",
+  Semicolon: "分号",
+  Pipe: "竖线",
+  "First record contains column names": "首条记录为列名",
+  "Column types": "列类型",
+  "Preserve every value as text": "将所有值保留为文本",
+  "Infer integers, booleans and dates": "推断整数、布尔值和日期",
+  "Text preserves leading zeros and exact decimals. Inference may normalize values; decimals and timestamps stay text. Use SQL CAST for explicit types. Unquoted empty fields are NULL; quoted empty fields stay empty text.":
+    "文本保留前导零和精确小数。类型推断可能规范化值；小数和时间戳仍保留为文本。可用 SQL CAST 指定类型。无引号的空字段为 NULL，引号内空字段保留为空文本。",
+  "Apply and reopen": "应用并重新打开",
+  "UTF-8 · {header} · {types}": "UTF-8 · {header} · {types}",
+  "First record is a header": "首条记录为表头",
+  "No header": "无表头",
+  "Type inference enabled": "已启用类型推断",
+  "Values preserved as text": "值保留为文本",
+  "Applying reading options…": "正在应用读取选项…",
+  "Drop a Parquet, CSV or TSV file here": "将 Parquet、CSV 或 TSV 文件拖到这里",
+  "Browse a Parquet, CSV or TSV file": "浏览 Parquet、CSV 或 TSV 文件",
+  "Types reflect the file and its reading options. Values stay exact across the desktop bridge.":
+    "类型由文件及其读取选项决定。值在桌面桥接中保持精确。",
+  "No visible folders or supported data files":
+    "没有可见的文件夹或支持的数据文件",
+  "Opening data…": "正在打开数据…",
+  "Drop to open data": "拖放以打开数据",
+  "Release to open data": "松开以打开数据",
+  "choose a Parquet, CSV or TSV file": "请选择 Parquet、CSV 或 TSV 文件",
+  "choose a local CSV or TSV file": "请选择本地 CSV 或 TSV 文件",
+  "choose a regular CSV or TSV file": "请选择普通 CSV 或 TSV 文件",
+  "choose a regular Parquet, CSV or TSV file":
+    "请选择普通 Parquet、CSV 或 TSV 文件",
+  "open a data file first": "请先打开数据文件",
+  "choose automatic, comma, tab, semicolon or pipe delimiter":
+    "请选择自动、逗号、制表符、分号或竖线分隔符",
+  "maximum of 256 remembered text files reached":
+    "最多可记住 256 个文本文件的读取选项",
+  "invalid saved text options": "保存的文本读取选项无效",
+  "too many saved text options": "保存的文本读取选项过多",
+  "workspace tables must name a Parquet, CSV or TSV file without wildcards":
+    "工作区表必须指定不含通配符的 Parquet、CSV 或 TSV 文件",
+
   "Export scope": "导出范围",
   "Current page": "当前页",
   "Complete result": "完整结果",

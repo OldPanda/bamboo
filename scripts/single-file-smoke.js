@@ -200,6 +200,63 @@ assert(
 $("sql").value = "SELECT * FROM data";
 await click("run");
 await click("tab-explore");
+// Reopen the real CSV produced by the native full-result export above.
+const originalPath = await mygo.call("Workbench.InitialFile");
+const csvPath = smokeDirectory + "/bamboo-result.csv";
+const csvFile = await mygo.call("Workbench.OpenPath", csvPath);
+assert(
+  csvFile.textOptions.header &&
+    csvFile.columns.every((c) => c.type === "VARCHAR"),
+  "native CSV preserves text by default",
+);
+// Drive the existing UI document activation using the already-created export.
+window.__mygo.receive({
+  t: "event",
+  n: "mygo:file-drop",
+  p: { paths: [csvPath], x: 0, y: 0 },
+});
+await new Promise((resolve) => setTimeout(resolve, 100));
+await wait();
+assert(
+  !$("text-info").hidden && $("row-count").textContent === "—",
+  "native CSV displays reading options and unknown row count",
+);
+await click("text-options");
+$("text-header").checked = false;
+$("text-form").requestSubmit();
+await wait();
+assert(
+  document.querySelectorAll("#grid tbody tr:first-child td")[1]
+    .textContent === "order_id",
+  "native header option retains the first record as data",
+);
+await click("text-options");
+$("text-header").checked = true;
+$("text-types").value = "infer";
+$("text-form").requestSubmit();
+await wait();
+$("sql").value =
+  "SELECT count(*) AS n, max(order_id) + 1 AS next_id FROM data";
+await click("run");
+assert(
+  document.querySelectorAll("#grid tbody tr:first-child td")[1]
+    .textContent === "240" &&
+    document.querySelectorAll("#grid tbody tr:first-child td")[2]
+      .textContent === "1241",
+  "native CSV query covers all 240 rows with inferred integers",
+);
+window.__mygo.receive({
+  t: "event",
+  n: "mygo:file-drop",
+  p: { paths: [originalPath], x: 0, y: 0 },
+});
+await new Promise((resolve) => setTimeout(resolve, 100));
+await wait();
+assert(
+  $("text-info").hidden &&
+    document.querySelectorAll("#grid tbody tr").length === 100,
+  "native Parquet recovery after CSV",
+);
 assert($("notification").hidden, "no frontend error");
 return {
   checks,

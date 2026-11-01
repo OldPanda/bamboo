@@ -45,19 +45,19 @@ type Workbench struct {
 	dialogs       fileDialogs
 }
 
-// InitialFile returns the optional Parquet path supplied at startup.
+// InitialFile returns the optional local data path supplied at startup.
 func (w *Workbench) InitialFile() string { return w.initial }
 
-// Open shows the native file chooser and opens the selected Parquet file.
+// Open shows the native file chooser and opens the selected local data file.
 func (w *Workbench) Open(ctx context.Context) (*engine.File, error) {
-	paths, err := w.dialogs.Open(mygo.OpenDialogOptions{Parent: mygo.CallerWindow(ctx), Title: w.languageText("Open a Parquet file", "打开 Parquet 文件"), Filters: []mygo.FileFilter{{Name: "Parquet", Extensions: []string{"parquet"}}}})
+	paths, err := w.dialogs.Open(mygo.OpenDialogOptions{Parent: mygo.CallerWindow(ctx), Title: w.languageText("Open a data file", "打开数据文件"), Filters: []mygo.FileFilter{{Name: "Parquet / CSV / TSV", Extensions: []string{"parquet", "csv", "tsv"}}}})
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
 	return w.OpenPath(ctx, paths[0])
 }
 
-// OpenPath opens a local Parquet file and clears the previous export page on success.
+// OpenPath opens a local data file and clears the previous export page on success.
 func (w *Workbench) OpenPath(ctx context.Context, path string) (*engine.File, error) {
 	if !w.opMu.TryLock() {
 		return nil, errors.New("another operation is running")

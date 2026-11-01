@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bamboo/internal/datafile"
 	"errors"
 	"path"
 	"path/filepath"
@@ -31,7 +32,7 @@ func validSession(v *Session) bool {
 	}
 	seen := map[string]bool{}
 	for _, f := range v.Files {
-		if !validLocation(f) || !strings.EqualFold(path.Ext(f), ".parquet") || seen[f] {
+		if !validLocation(f) || !datafile.Supported(f) || (strings.Contains(f, "://") && !strings.EqualFold(path.Ext(f), ".parquet")) || seen[f] {
 			return false
 		}
 		seen[f] = true

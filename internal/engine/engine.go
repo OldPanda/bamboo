@@ -2,6 +2,7 @@
 package engine
 
 import (
+	"bamboo/internal/datafile"
 	"context"
 	"database/sql"
 	"errors"
@@ -39,8 +40,11 @@ type Column struct {
 	Type string `json:"type"`
 }
 
-// File contains Parquet metadata; large counts use strings to preserve precision in JavaScript.
+// File describes a supported input. Counts use exact strings; absent text-file
+// counts are empty because opening CSV/TSV does not perform a full count scan.
 type File struct {
+	// TextOptions reports the effective interpretation of a local CSV/TSV file.
+	TextOptions *datafile.TextOptions `json:"textOptions,omitempty"`
 	// Warning reports an ancillary application-state failure without invalidating the reader.
 	Warning   string   `json:"warning,omitempty"`
 	Name      string   `json:"name"`
@@ -82,6 +86,7 @@ type Engine struct {
 	resources    Resources
 	file         *File
 	resolve      func(string) (string, error)
+	textOptions  func(string) (datafile.TextOptions, error)
 	httpfs       string
 	remote       RemoteResolver
 	remoteRef    string
@@ -149,7 +154,7 @@ func (e *Engine) Close() {
 func literal(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 func ident(s string) string   { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
-// Open opens a local Parquet reader and returns its metadata.
+// Open opens a supported local data reader and returns its metadata.
 func (e *Engine) Open(parent context.Context, path string) (*File, error) {
 	return e.OpenScoped(parent, path, nil)
 }
@@ -172,15 +177,15 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 	if strings.ContainsAny(path, "*?[]\x00") {
 		return nil, errors.New("file paths containing glob characters are not supported")
 	}
-	if strings.ToLower(filepath.Ext(path)) != ".parquet" {
-		return nil, errors.New("choose a .parquet file")
+	if !datafile.Supported(path) {
+		return nil, errors.New("choose a Parquet, CSV or TSV file")
 	}
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
 	if !st.Mode().IsRegular() {
-		return nil, errors.New("choose a regular Parquet file")
+		return nil, errors.New("choose a regular Parquet, CSV or TSV file")
 	}
 	db, err := openDatabase(ctx, []string{path}, e.resources)
 	if err != nil {
@@ -192,7 +197,7 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 			db.Close()
 		}
 	}()
-	if err = createView(ctx, db, "data", path); err != nil {
+	if err = e.createLocalView(ctx, db, "data", path); err != nil {
 		return nil, err
 	}
 	cols, err := describe(ctx, db, "SELECT * FROM data")
@@ -200,9 +205,17 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 		return nil, err
 	}
 	f := &File{Name: filepath.Base(path), Path: path, Bytes: fmt.Sprint(st.Size()), Columns: cols}
-	err = db.QueryRowContext(ctx, "SELECT num_rows::VARCHAR, num_row_groups::VARCHAR FROM parquet_file_metadata(?)", path).Scan(&f.Rows, &f.RowGroups)
-	if err != nil {
-		return nil, err
+	if datafile.IsText(path) {
+		options, err := e.options(path)
+		if err != nil {
+			return nil, err
+		}
+		f.TextOptions = &options
+	} else {
+		err = db.QueryRowContext(ctx, "SELECT num_rows::VARCHAR, num_row_groups::VARCHAR FROM parquet_file_metadata(?)", path).Scan(&f.Rows, &f.RowGroups)
+		if err != nil {
+			return nil, err
+		}
 	}
 	e.dropKept()
 	e.db = db
@@ -282,12 +295,12 @@ func (e *Engine) QueryWorkspace(parent context.Context, r Request, resolve func(
 		return nil, err
 	}
 	defer done()
-	scoped := &Engine{resolve: resolve, resources: e.resources}
+	scoped := &Engine{resolve: resolve, resources: e.resources, textOptions: e.textOptions}
 	return scoped.run(ctx, r)
 }
 func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output *Result, failure error) {
 	if e.file == nil && e.db == nil && e.resolve == nil && e.remote == nil {
-		return nil, errors.New("open a Parquet file first")
+		return nil, errors.New("open a data file first")
 	}
 	started := time.Now()
 	q, args, err := query(r)

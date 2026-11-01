@@ -45,6 +45,7 @@ func workbench(t *testing.T) (*Workbench, *testDialogs, string) {
 	}
 	d := &testDialogs{}
 	w := &Workbench{engine: engine.New(), dialogs: d, initial: filepath.Join(dir, "orders.parquet")}
+	w.engine.SetTextOptionsResolver(w.textOptions)
 	t.Cleanup(w.engine.Close)
 	return w, d, dir
 }
