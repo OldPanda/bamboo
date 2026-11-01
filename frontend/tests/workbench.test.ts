@@ -86,6 +86,8 @@ beforeEach(() => {
     "Workbench.SetAutomaticUpdates": () => undefined,
     "Workbench.CheckForUpdates": () => undefined,
     "Workbench.Appearance": () => "system",
+    "Workbench.Display": () => ({ zoomPercent: 100, dataFontSize: 13 }),
+    "Workbench.SetDisplay": () => undefined,
     "Workbench.Resources": () => ({
       memoryMiB: 256,
       memoryAuto: false,
@@ -3558,4 +3560,73 @@ it("does not open or submit text options without a text file", async () => {
       ([name]) => name === "Workbench.SetTextOptions",
     ),
   ).toBe(false);
+});
+
+it("restores display preferences and saves, resets and recovers from a failed save", async () => {
+  responses["Workbench.Display"] = () => ({
+    zoomPercent: 125,
+    dataFontSize: 16,
+  });
+  await open();
+  expect(
+    document.documentElement.style.getPropertyValue("--data-font-size"),
+  ).toBe("16px");
+  await click("settings");
+  expect($<HTMLInputElement>("display-zoom").value).toBe("125");
+  value("display-zoom", "150");
+  value("display-font", "20");
+  let finish!: () => void;
+  responses["Workbench.SetDisplay"] = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  $("display-save").focus();
+  $("display-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  await vi.waitFor(() =>
+    expect($("display-form").getAttribute("aria-busy")).toBe("true"),
+  );
+  expect($<HTMLButtonElement>("display-save").disabled).toBe(false);
+  expect($("display-save").getAttribute("aria-disabled")).toBe("true");
+  $("display-reset").click();
+  finish();
+  await vi.waitFor(() => expect($("display-status").textContent).toBe("Saved"));
+  expect(document.activeElement).toBe($("display-save"));
+  expect(bridge.call).toHaveBeenCalledWith("Workbench.SetDisplay", {
+    zoomPercent: 150,
+    dataFontSize: 20,
+  });
+  expect(
+    document.documentElement.style.getPropertyValue("--data-font-size"),
+  ).toBe("20px");
+  responses["Workbench.SetDisplay"] = () => undefined;
+  await click("display-reset");
+  await vi.waitFor(() =>
+    expect($<HTMLInputElement>("display-zoom").value).toBe("100"),
+  );
+  expect(
+    document.documentElement.style.getPropertyValue("--data-font-size"),
+  ).toBe("13px");
+  responses["Workbench.SetDisplay"] = () => {
+    throw new Error("permission denied");
+  };
+  value("display-zoom", "175");
+  $("display-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  await vi.waitFor(() =>
+    expect($("display-status").textContent).toBe("Not saved"),
+  );
+  expect($<HTMLInputElement>("display-zoom").value).toBe("100");
+  expect($("settings-message").textContent).toContain("permission denied");
+  const calls = bridge.call.mock.calls.length;
+  value("display-zoom", "201");
+  $("display-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  expect(bridge.call.mock.calls.length).toBe(calls);
+});
+
+it("keeps defaults when display preferences cannot be read", async () => {
+  responses["Workbench.Display"] = () => {
+    throw new Error("display unavailable");
+  };
+  await boot();
+  expect($("notification").textContent).toContain("display unavailable");
+  expect($<HTMLInputElement>("display-zoom").value).toBe("100");
 });

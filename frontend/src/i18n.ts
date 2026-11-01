@@ -3,6 +3,17 @@ export type Language = "en" | "zh-CN";
 type Params = Record<string, string | number>;
 /** App-owned Chinese translations keyed by their English UI text. */
 export const chinese: Record<string, string> = {
+  "Text and zoom": "字号与缩放",
+  "App zoom scales the whole interface. Data text size changes tables and the SQL editor.":
+    "应用缩放调整整个界面；数据字号调整表格和 SQL 编辑器。",
+  "App zoom": "应用缩放",
+  "Data text size": "数据字号",
+  "Apply display": "应用显示设置",
+  "Reset display": "重置显示设置",
+  "display zoom must be 75–200% and data text 12–20 px":
+    "应用缩放范围为 75–200%，数据字号为 12–20 像素",
+  "could not save display preferences": "无法保存显示设置",
+
   "Reading options": "读取选项",
   "CSV / TSV reading options": "CSV / TSV 读取选项",
   "Close reading options": "关闭读取选项",

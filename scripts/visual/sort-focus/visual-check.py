@@ -12,6 +12,7 @@ mock = r"""globalThis.sortAudit={calls:0,finish:null};
 globalThis.mygo={on:()=>()=>{},call:async(method,...args)=>{
  const columns=[{name:'id',type:'BIGINT'},{name:'竹子 \" <img>',type:'VARCHAR'}];
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
+ if(method==='Workbench.Display')return {zoomPercent:100,dataFontSize:13};
  if(method==='Workbench.Appearance')return 'system';
  if(method==='Workbench.Resources')return {memoryMiB:256,memoryAuto:false,tempGiB:0,timeoutSeconds:300};
  if(method==='Workbench.ResourceLimits')return {physicalMiB:8192,maxMemoryMiB:8192,autoMemoryMiB:2048};

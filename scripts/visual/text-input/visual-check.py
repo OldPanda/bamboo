@@ -14,6 +14,7 @@ mock = """globalThis.mygo={on:()=>()=>{},call:async(method)=>{
  if(method==='Workbench.Resources')return {memoryMiB:256,memoryAuto:false,tempGiB:0,timeoutSeconds:300};
  if(method==='Workbench.DiskLimits')return {detected:true,availableGiB:20,reserveGiB:1,maxTempGiB:19,autoTempGiB:4};
  if(method==='Workbench.ResourceLimits')return {physicalMiB:8192,maxMemoryMiB:8192,autoMemoryMiB:2048};
+ if(method==='Workbench.Display')return {zoomPercent:100,dataFontSize:13};
  if(method==='Workbench.Appearance')return 'system';
  if(method==='Workbench.InitialFile')return '';
  if(method==='Workbench.RestoreWorkspaces')return {workspaces:[],warning:''};

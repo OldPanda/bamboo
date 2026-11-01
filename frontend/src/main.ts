@@ -13,6 +13,7 @@ import {
   type Resources,
   type MemoryLimits,
   type DiskLimits,
+  type DisplayPreferences,
 } from "./mygo";
 import {
   localizeStatic,
@@ -145,6 +146,12 @@ app.innerHTML = `
      <label class="language-field" for="interface-language">Language</label>
      <div class="language-select"><select id="interface-language"><option value="en" lang="en">English</option><option value="zh-CN" lang="zh-CN">简体中文</option></select><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></div>
     </div>
+    <form id="display-form" class="general-display">
+     <h4>Text and zoom</h4>
+     <p>App zoom scales the whole interface. Data text size changes tables and the SQL editor.</p>
+     <div class="display-fields"><label for="display-zoom">App zoom<div class="display-number"><input id="display-zoom" type="number" min="75" max="200" step="1" value="100" required><span>%</span></div></label><label for="display-font">Data text size<div class="display-number"><input id="display-font" type="number" min="12" max="20" step="1" value="13" required><span>px</span></div></label></div>
+     <div class="display-actions"><button id="display-save" type="submit">Apply display</button><button id="display-reset" type="button" class="quiet">Reset display</button><span id="display-status" role="status"></span></div>
+    </form>
     <div class="general-updates">
      <div><h4>Software updates</h4><p id="update-version" class="muted"></p></div>
      <button id="check-updates" class="quiet" disabled>Check for updates</button>
@@ -1353,6 +1360,56 @@ $("resources-form").onsubmit = async (event) => {
     controls();
   }
 };
+let display: DisplayPreferences = { zoomPercent: 100, dataFontSize: 13 };
+let savingDisplay = false;
+function applyDisplay() {
+  $<HTMLInputElement>("display-zoom").value = String(display.zoomPercent);
+  $<HTMLInputElement>("display-font").value = String(display.dataFontSize);
+  document.documentElement.style.setProperty(
+    "--data-font-size",
+    `${display.dataFontSize}px`,
+  );
+}
+async function saveDisplay(next: DisplayPreferences, focus: string) {
+  if (savingDisplay || busy) return;
+  savingDisplay = true;
+  $("display-form").setAttribute("aria-busy", "true");
+  for (const id of ["display-save", "display-reset"])
+    $(id).setAttribute("aria-disabled", "true");
+  setText($("display-status"), "Saving…");
+  $("settings-message").hidden = true;
+  try {
+    await Workbench.setDisplay(next);
+    display = next;
+    applyDisplay();
+    setText($("display-status"), "Saved");
+  } catch (error) {
+    applyDisplay();
+    setText($("display-status"), "Not saved");
+    setText($("settings-message"), String(error));
+    $("settings-message").hidden = false;
+  } finally {
+    savingDisplay = false;
+    $("display-form").setAttribute("aria-busy", "false");
+    for (const id of ["display-save", "display-reset"])
+      $(id).setAttribute("aria-disabled", "false");
+    if (settingsDialog.open && document.activeElement === document.body)
+      $(focus).focus({ preventScroll: true });
+  }
+}
+$("display-form").onsubmit = (event) => {
+  event.preventDefault();
+  if (!$<HTMLFormElement>("display-form").reportValidity()) return;
+  void saveDisplay(
+    {
+      zoomPercent: Number($<HTMLInputElement>("display-zoom").value),
+      dataFontSize: Number($<HTMLInputElement>("display-font").value),
+    },
+    "display-save",
+  );
+};
+$("display-reset").onclick = () =>
+  void saveDisplay({ zoomPercent: 100, dataFontSize: 13 }, "display-reset");
 let savingLanguage = false;
 $("interface-language").onchange = async () => {
   const select = $<HTMLSelectElement>("interface-language");
@@ -2317,6 +2374,15 @@ onFileDrop(({ paths, x, y }) => {
   }
 });
 async function boot() {
+  try {
+    const saved = await Workbench.display();
+    if (saved) {
+      display = saved;
+      applyDisplay();
+    }
+  } catch (error) {
+    notify(String(error), true);
+  }
   try {
     const [saved, limits, disk] = await Promise.all([
       Workbench.resources(),

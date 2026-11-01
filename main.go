@@ -63,7 +63,8 @@ func main() {
 	}
 	mygo.SetFrontend(web)
 	mygo.App.WhenReady(func() {
-		win := mygo.NewWindow(mygo.WindowOptions{Title: "Bamboo", Width: 1280, Height: 820, MinWidth: 700, MinHeight: 520, URL: "/", BackgroundColor: "light-dark(#ffffff, #262626)"})
+		display := loadDisplay(config)
+		win := mygo.NewWindow(mygo.WindowOptions{Title: "Bamboo", Width: 1280, Height: 820, MinWidth: 700, MinHeight: 520, URL: "/", BackgroundColor: "light-dark(#ffffff, #262626)", Page: mygo.PageOptions{ZoomFactor: float64(display.ZoomPercent) / 100}})
 		if runtime.GOOS == "darwin" {
 			keepWindowInDock(mygo.App, win)
 		}
