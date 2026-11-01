@@ -139,8 +139,6 @@ export const chinese: Record<string, string> = {
     "临时磁盘上限超过当前可用空间",
   "temporary disk limit must be a non-negative supported GiB value":
     "临时磁盘上限必须是受支持的非负 GiB 数值",
-  "Drop a Parquet file here": "将 Parquet 文件拖到这里",
-  "Release to open Parquet": "松开以打开 Parquet",
   "Or open a file, folder, or cloud workspace.":
     "也可以打开文件、文件夹或云端工作区。",
   "Automatic query memory": "自动查询内存",
@@ -242,8 +240,6 @@ export const chinese: Record<string, string> = {
   "Page 1": "第 1 页",
   "Page {page}": "第 {page} 页",
   "Logical type": "逻辑类型",
-  "Types are read directly from the Parquet file. Values stay exact across the desktop bridge.":
-    "类型直接读取自 Parquet 文件，数据传递保留精确数值。",
   "Reading your file…": "正在读取文件…",
   Cancel: "取消",
   "Export data": "导出数据",
@@ -259,7 +255,6 @@ export const chinese: Record<string, string> = {
   "This computer": "本机",
   "Cloud storage": "云存储",
   "Open file": "打开文件",
-  "Browse a Parquet file": "浏览 Parquet 文件",
   "Open folder": "打开文件夹",
   "Query files together as a workspace": "将文件夹作为工作区进行跨文件查询",
   "Connect a bucket or folder prefix": "连接存储桶或文件夹前缀",
@@ -318,7 +313,6 @@ export const chinese: Record<string, string> = {
   "Reading folder…": "正在读取文件夹…",
   "Opening file…": "正在打开文件…",
   "Load more entries": "加载更多",
-  "No visible folders or Parquet files": "没有可显示的文件夹或 Parquet 文件",
   "No directory listing returned": "未返回文件夹列表",
   "No file returned": "未返回文件",
   "No workspace returned": "未返回工作区",
@@ -386,14 +380,12 @@ export const chinese: Record<string, string> = {
     "{start}–{end} / 已到末尾 / {ms} 毫秒",
   "0 rows / {ms} ms": "0 行 / {ms} 毫秒",
   "SQL result": "SQL 结果",
-  "Opening Parquet…": "正在打开 Parquet…",
   "Running query…": "正在运行查询…",
   "Filtering…": "正在筛选…",
   "Clearing filter…": "正在清除筛选…",
   "Reading page…": "正在读取数据页…",
   "Choose where to export…": "请选择导出位置…",
   "Exported visible page to {path}": "当前预览页已导出到 {path}",
-  "Drop to open Parquet": "松开以打开 Parquet",
   "Release the file anywhere in this window.": "将文件放到窗口内任意位置。",
   "Restoring workspaces…": "正在恢复工作区…",
   "Inline suggestions: Tab to accept, Escape to dismiss.":
