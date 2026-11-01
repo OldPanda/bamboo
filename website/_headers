@@ -17,6 +17,9 @@
 /zh/*
   Cache-Control: public, max-age=0, must-revalidate
 
+/docs/*
+  Cache-Control: public, max-age=0, must-revalidate
+
 /robots.txt
   Cache-Control: public, max-age=0, must-revalidate
 

@@ -1,7 +1,15 @@
-import { translations, pageMetadata, siteOrigin } from "./content.js";
+import {
+  translations,
+  pageMetadata,
+  docsMetadata,
+  siteOrigin,
+} from "./content.js";
 
 (() => {
   "use strict";
+  const isDocs = document.body.dataset.page === "docs";
+  const suffix = isDocs ? "docs/" : "";
+  const metadata = isDocs ? docsMetadata : pageMetadata;
   const macOSScreenshots = {
     zh: {
       src: "assets/macos-security-zh-f1d34417f67cbfa7.png",
@@ -27,7 +35,10 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
   const languageSelect = document.getElementById("language-select");
   let language = "zh";
   const ui = (zh, en) => (language === "en" ? en : zh);
-  const setLanguage = (next, path = `/${next === "en" ? "en" : "zh"}/`) => {
+  const setLanguage = (
+    next,
+    path = `/${next === "en" ? "en" : "zh"}/${suffix}`,
+  ) => {
     language = next === "en" ? "en" : "zh";
     document.documentElement.lang = language === "en" ? "en" : "zh-CN";
     languageSelect.value = language;
@@ -35,9 +46,11 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
       ".permission-screenshot img",
     );
     const permissionSource = macOSScreenshots[language];
-    permissionImage.src = permissionSource.src;
-    permissionImage.width = permissionSource.width;
-    permissionImage.height = permissionSource.height;
+    if (permissionImage) {
+      permissionImage.src = permissionSource.src;
+      permissionImage.width = permissionSource.width;
+      permissionImage.height = permissionSource.height;
+    }
     document.querySelectorAll("[data-apple-support]").forEach((link) => {
       link.href =
         language === "en"
@@ -61,8 +74,7 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
         );
       });
     }
-    const { title, description, locale, image, imageAlt } =
-      pageMetadata[language];
+    const { title, description, locale, image, imageAlt } = metadata[language];
     const url = `${siteOrigin}${path}`;
     document.title = title;
     for (const [selector, content] of [
@@ -73,7 +85,7 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
       ['meta[property="og:locale"]', locale],
       [
         'meta[property="og:locale:alternate"]',
-        pageMetadata[language === "en" ? "zh" : "en"].locale,
+        metadata[language === "en" ? "zh" : "en"].locale,
       ],
       ['meta[property="og:image"]', image],
       ['meta[property="og:image:alt"]', imageAlt],
@@ -95,6 +107,12 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
       inLanguage: document.documentElement.lang,
     });
     schemaNode.textContent = JSON.stringify(schema);
+    document.querySelectorAll("a[data-route]").forEach((link) => {
+      const routeSuffix = link.dataset.route === "docs" ? "docs/" : "";
+      const route = `/${language}/${routeSuffix}${link.hash}`;
+      link.href =
+        location.protocol === "file:" ? `${siteOrigin}${route}` : route;
+    });
     updateThemeLabel();
     menuButton.setAttribute(
       "aria-label",
@@ -103,6 +121,12 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
         : ui("收起导航", "Close navigation"),
     );
     updateDownloads();
+    // Translation changes the height of preceding sections; keep deep links in view.
+    if (isDocs) {
+      const target = document.getElementById(location.hash.slice(1));
+      if (target?.closest(".docs-content"))
+        target.scrollIntoView({ behavior: "instant", block: "start" });
+    }
   };
   const legalDialogs = [...document.querySelectorAll(".legal-dialog")];
   const syncLegalRoute = () => {
@@ -219,6 +243,10 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
   const primaryAsset = (platform) =>
     packagesFor[platform]?.map((key) => catalog?.packages[key]).find(Boolean);
   const updateDownloads = () => {
+    if (isDocs) {
+      document.documentElement.dataset.downloadReady = "true";
+      return;
+    }
     const name = platformNames[detectedPlatform];
     const asset = primaryAsset(detectedPlatform);
     const link = document.querySelector(".download-link");
@@ -278,7 +306,7 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
     });
     document.documentElement.dataset.downloadReady = "true";
   };
-  guideSelect.addEventListener("change", () => {
+  guideSelect?.addEventListener("change", () => {
     guidePlatform = Object.hasOwn(platformNames, guideSelect.value)
       ? guideSelect.value
       : "";
@@ -295,7 +323,13 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a");
     const hash = link?.getAttribute("href");
-    if (!/^#downloads?$|^#download-(macos|windows|linux)$/.test(hash || ""))
+    if (
+      !(
+        isDocs
+          ? /^#[a-z][a-z0-9-]*$/
+          : /^#downloads?$|^#download-(macos|windows|linux)$/
+      ).test(hash || "")
+    )
       return;
     document.getElementById(hash.slice(1))?.focus({ preventScroll: true });
   });
@@ -310,7 +344,9 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
     } catch {
       /* Language preferences remain optional. */
     }
-    const routeLanguage = location.pathname.match(/^\/(en|zh)\/?$/)?.[1];
+    const routeLanguage = location.pathname.match(
+      /^\/(en|zh)(?:\/docs)?\/?$/,
+    )?.[1];
     if (routeLanguage) preferredLanguage = routeLanguage;
     const requestedLanguage = new URLSearchParams(location.search).get("lang");
     if (["zh", "en"].includes(requestedLanguage))
@@ -318,7 +354,7 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
     setLanguage(
       preferredLanguage,
       !routeLanguage && !["zh", "en"].includes(requestedLanguage)
-        ? "/"
+        ? `/${suffix}`
         : undefined,
     );
   };
@@ -336,7 +372,7 @@ import { translations, pageMetadata, siteOrigin } from "./content.js";
     if (url.searchParams.has("lang")) {
       url.searchParams.set("lang", language);
     }
-    if (location.protocol !== "file:") url.pathname = `/${language}/`;
+    if (location.protocol !== "file:") url.pathname = `/${language}/${suffix}`;
     history.replaceState(null, "", url);
   });
 })();

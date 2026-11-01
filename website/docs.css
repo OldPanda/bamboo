@@ -1,0 +1,216 @@
+/* Documentation shares the site's colors, controls and typography. */
+.docs-intro {
+  padding-top: 64px;
+  padding-bottom: 44px;
+}
+.docs-intro h1 {
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+  margin: 14px 0 18px;
+}
+.docs-lede {
+  color: var(--muted);
+  font-size: 18px;
+  max-width: 760px;
+}
+.docs-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 56px;
+  padding-bottom: 80px;
+}
+.docs-toc {
+  position: sticky;
+  top: 112px;
+  align-self: start;
+  padding: 16px 20px 20px 0;
+  border-top: 1px solid var(--line);
+}
+.docs-toc-title {
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.docs-toc ol {
+  list-style: none;
+  padding: 12px 0;
+  margin: 0;
+}
+.docs-toc li a {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 0;
+}
+.docs-toc li a > span:first-child {
+  color: var(--muted);
+  font: 12px var(--mono);
+}
+.docs-toc a:hover,
+[data-page="docs"] [aria-current="page"] {
+  color: var(--accent);
+}
+.docs-toc-extra {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: 29px;
+}
+.docs-content {
+  min-width: 0;
+  font-size: 16px;
+}
+.docs-content > section {
+  padding: 36px 0 50px;
+  border-top: 1px solid var(--line);
+}
+.docs-content h2 {
+  font-size: 30px;
+  line-height: 1.35;
+  margin: 10px 0 20px;
+  letter-spacing: -0.025em;
+}
+.docs-content h3 {
+  font-size: 22px;
+  line-height: 1.4;
+  margin: 32px 0 14px;
+}
+.docs-content h4 {
+  font-size: 17px;
+  margin: 24px 0 12px;
+}
+.docs-content p,
+.docs-content ol,
+.docs-content pre {
+  margin-bottom: 18px;
+}
+.docs-content ol {
+  padding-left: 24px;
+}
+.docs-content li {
+  padding-left: 6px;
+  margin: 10px 0;
+}
+.docs-content li::marker {
+  color: var(--muted);
+}
+.docs-content a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.docs-content pre {
+  overflow-x: auto;
+  max-width: 100%;
+  padding: 20px 24px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 13px/1.85 var(--mono);
+  tab-size: 2;
+}
+.docs-content .sql-function {
+  color: var(--accent);
+}
+.docs-content pre:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.docs-platform {
+  padding-bottom: 22px;
+}
+.docs-platform + .docs-platform {
+  border-top: 1px solid var(--line);
+}
+.docs-platform h3 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.docs-platform h3 svg {
+  width: 24px;
+  height: 24px;
+}
+.docs-packages {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 6px 0 14px;
+}
+.docs-packages > div {
+  min-width: 0;
+}
+.docs-packages > .package-meta {
+  align-self: center;
+}
+.docs-note {
+  background: var(--soft);
+  padding: 20px 24px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  margin: 22px 0;
+  font-size: 15px;
+}
+.docs-note > h3,
+.docs-note > h4 {
+  margin-top: 0;
+}
+.docs-note > :last-child {
+  margin-bottom: 0;
+}
+.docs-note summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.docs-note[open] summary {
+  margin-bottom: 16px;
+}
+.docs-int96 {
+  padding-top: 12px;
+}
+.docs-further {
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  margin-top: 36px;
+  padding-top: 24px;
+  font-size: 14px;
+}
+@media (max-width: 900px) {
+  .docs-layout {
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+@media (max-width: 699px) {
+  .docs-intro {
+    padding-top: 36px;
+    padding-bottom: 28px;
+  }
+  .docs-lede {
+    font-size: 16px;
+  }
+  .docs-layout {
+    display: block;
+  }
+  .docs-toc {
+    position: static;
+    padding: 20px 0 28px;
+  }
+  .docs-toc ol {
+    padding: 6px 0;
+  }
+  .docs-content h2 {
+    font-size: 26px;
+  }
+  .docs-content h3 {
+    font-size: 21px;
+  }
+  .docs-content pre,
+  .docs-note {
+    padding: 16px;
+  }
+}

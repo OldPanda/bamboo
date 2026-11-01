@@ -15,11 +15,31 @@ const hash = (bytes) =>
 await rm(output, { recursive: true, force: true });
 await mkdir(join(output, "assets"), { recursive: true });
 const sourceTemplate = await readFile(join(source, "index.html"), "utf8");
-const css = await readFile(join(source, "styles.css"), "utf8");
+const css =
+  (await readFile(join(source, "styles.css"), "utf8")) +
+  "\n" +
+  (await readFile(join(source, "docs.css"), "utf8"));
 const catalog = validateCatalog(
   JSON.parse(await readFile(join(source, "downloads.json"), "utf8")),
 );
 const template = renderPackages(sourceTemplate, catalog);
+// Share the actual header, footer and preference controls with the homepage.
+const docsMain = await readFile(join(source, "docs.html"), "utf8");
+const docsTemplate = renderPackages(
+  sourceTemplate
+    .replace("<body>", '<body data-page="docs">')
+    .replace(/<main id="main">[\s\S]*?<\/main>/, () => docsMain)
+    .replaceAll('href="#"', 'data-route="home" href="/zh/"')
+    .replace(
+      /href="#(features|install|faq|download)"/g,
+      'data-route="home" href="/zh/#$1"',
+    )
+    .replaceAll('data-route="docs"', 'aria-current="page" data-route="docs"'),
+  catalog,
+).replace(
+  "<!-- LINUX_DEB_NAME -->",
+  catalog.packages.linuxDeb?.name || "Bamboo-&lt;version&gt;-linux-x64.deb",
+);
 // Bundle shared copy and the verified catalog without runtime network requests.
 const content = (await readFile(join(source, "content.js"), "utf8")).replaceAll(
   "export const ",
@@ -30,9 +50,8 @@ const entry = (await readFile(join(source, "site.js"), "utf8")).replace(
   JSON.stringify(catalog),
 );
 const importLine =
-  'import { translations, pageMetadata, siteOrigin } from "./content.js";';
-if (!entry.startsWith(importLine))
-  throw Error("Unexpected website content import");
+  /^import\s*\{\s*translations,\s*pageMetadata,\s*docsMetadata,\s*siteOrigin\s*,?\s*\}\s*from "\.\/content\.js";\s*/;
+if (!importLine.test(entry)) throw Error("Unexpected website content import");
 const js = content + "\n" + entry.replace(importLine, "");
 const images = new Map();
 for (const file of await readdir(join(source, "assets"))) {
@@ -53,12 +72,15 @@ const builtJS =
 const jsName = `assets/site-${hash(builtJS)}.js`;
 await writeFile(join(output, cssName), builtCSS);
 await writeFile(join(output, jsName), builtJS);
-for (const [language, path, file] of [
-  ["zh", "/", "index.html"],
-  ["en", "/en/", "en/index.html"],
-  ["zh", "/zh/", "zh/index.html"],
+for (const [language, path, file, page] of [
+  ["zh", "/", "index.html", template],
+  ["en", "/en/", "en/index.html", template],
+  ["zh", "/zh/", "zh/index.html", template],
+  ["zh", "/docs/", "docs/index.html", docsTemplate],
+  ["en", "/en/docs/", "en/docs/index.html", docsTemplate],
+  ["zh", "/zh/docs/", "zh/docs/index.html", docsTemplate],
 ]) {
-  const html = renderPage(template, language, path)
+  const html = renderPage(page, language, path)
     .replace('href="styles.css"', `href="${cssName}"`)
     .replace('src="site.js"', `src="${jsName}"`)
     .replaceAll('="assets/', '="/assets/');
@@ -75,26 +97,27 @@ await writeFile(
   await readFile(join(source, "_headers")),
 );
 if (process.argv.includes("--standalone")) {
-  let standalone = renderPage(template, "zh", "/")
-    .replace(
-      '<link rel="stylesheet" href="styles.css" />',
-      () => `<style>\n${css}</style>`,
-    )
-    .replace(
-      '<script type="module" src="site.js"></script>',
-      () => `<script type="module">\n${js}</script>`,
-    );
-  for (const [name, bytes] of images) {
-    const mime = name.endsWith(".svg") ? "image/svg+xml" : "image/png";
-    standalone = standalone.replaceAll(
-      new RegExp(`(?<!/)${name.replaceAll(".", "\\.")}`, "g"),
-      `data:${mime};base64,${bytes.toString("base64")}`,
-    );
+  for (const [page, path, filename] of [
+    [template, "/", "bamboo-website-preview.html"],
+    [docsTemplate, "/docs/", "bamboo-docs-preview.html"],
+  ]) {
+    let standalone = renderPage(page, "zh", path)
+      .replace(
+        '<link rel="stylesheet" href="styles.css" />',
+        () => `<style>\n${css}</style>`,
+      )
+      .replace(
+        '<script type="module" src="site.js"></script>',
+        () => `<script type="module">\n${js}</script>`,
+      );
+    for (const [name, bytes] of images) {
+      const mime = name.endsWith(".svg") ? "image/svg+xml" : "image/png";
+      standalone = standalone.replaceAll(
+        new RegExp(`(?<!/)${name.replaceAll(".", "\\.")}`, "g"),
+        `data:${mime};base64,${bytes.toString("base64")}`,
+      );
+    }
+    await writeFile(join(root, "build", filename), standalone);
   }
-  // Language links in the portable file stay in the file; production has real routes.
-  standalone = standalone
-    .replace('href="/en/"', 'href="?lang=en"')
-    .replace('href="/zh/"', 'href="?lang=zh"');
-  await writeFile(join(root, "build/bamboo-website-preview.html"), standalone);
 }
 console.log(`Built ${images.size} images, CSS, JS and HTML into build/website`);

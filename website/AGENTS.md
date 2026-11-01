@@ -15,7 +15,8 @@ npm --prefix website run build:preview
 ```
 
 The build writes only public files to ignored `build/website/`; the optional
-single-file preview is `build/bamboo-website-preview.html`. Do not deploy source
+single-file previews are `build/bamboo-website-preview.html` and
+`build/bamboo-docs-preview.html`. Do not deploy source
 docs, provenance, dependencies or test artifacts. Preserve bilingual behavior,
 original screenshot hashes, benchmark methodology and explicit update consent.
 See [README.md](README.md) for Cloudflare Pages and verification details.

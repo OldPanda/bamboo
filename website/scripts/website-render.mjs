@@ -1,5 +1,10 @@
 /** Render the site's constrained leaf-text translation markup without a runtime dependency. */
-import { pageMetadata, siteOrigin, translations } from "../content.js";
+import {
+  pageMetadata,
+  docsMetadata,
+  siteOrigin,
+  translations,
+} from "../content.js";
 
 const escapeHTML = (value) =>
   String(value)
@@ -17,7 +22,9 @@ function translated(key, language) {
 
 /** Emit complete translated HTML; fail if a translation would replace nested markup. */
 export function renderPage(template, language, path) {
-  const meta = pageMetadata[language];
+  const isDocs = template.includes('data-page="docs"');
+  const suffix = isDocs ? "docs/" : "";
+  const meta = (isDocs ? docsMetadata : pageMetadata)[language];
   const url = `${siteOrigin}${path}`;
   const lang = language === "en" ? "en" : "zh-CN";
   const graph = {
@@ -56,9 +63,9 @@ export function renderPage(template, language, path) {
     `<meta name="description" content="${escapeHTML(meta.description)}" />`,
     `<link rel="canonical" href="${url}" />`,
     ...[
-      ["en", "/en/"],
-      ["zh-CN", "/zh/"],
-      ["x-default", "/"],
+      ["en", `/en/${suffix}`],
+      ["zh-CN", `/zh/${suffix}`],
+      ["x-default", `/${suffix}`],
     ].map(
       ([code, route]) =>
         `<link rel="alternate" hreflang="${code}" href="${siteOrigin}${route}" />`,
@@ -129,6 +136,16 @@ export function renderPage(template, language, path) {
     `<option value="${language}">`,
     `<option value="${language}" selected>`,
   );
+  html = html.replace(
+    /<a\b[^>]*data-route="(home|docs)"[^>]*>/g,
+    (tag, route) => {
+      const fragment = tag.match(/href="[^"]*(#[^"]*)"/)?.[1] || "";
+      return tag.replace(
+        /href="[^"]*"/,
+        `href="/${language}/${route === "docs" ? "docs/" : ""}${fragment}"`,
+      );
+    },
+  );
   if (language === "en") {
     html = html
       .replaceAll(
@@ -154,5 +171,5 @@ export function renderPage(template, language, path) {
 
 /** Canonical locale pages only; no query variants, dialog fragments or invented dates. */
 export function sitemap() {
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${["/", "/en/", "/zh/"].map((path) => `  <url><loc>${siteOrigin}${path}</loc></url>`).join("\n")}\n</urlset>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${["/", "/en/", "/zh/", "/docs/", "/en/docs/", "/zh/docs/"].map((path) => `  <url><loc>${siteOrigin}${path}</loc></url>`).join("\n")}\n</urlset>\n`;
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { checkPlatforms } from "./website-platforms-check.mjs";
 import { checkPreferences } from "./website-preferences-check.mjs";
 import { checkSEO } from "./website-seo-check.mjs";
+import { checkDocs } from "./website-docs-check.mjs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -410,6 +411,18 @@ try {
       assert.equal(header.destination, "https://github.com/OldPanda/bamboo");
     }
 
+    if (width === 320) {
+      await evaluate(
+        "document.querySelector('footer').scrollIntoView({behavior: 'instant', block: 'end'})",
+      );
+      const footerShot = await send("Page.captureScreenshot", {
+        format: "png",
+      });
+      await writeFile(
+        join(output, `footer-${width}-${mode}.png`),
+        Buffer.from(footerShot.data, "base64"),
+      );
+    }
     for (const id of ["terms", "privacy"]) {
       await evaluate(
         `document.querySelector('.footer-links a[href="#${id}"]').click()`,
@@ -585,6 +598,19 @@ try {
   console.log(
     `Platform detection cases passed: ${platformChecks.length}; platform/language/theme/width matrix passed`,
   );
+  const docsChecks = await checkDocs({
+    send,
+    evaluate,
+    origin,
+    screenshot: async (name) => {
+      const shot = await send("Page.captureScreenshot", { format: "png" });
+      await writeFile(
+        join(output, `${name}.png`),
+        Buffer.from(shot.data, "base64"),
+      );
+    },
+  });
+  console.log(`Documentation browser cases passed: ${docsChecks.length}`);
   assert.deepEqual(
     remoteRequests,
     [],
@@ -599,6 +625,7 @@ try {
         platformChecks,
         preferenceChecks,
         seoChecks,
+        docsChecks,
         externalRequests: remoteRequests,
         javascriptErrors: errors,
       },

@@ -26,6 +26,8 @@ async function fixture(t) {
   await mkdir(join(root, "website/scripts"), { recursive: true });
   for (const file of [
     "index.html",
+    "docs.html",
+    "docs.css",
     "styles.css",
     "site.js",
     "content.js",
@@ -57,6 +59,16 @@ async function fixture(t) {
 }
 function success(result) {
   assert.equal(result.status, 0, result.stderr || String(result.error));
+}
+function languageNavigation(html) {
+  const select = html.match(
+    /<select\b[^>]*id="language-select"[\s\S]*?<\/select>/,
+  )?.[0];
+  assert(select, "Keep the header language selector");
+  assert(select.includes('value="en"') && select.includes('value="zh"'));
+  const footer = html.match(/<footer\b[\s\S]*?<\/footer>/)?.[0];
+  assert(footer);
+  assert(!/<a\b[^>]*hreflang=|>English<|>中文</.test(footer));
 }
 async function files(root, prefix = "") {
   const result = [];
@@ -96,17 +108,20 @@ test("deployment includes only public files and removes stale build contents", a
     output.filter((path) => !path.startsWith("assets/")),
     [
       "_headers",
+      "docs/index.html",
+      "en/docs/index.html",
       "en/index.html",
       "index.html",
       "robots.txt",
       "sitemap.xml",
+      "zh/docs/index.html",
       "zh/index.html",
     ],
   );
   assert.equal(output.filter((path) => /\.(css|js)$/.test(path)).length, 2);
   assert.equal(
     output.length,
-    (await readdir(join(source, "assets"))).length + 8,
+    (await readdir(join(source, "assets"))).length + 11,
   );
   for (const path of output) {
     assert(!path.includes("private"));
@@ -209,6 +224,7 @@ test("both locale routes serve translated content and reciprocal SEO without Jav
     ["zh", "index.html", "/"],
   ]) {
     const html = await readFile(join(f.site, file), "utf8");
+    languageNavigation(html);
     const canonical = `https://getbamboo.app${route}`;
     assert(
       html.includes(`<html lang="${language === "en" ? "en" : "zh-CN"}">`),
@@ -279,6 +295,9 @@ test("both locale routes serve translated content and reciprocal SEO without Jav
       "https://getbamboo.app/",
       "https://getbamboo.app/en/",
       "https://getbamboo.app/zh/",
+      "https://getbamboo.app/docs/",
+      "https://getbamboo.app/en/docs/",
+      "https://getbamboo.app/zh/docs/",
     ],
   );
   assert(!/lastmod|priority|changefreq|\?lang=|#privacy/.test(xml));
@@ -333,6 +352,129 @@ test("invalid download targets stop the real build", async (t) => {
   const result = f.build();
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Invalid download catalog/);
+});
+
+test("documentation has static bilingual content, working routes and page-specific SEO", async (t) => {
+  const f = await fixture(t);
+  success(f.build());
+  for (const [language, route] of [
+    ["en", "/en/docs/"],
+    ["zh", "/zh/docs/"],
+    ["zh", "/docs/"],
+  ]) {
+    const html = await readFile(join(f.site, route, "index.html"), "utf8");
+    languageNavigation(html);
+    assert(html.includes('data-page="docs"'));
+    assert.equal([...html.matchAll(/<h1\b/g)].length, 1);
+    assert(!html.includes('id="hero-heading"'));
+    assert(
+      html.includes(
+        `<link rel="canonical" href="https://getbamboo.app${route}"`,
+      ),
+    );
+    for (const [code, path] of [
+      ["en", "/en/docs/"],
+      ["zh-CN", "/zh/docs/"],
+      ["x-default", "/docs/"],
+    ]) {
+      assert(
+        html.includes(`hreflang="${code}" href="https://getbamboo.app${path}"`),
+      );
+    }
+    for (const id of [
+      "installation",
+      "install-macos",
+      "install-windows",
+      "install-linux",
+      "opening-files",
+      "amazon-s3",
+      "cloudflare-r2",
+      "sql",
+      "int96",
+    ]) {
+      assert(html.includes(`id="${id}"`), id);
+    }
+    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+    assert.equal(new Set(ids).size, ids.length, "Unique anchors");
+    for (const match of html.matchAll(/data-i18n="([^"]+)"[^>]*>([^<]*)</g)) {
+      const expected = translations[match[1]][language]
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+      assert.equal(match[2], expected, match[1]);
+    }
+    assert(html.includes(`href="/${language}/#download"`));
+    for (const match of html.matchAll(/<a\b[^>]*href="(#[^"]+)"/g))
+      assert(ids.includes(match[1].slice(1)), match[1]);
+    assert(!/<!-- (?:PACKAGE|LINUX_DEB_NAME)|undefined|\/Users\//.test(html));
+    assert.match(
+      html.replace(/<[^>]*>/g, "").replaceAll("&#x27;", "'"),
+      /int96_as='struct'/,
+    );
+    assert.match(html, /1970-01-01 00:00:00\.123456789/);
+    assert(
+      html.includes(
+        language === "en" ? "keep only microseconds" : "但只保留微秒",
+      ),
+    );
+    assert(
+      html.includes(
+        language === "en"
+          ? "does not add a cloud precision switch"
+          : "不提供云端高精度开关",
+      ),
+    );
+    const home = await readFile(join(f.site, language, "index.html"), "utf8");
+    assert.equal(
+      [
+        ...home.matchAll(
+          new RegExp(`data-route="docs" href="/${language}/docs/"`, "g"),
+        ),
+      ].length,
+      3,
+    );
+  }
+});
+
+test("documentation downloads follow the catalog and its preview is self-contained", async (t) => {
+  const f = await fixture(t);
+  success(f.build("--standalone"));
+  const catalog = JSON.parse(
+    await readFile(join(source, "downloads.json"), "utf8"),
+  );
+  const preview = await readFile(
+    join(f.root, "build/bamboo-docs-preview.html"),
+    "utf8",
+  );
+  assert(preview.includes('<body data-page="docs">'));
+  assert(
+    !/(?:src|href)="\/?assets\/|<script[^>]+src=|<link[^>]+rel="stylesheet"/.test(
+      preview,
+    ),
+  );
+  languageNavigation(preview);
+  for (const [key, asset] of Object.entries(catalog.packages)) {
+    if (asset)
+      assert(preview.includes(`data-package="${key}" href="${asset.url}"`));
+  }
+  if (catalog.packages.linuxDeb)
+    assert(
+      preview.includes(`sudo apt install ./${catalog.packages.linuxDeb.name}`),
+    );
+  for (const key of Object.keys(catalog.packages)) catalog.packages[key] = null;
+  await writeFile(
+    join(f.root, "website/downloads.json"),
+    JSON.stringify(catalog),
+  );
+  success(f.build());
+  const html = await readFile(join(f.site, "en/docs/index.html"), "utf8");
+  assert.equal([...html.matchAll(/class="package-unavailable"/g)].length, 5);
+  assert(
+    !html.includes(
+      'href="https://github.com/OldPanda/bamboo/releases/download/',
+    ),
+  );
 });
 
 test("static locale pages expose every package and truthful availability without a hero selector", async (t) => {
