@@ -146,6 +146,9 @@ npm run build
   Finder and Dock checks need an explicitly suitable interactive session.
 - Mocked IPC screenshots verify layout, not native integration. Unit tests,
   synthetic cloud tests and live-provider acceptance are separate evidence.
+- Give large functional DOM fixtures explicit, bounded test timeouts. Keep all
+  data assertions; measure rendering performance in a real browser rather than
+  treating a jsdom test deadline as a performance threshold.
 - Verify keyboard focus with real headless browser input and a deferred IPC
   response. jsdom does not model the native blur caused by disabling a focused
   button, and immediately resolved mocks can hide that transition.

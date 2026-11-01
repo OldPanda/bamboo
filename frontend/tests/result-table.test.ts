@@ -38,6 +38,8 @@ afterEach(() => {
   setLanguage("en");
 });
 describe("complete wide result tables", () => {
+  // Building 127,000 jsdom cells can exceed five seconds on shared CI runners.
+  // This checks correctness; browser benchmarks measure rendering performance.
   it("keeps every exact value as text, with NULL and localized empty cells", () => {
     const t = table(),
       r = page(2048, 62);
@@ -56,7 +58,7 @@ describe("complete wide result tables", () => {
     expect(cells[4].textContent).not.toBe("empty");
     expect(cells[2048].textContent).toBe(r.rows[0][2047]);
     expect(t.querySelectorAll("[aria-hidden]").length).toBe(0);
-  });
+  }, 15_000);
   it("reuses cells, clears obsolete rows/columns, and removes stale translations", () => {
     const t = table(),
       r = page();
