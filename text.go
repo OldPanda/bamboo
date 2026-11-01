@@ -42,6 +42,7 @@ func (w *Workbench) SetTextOptions(path string, options datafile.TextOptions) er
 	w.engine.Close()
 	w.mu.Lock()
 	w.last = nil
+	w.pivot = nil
 	w.mu.Unlock()
 	return nil
 }

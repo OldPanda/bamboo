@@ -43,6 +43,9 @@ Real DuckDB tests cover JOIN, UNION ALL, active-file aliases, quoted/Unicode and
 
 ## Exporting results
 
+The **Analyze** action also computes [full-query column profiles and pivots](ANALYSIS.md)
+within the captured query's workspace, independently of preview pagination.
+
 The export chooser offers **Current page** (the existing in-memory snapshot) or
 **Complete result**. Complete result re-executes the last successful SQL with its
 column projection, filter and sort in the original local or cloud workspace,

@@ -108,6 +108,13 @@ func smoke(win *mygo.Window) {
 			return
 		}
 		report["exportRows"] = len(exported.Rows)
+		data, err = os.ReadFile(filepath.Join(dir, "bamboo-pivot.json"))
+		var pivot engine.Result
+		if err != nil || json.Unmarshal(data, &pivot) != nil || len(pivot.Rows) != 4 || *pivot.Rows[0][0] != "Copenhagen" || *pivot.Rows[0][1] != "67320" {
+			report["error"] = "native pivot export does not match the aggregate oracle"
+			return
+		}
+		report["pivotGroups"] = len(pivot.Rows)
 	}
 	if workspacePhase == "display" || workspacePhase == "display-restore" {
 		report["nativeZoom"] = win.Page().ZoomFactor()
