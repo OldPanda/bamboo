@@ -2304,6 +2304,7 @@ button.danger:hover:not(:disabled) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.analysis-table table,
 .analysis-table .null {
   font-size: inherit;
 }
