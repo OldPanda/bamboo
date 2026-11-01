@@ -130,6 +130,14 @@ try {
         text: type === "keyDown" ? "\r" : undefined,
       });
   };
+  if (
+    !(await evaluate(
+      "[...document.querySelectorAll('.analysis-table td')].every(cell=>getComputedStyle(cell).fontSize==='20px')",
+    ))
+  )
+    throw Error(
+      "analysis data and NULL cells must honor the selected text size",
+    );
   await evaluate(
     "globalThis.deferAnalysis=true; document.getElementById('profile-run').scrollIntoView({block:'nearest'}); document.getElementById('profile-run').focus()",
   );
