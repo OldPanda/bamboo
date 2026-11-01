@@ -11,11 +11,24 @@ import (
 // set per client. All caches share the app-wide payload and fetch budgets.
 // Every lease follows fresh signed HEADs; gateways and native databases stay new.
 type retainedRanges struct {
-	key   string
-	cache *rangeCache
-	timer *time.Timer
-	users int
-	epoch uint64
+	key         string
+	cache       *rangeCache
+	timer       *time.Timer
+	users       int
+	epoch       uint64
+	invalidated bool
+}
+
+// A failed new scope must not revoke the cache leased by an existing reader.
+// Prevent that cache from being retained again once its active reader closes.
+func (c *Client) invalidateRangeRetention() {
+	c.reuseMu.Lock()
+	defer c.reuseMu.Unlock()
+	if r := c.reuseCache; r != nil && r.users != 0 {
+		r.invalidated = true
+	} else {
+		c.clearRetainedRanges()
+	}
 }
 
 func (c *Client) closeRetainedRanges() {
@@ -80,6 +93,10 @@ func (c *Client) queryRangeCache(ctx context.Context, objects []Object) (*rangeC
 		defer c.reuseMu.Unlock()
 		r.users--
 		if c.reuseCache == r && r.users == 0 {
+			if r.invalidated {
+				c.clearRetainedRanges()
+				return
+			}
 			epoch := r.epoch
 			r.timer = time.AfterFunc(30*time.Second, func() {
 				c.reuseMu.Lock()

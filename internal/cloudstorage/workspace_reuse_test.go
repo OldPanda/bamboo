@@ -190,3 +190,69 @@ func TestWorkspaceRetainedRangesIdleExpiry(t *testing.T) {
 		t.Fatal("idle range cache was not released")
 	}
 }
+
+func TestWorkspaceHeadFailurePreservesActiveScope(t *testing.T) {
+	for _, status := range []int{http.StatusNotFound, http.StatusForbidden} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			var gets atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/unavailable.parquet") {
+					w.WriteHeader(status)
+					return
+				}
+				w.Header().Set("ETag", `"same-version"`)
+				if r.Method == http.MethodHead {
+					w.Header().Set("Content-Length", "10")
+					return
+				}
+				gets.Add(1)
+				w.Header().Set("Content-Length", "10")
+				w.Header().Set("Content-Range", "bytes 0-9/10")
+				w.WriteHeader(http.StatusPartialContent)
+				fmt.Fprint(w, "0123456789")
+			}))
+			defer server.Close()
+			c := newClient(Config{Endpoint: server.URL, Bucket: "fixture"}, Credentials{AccessKey: "synthetic", SecretKey: "synthetic"})
+			defer c.closeRetainedRanges()
+			open := func() *Scope {
+				t.Helper()
+				s, err := c.scope(context.Background(), []string{"open.parquet"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(s.Close)
+				return s
+			}
+			read := func(s *Scope) {
+				t.Helper()
+				req, _ := http.NewRequest(http.MethodGet, s.URLs[0], nil)
+				req.Header.Set("Range", "bytes=0-9")
+				r, err := http.DefaultClient.Do(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				body, err := io.ReadAll(r.Body)
+				r.Body.Close()
+				if err != nil || r.StatusCode != http.StatusPartialContent || string(body) != "0123456789" {
+					t.Fatalf("open document lost its readable scope: status=%d body=%q error=%v", r.StatusCode, body, err)
+				}
+			}
+			s := open()
+			read(s)
+			if _, err := c.scope(context.Background(), []string{"open.parquet", "unavailable.parquet"}); err == nil {
+				t.Fatal("failed HEAD was accepted")
+			}
+			read(s)
+			if gets.Load() != 1 {
+				t.Fatal("active lease lost its cached range")
+			}
+			s.Close()
+			fresh := open()
+			read(fresh)
+			if gets.Load() != 2 {
+				t.Fatal("failed HEAD did not prevent retention after the active lease closed")
+			}
+			fresh.Close()
+		})
+	}
+}

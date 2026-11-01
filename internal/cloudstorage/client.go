@@ -303,11 +303,11 @@ type Scope struct {
 }
 
 func (c *Client) scope(ctx context.Context, refs []string) (scope *Scope, failure error) {
-	// Metadata denial/cancellation revokes retained bytes too. No cache lease
-	// exists until every object's fresh signed HEAD has succeeded.
+	// A metadata failure prevents later retention without revoking another
+	// scope's active lease. This scope has no lease until every HEAD succeeds.
 	defer func() {
 		if failure != nil && ctx.Err() == nil {
-			c.closeRetainedRanges()
+			c.invalidateRangeRetention()
 		}
 	}()
 	objects := make([]Object, len(refs))

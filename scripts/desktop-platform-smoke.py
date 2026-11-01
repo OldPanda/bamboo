@@ -52,7 +52,8 @@ def main():
     if (
         report.get("error")
         or not report.get("result")
-        or len(report["result"]["checks"]) != 49
+        # Windows/Linux omit macOS's unavailable native-updater invocation.
+        or len(report["result"]["checks"]) != 48
     ):
         raise SystemExit(f"Native UI acceptance failed: {report}")
     for phase in ["display", "display-restore"]:

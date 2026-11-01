@@ -29,7 +29,9 @@ Workspace queries may retain validated range blocks for the same exact object
 set for 30 idle seconds. Each new scope still performs signed HEAD requests and
 uses new random gateway URLs and a new DuckDB connection. Object key, size and
 ETag must match; access denial, credential/location changes, closing or forgetting
-the connection clears retained blocks. All readers share a 64 MiB retained-payload
+the connection clears retained blocks. A failed new scope leaves an existing
+reader's lease usable, then releases those blocks when that reader closes.
+All readers share a 64 MiB retained-payload
 budget and a separate 32 MiB in-flight-fetch budget, with at most 256 entries per
 cache. A full shared budget can cause uncached reads. These limits exclude native
 engine memory and buffers still being sent after eviction; they do not cap RSS.
@@ -37,7 +39,8 @@ engine memory and buffers still being sent after eviction; they do not cap RSS.
 工作区查询可在空闲 30 秒内复用已验证的对象分块，但每次仍重新进行签名 HEAD 请求，
 创建新的本地网关和数据库连接。所有读取器共享 64 MiB 保留缓存及独立的 32 MiB
 传输缓冲预算；权限拒绝、凭据或位置变更、关闭及删除连接会清理缓存。它们不是
-应用总内存上限，也不提供跨对象事务快照。
+应用总内存上限，也不提供跨对象事务快照。新查询范围的验证失败不会中断已有读取器；
+该读取器关闭时会立即清理相应分块，不再保留。
 
 ## Validation and limits
 
