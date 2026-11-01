@@ -1,6 +1,8 @@
 # Multiple files and folder workspaces
 
-Bamboo keeps an open-file list independent of its folder browsers. Open Folder adds another root without replacing existing roots or the current preview. Open Parquet and file selection add or activate files, deduplicated by canonical absolute path. Two files with the same basename remain separate. Workspace-owned files appear only in their directory tree. **Open files** contains only files outside every open root, under **Other files**, and the entire section hides when empty. Opened tree entries have a right-side **×**; closing the file removes this close control while leaving its directory entry available to reopen.
+Local files support Parquet and [CSV/TSV](TEXT_FILES.md); cloud files remain Parquet.
+
+Bamboo keeps an open-file list independent of its folder browsers. Open Folder adds another root without replacing existing roots or the current preview. Open file and file selection add or activate files, deduplicated by canonical absolute path. Two files with the same basename remain separate. Workspace-owned files appear only in their directory tree. **Open files** contains only files outside every open root, under **Other files**, and the entire section hides when empty. Opened tree entries have a right-side **×**; closing the file removes this close control while leaving its directory entry available to reopen.
 
 Every open filename has a right-side **×**. Closing an inactive file leaves the preview unchanged; closing the active file selects a neighbor. Closing the last file releases the engine, clears the preview and disables export. Closing a workspace removes its tree and all files owned by that workspace. They are not moved to Other files. Other workspaces and independent files stay open. If its active file closes, a remaining file becomes active, or the welcome screen appears when none remain. Ownership follows the most specific open root for overlapping folders. Pending query edits save before closure; a failed settings write leaves the workspace and its open files intact. None of these actions deletes source files.
 
@@ -10,7 +12,7 @@ Each open file retains its SQL draft separately from the successful query, plus 
 
 Open roots, workspace names, the complete open-file list (up to 128 files),
 and the active file or workspace are saved privately in the app config.
-Independent Parquet files now survive restarts and upgrades too. Older settings
+Independent Parquet, CSV and TSV files now survive restarts and upgrades too. Older settings
 retain their roots and last file per root; standalone files that older versions
 never saved cannot be reconstructed.
 

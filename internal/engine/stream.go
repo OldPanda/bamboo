@@ -47,7 +47,7 @@ func (e *Engine) stream(parent context.Context, scoped *Engine, r Request, sink 
 	if scoped == e {
 		scoped = &Engine{file: e.file, resolve: e.resolve, remote: e.remote, remoteRef: e.remoteRef, remoteKeep: e.remoteKeep}
 	}
-	scoped.resources, scoped.httpfs = e.resources, e.httpfs
+	scoped.resources, scoped.httpfs, scoped.textOptions = e.resources, e.httpfs, e.textOptions
 	scoped.resources.exportStream = true
 	defer func() {
 		if scoped.db != nil {

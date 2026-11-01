@@ -2,6 +2,7 @@
 package workspace
 
 import (
+	"bamboo/internal/datafile"
 	"bamboo/internal/privatefs"
 	"encoding/json"
 	"errors"
@@ -49,11 +50,12 @@ type profile struct {
 	Queries map[string]Query `json:"queries"`
 }
 type state struct {
-	Session  *Session            `json:"session,omitempty"`
-	Version  int                 `json:"version"`
-	Open     []string            `json:"open,omitempty"`
-	Last     string              `json:"last"`
-	Profiles map[string]*profile `json:"profiles"`
+	TextOptions map[string]datafile.TextOptions `json:"textOptions,omitempty"`
+	Session     *Session                        `json:"session,omitempty"`
+	Version     int                             `json:"version"`
+	Open        []string                        `json:"open,omitempty"`
+	Last        string                          `json:"last"`
+	Profiles    map[string]*profile             `json:"profiles"`
 }
 
 // Store persists local workspace preferences and tracks currently open roots.
@@ -118,6 +120,16 @@ func New(dir string) *Store {
 		s.loadErr = errors.New("invalid saved session")
 		return s
 	}
+	if len(d.TextOptions) > 256 {
+		s.loadErr = errors.New("too many saved text options")
+		return s
+	}
+	for path, options := range d.TextOptions {
+		if !filepath.IsAbs(path) || !datafile.IsText(path) || options.Validate() != nil {
+			s.loadErr = errors.New("invalid saved text options")
+			return s
+		}
+	}
 	s.data = d
 	return s
 }
@@ -165,7 +177,10 @@ func (s *Store) commit(d state) error {
 	return nil
 }
 func (s *Store) copy() state {
-	d := state{Version: 1, Last: s.data.Last, Open: slices.Clone(s.data.Open), Profiles: map[string]*profile{}}
+	d := state{TextOptions: map[string]datafile.TextOptions{}, Version: 1, Last: s.data.Last, Open: slices.Clone(s.data.Open), Profiles: map[string]*profile{}}
+	for path, options := range s.data.TextOptions {
+		d.TextOptions[path] = options
+	}
 	if s.data.Session != nil {
 		d.Session = &Session{Files: slices.Clone(s.data.Session.Files), Active: s.data.Session.Active}
 	}
@@ -340,7 +355,7 @@ func (s *Store) List(root, rel string, offset int) (*Page, error) {
 		if strings.HasPrefix(e.Name(), ".") || e.Type()&os.ModeSymlink != 0 {
 			continue
 		}
-		if e.IsDir() || e.Type().IsRegular() && strings.EqualFold(filepath.Ext(e.Name()), ".parquet") {
+		if e.IsDir() || e.Type().IsRegular() && datafile.Supported(e.Name()) {
 			p.Entries = append(p.Entries, Entry{Name: e.Name(), Path: filepath.ToSlash(filepath.Join(rel, e.Name())), Directory: e.IsDir()})
 		}
 	}

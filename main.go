@@ -48,6 +48,7 @@ func main() {
 	e.SetHTTPFS(extension)
 	updates := updater.New()
 	w := &Workbench{updates: updates, remote: remoteStoreFactory(config, cloudstorage.NewVault()), engine: e, initial: initial, dialogs: mygo.Dialog, folders: workspace.New(config), configDir: config}
+	e.SetTextOptionsResolver(w.textOptions)
 	configureSmokeDialogs(w)
 	mygo.Theme.SetSource(loadAppearance(config))
 	if len(os.Args) == 3 && os.Args[1] == "--workspace" {

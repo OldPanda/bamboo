@@ -51,6 +51,7 @@ export default ts.config(
         mygo: "readonly",
         workspacePhase: "readonly",
         smokePlatform: "readonly",
+        smokeDirectory: "readonly",
       },
     },
   },

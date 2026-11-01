@@ -72,7 +72,7 @@ func TestLanguageDialogTitles(t *testing.T) {
 	if _, err := w.Open(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if d.openOptions.Title != "打开 Parquet 文件" {
+	if d.openOptions.Title != "打开数据文件" {
 		t.Fatal(d.openOptions.Title)
 	}
 	if _, err := w.OpenWorkspace(context.Background()); err != nil {

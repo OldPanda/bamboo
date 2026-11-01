@@ -573,7 +573,7 @@ describe("the shipped page through its generated IPC binding", () => {
     expect(active()).toBe(false);
     expect(drag("dragover").defaultPrevented).toBe(false);
     expect(active()).toBe(true);
-    expect($("welcome-drop-title").textContent).toBe("Release to open Parquet");
+    expect($("welcome-drop-title").textContent).toBe("Release to open data");
     expect($("drop-feedback").hidden).toBe(true);
     drag("dragenter", 310, 210, $("welcome-data"));
     drag("dragleave", 310, 210, zone);
@@ -3495,4 +3495,67 @@ it("shows an independent file persistence warning while keeping its preview usab
   expect(document.querySelectorAll("#grid tbody tr")).toHaveLength(2);
   await click("next");
   expect(lastRequest().offset).toBe(100);
+});
+
+it("reopens text files with explicit persisted reading options and preserves focus", async () => {
+  let options = { delimiter: "\t", header: true, inferTypes: false };
+  const textFile = () => ({
+    ...dataFile(),
+    path: "/local/data.tsv",
+    name: "data.tsv",
+    rows: "",
+    rowGroups: "",
+    textOptions: options,
+  });
+  responses["Workbench.Open"] = textFile;
+  responses["Workbench.OpenPath"] = textFile;
+  responses["Workbench.SetTextOptions"] = (_path, value) => {
+    options = value;
+  };
+  await open();
+  expect($("row-count").textContent).toBe("—");
+  expect($("row-groups").textContent).toBe("—");
+  expect($("text-info").hidden).toBe(false);
+  expect($("text-summary").textContent).toContain("Values preserved as text");
+  await click("text-options");
+  expect($<HTMLSelectElement>("text-delimiter").value).toBe("tab");
+  await click("text-dismiss");
+  expect(document.activeElement).toBe($("text-options"));
+  await click("text-options");
+  value("text-delimiter", ";");
+  value("text-types", "infer");
+  $<HTMLInputElement>("text-header").checked = false;
+  $("text-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  await settled();
+  expect(bridge.call).toHaveBeenCalledWith(
+    "Workbench.SetTextOptions",
+    "/local/data.tsv",
+    { delimiter: ";", header: false, inferTypes: true },
+  );
+  expect($("text-summary").textContent).toContain("No header");
+  expect($("text-summary").textContent).toContain("Type inference enabled");
+  expect(document.activeElement).toBe($("text-options"));
+  await click("text-options");
+  value("text-delimiter", "tab");
+  value("text-types", "text");
+  responses["Workbench.SetTextOptions"] = () => {
+    throw new Error("settings denied");
+  };
+  $("text-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  await settled();
+  expect($("notification").textContent).toContain("settings denied");
+  expect($("text-summary").textContent).toContain("No header");
+});
+
+it("does not open or submit text options without a text file", async () => {
+  await open();
+  expect($("text-info").hidden).toBe(true);
+  await click("text-options");
+  expect($<HTMLDialogElement>("text-dialog").open).toBe(false);
+  $("text-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  expect(
+    bridge.call.mock.calls.some(
+      ([name]) => name === "Workbench.SetTextOptions",
+    ),
+  ).toBe(false);
 });

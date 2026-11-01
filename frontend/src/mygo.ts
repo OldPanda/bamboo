@@ -61,6 +61,7 @@ export interface ExportProgress {
 }
 
 export interface File {
+  textOptions?: TextOptions;
   warning?: string;
   name: string;
   path: string;
@@ -138,6 +139,12 @@ export interface Status {
   available: boolean;
   automatic: boolean;
   canCheck: boolean;
+}
+
+export interface TextOptions {
+  delimiter: string;
+  header: boolean;
+  inferTypes: boolean;
 }
 
 /** WorkspaceFile combines file metadata, restored SQL and any persistence warning. */
@@ -222,7 +229,7 @@ export const Workbench = {
   getExportProgress(): Promise<ExportProgress> {
     return call("Workbench.GetExportProgress");
   },
-  /** InitialFile returns the optional Parquet path supplied at startup. */
+  /** InitialFile returns the optional local data path supplied at startup. */
   initialFile(): Promise<string> {
     return call("Workbench.InitialFile");
   },
@@ -238,11 +245,11 @@ export const Workbench = {
   listDirectory(root: string, relative: string, offset: number): Promise<Page | null> {
     return call("Workbench.ListDirectory", root, relative, offset);
   },
-  /** Open shows the native file chooser and opens the selected Parquet file. */
+  /** Open shows the native file chooser and opens the selected local data file. */
   open(): Promise<File | null> {
     return call("Workbench.Open");
   },
-  /** OpenPath opens a local Parquet file and clears the previous export page on success. */
+  /** OpenPath opens a local data file and clears the previous export page on success. */
   openPath(path: string): Promise<File | null> {
     return call("Workbench.OpenPath", path);
   },
@@ -254,7 +261,7 @@ export const Workbench = {
   openWorkspace(): Promise<Info | null> {
     return call("Workbench.OpenWorkspace");
   },
-  /** OpenWorkspaceFile opens a scoped Parquet reader and restores its saved query. */
+  /** OpenWorkspaceFile opens a scoped local data reader and restores its saved query. */
   openWorkspaceFile(root: string, relative: string): Promise<WorkspaceFile | null> {
     return call("Workbench.OpenWorkspaceFile", root, relative);
   },
@@ -309,6 +316,14 @@ export const Workbench = {
   /** SetResources validates and atomically saves limits before applying them to future queries. */
   setResources(r: Resources): Promise<void> {
     return call("Workbench.SetResources", r);
+  },
+  /**
+   * SetTextOptions saves explicit UTF-8 parsing preferences for a local file.
+   * It invalidates the reader and export eligibility; reopen to preview the change.
+   * Source bytes are never modified, even when preferences cannot be saved.
+   */
+  setTextOptions(path: string, options: TextOptions): Promise<void> {
+    return call("Workbench.SetTextOptions", path, options);
   },
   /** TestR2Connection checks access to a saved R2 or S3 connection. */
   testR2Connection(root: string): Promise<void> {

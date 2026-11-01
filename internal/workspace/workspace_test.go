@@ -70,7 +70,7 @@ func TestPathsAndListing(t *testing.T) {
 	s, root, _ := fixture(t)
 	nested := filepath.Join(root, "nested")
 	os.Mkdir(nested, 0700)
-	for _, n := range []string{"a.PARQUET", "ignore.csv", ".hidden.parquet"} {
+	for _, n := range []string{"a.PARQUET", "included.csv", "included.tsv", "ignore.json", ".hidden.parquet"} {
 		os.WriteFile(filepath.Join(root, n), nil, 0600)
 	}
 	outside := t.TempDir()
@@ -78,7 +78,7 @@ func TestPathsAndListing(t *testing.T) {
 	os.Symlink(outside, filepath.Join(root, "escape"))
 	os.Symlink(nested, filepath.Join(root, "loop"))
 	page, e := s.List(root, ".", 0)
-	if e != nil || len(page.Entries) != 2 || page.More {
+	if e != nil || len(page.Entries) != 4 || page.More {
 		t.Fatal(page, e)
 	}
 	for _, entry := range page.Entries {
