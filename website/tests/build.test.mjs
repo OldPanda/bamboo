@@ -456,7 +456,8 @@ test("documentation has static bilingual content, working routes and page-specif
           new RegExp(`data-route="docs" href="/${language}/docs/"`, "g"),
         ),
       ].length,
-      3,
+      2,
+      "Keep the desktop and mobile documentation links",
     );
   }
 });
