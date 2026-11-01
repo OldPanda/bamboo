@@ -2322,10 +2322,7 @@ $("pivot-run").onclick = () =>
         groups: pivot.rows.length,
       }),
       analysisTable(
-        [
-          $<HTMLSelectElement>("pivot-group").value,
-          $<HTMLSelectElement>("pivot-operation").value,
-        ],
+        pivot.columns.map((column) => column.name),
         pivot.rows,
       ),
     );

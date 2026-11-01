@@ -3680,6 +3680,11 @@ it("profiles complete results and exports a separate pivot snapshot without chan
     metric: "id",
   });
   expect($("pivot-result").textContent).toContain("9007199254740993");
+  expect(
+    [...$("pivot-result").querySelectorAll("th")].map(
+      (cell) => cell.textContent,
+    ),
+  ).toEqual(["text", "SUM(id)"]);
   expect($("pivot-result").querySelector("img")).toBeNull();
   expect($("grid").textContent).toBe(original);
   for (const format of ["json", "jsonl", "csv", "tsv"]) {
