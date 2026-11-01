@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Download public release bytes for native installation checks on disposable CI."""
 
+import json
 import os
 import platform
 import urllib.request
@@ -9,6 +10,22 @@ from pathlib import Path
 from release_version import parse_version
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def latest_release_version():
+    """Read the public latest-tag identity separately from its mutable feed URL."""
+    request = urllib.request.Request(
+        "https://api.github.com/repos/OldPanda/bamboo/releases/latest",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "Bamboo-release-verification",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        data = response.read(1024 * 1024 + 1)
+    if len(data) > 1024 * 1024:
+        raise ValueError("Latest release metadata exceeds verification budget")
+    return parse_version(json.loads(data)["tag_name"])[0]
 
 
 def main():
@@ -35,6 +52,9 @@ def main():
             urllib.request.urlretrieve(base + asset, releases / asset)
     if system == "darwin":
         urllib.request.urlretrieve(base + "appcast.xml", releases / "appcast.xml")
+        (releases / "latest-release-version.txt").write_text(
+            latest_release_version() + "\n"
+        )
         urllib.request.urlretrieve(
             "https://github.com/OldPanda/bamboo/releases/latest/download/appcast.xml",
             releases / "latest-appcast.xml",

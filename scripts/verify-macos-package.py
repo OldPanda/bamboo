@@ -46,6 +46,19 @@ def feed_signatures(data, version, archive):
     return data[:offset], match[1].decode(), enclosure.get(f"{{{SPARKLE}}}edSignature")
 
 
+def verify_latest_feed(releases, version, data):
+    """Check the mutable latest feed when it is meant to represent this release."""
+    latest = releases / "latest-appcast.xml"
+    if not latest.exists():
+        return None
+    latest_version = parse_version(
+        (releases / "latest-release-version.txt").read_text().strip()
+    )[0]
+    if latest_version == version and latest.read_bytes() != data:
+        raise ValueError("Latest update feed differs from the published release")
+    return latest_version
+
+
 def launch(bundle, output, helper):
     """Require a visible installed production window, then send native Quit."""
     if os.environ.get("GITHUB_ACTIONS") != "true":
@@ -105,6 +118,7 @@ def main():
     output = ROOT / "artifacts/macos-package-smoke"
     output.mkdir(parents=True, exist_ok=True)
     key = (ROOT / "assets/update-public-key.txt").read_text().strip()
+    latest_version = None
     with tempfile.TemporaryDirectory(prefix="bamboo-package-") as temporary:
         staging = Path(temporary)
         if args.feed:
@@ -127,11 +141,7 @@ def main():
             )
             for path, value in ((signed, signature), (archive, archive_signature)):
                 subprocess.run([str(verifier), key, str(path), value], check=True)
-            latest = releases / "latest-appcast.xml"
-            if latest.exists() and latest.read_bytes() != data:
-                raise ValueError(
-                    "Latest update feed differs from the published release"
-                )
+            latest_version = verify_latest_feed(releases, version, data)
         subprocess.run(["hdiutil", "verify", str(archive)], check=True)
         mount = staging / "mounted"
         mount.mkdir()
@@ -233,6 +243,8 @@ def main():
         "adHocSignature": True,
         "notarized": False,
         "signedFeedVerified": args.feed,
+        "latestReleaseVersion": latest_version,
+        "latestFeedCompared": latest_version == version,
         "installedLaunchAndQuit": args.launch,
     }
     (output / "package-smoke.json").write_text(json.dumps(report, indent=2) + "\n")

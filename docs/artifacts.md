@@ -50,7 +50,9 @@ PR CI builds native candidate packages and verifies their installed production
 startup on disposable runners. The release workflow repeats these checks and
 then downloads the actual hosted packages for all three platforms. macOS checks
 also validate the DMG and signed appcast with the committed public key, inspect
-the mounted bundle read-only, and compare the configured latest-feed bytes.
+the mounted bundle read-only, and compare the configured latest-feed bytes when
+GitHub identifies the verified tag as the latest release. Rerunning an older
+release still verifies its versioned feed and archive signatures independently.
 Native launch checks never run on a developer's desktop; local inspection is:
 
 ```sh

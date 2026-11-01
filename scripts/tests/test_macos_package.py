@@ -29,6 +29,30 @@ APPCAST = module("macos_package_appcast", "sign-appcast.py")
 class MacOSPackageTests(unittest.TestCase):
     """Bind signatures to exact bytes, declared size, architecture and version."""
 
+    def test_older_release_acceptance_after_new_release(self):
+        """An older signed archive remains verifiable after latest advances."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "latest-release-version.txt").write_text("0.3.0\n")
+            (root / "latest-appcast.xml").write_bytes(b"New release feed")
+            self.assertEqual(
+                VERIFY.verify_latest_feed(root, "0.2.0", b"Old release feed"), "0.3.0"
+            )
+
+    def test_current_latest_feed_must_match(self):
+        """Keep rejecting drift for the release currently advertised as latest."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "latest-release-version.txt").write_text("0.2.0\n")
+            latest = root / "latest-appcast.xml"
+            latest.write_bytes(b"Changed feed")
+            with self.assertRaises(ValueError):
+                VERIFY.verify_latest_feed(root, "0.2.0", b"Published feed")
+            latest.write_bytes(b"Published feed")
+            self.assertEqual(
+                VERIFY.verify_latest_feed(root, "0.2.0", b"Published feed"), "0.2.0"
+            )
+
     def test_public_verifier_and_feed_boundaries(self):
         """Use the real Sparkle signer with a public fixture seed; reject tampering."""
         seed = base64.b64encode(bytes(32)).decode()
