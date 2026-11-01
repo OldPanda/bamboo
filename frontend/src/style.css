@@ -2204,6 +2204,8 @@ button.danger:hover:not(:disabled) {
   font-size: var(--text-sm);
 }
 #grid,
+#grid .null,
+#grid .empty-string,
 #schema-panel table {
   font-size: var(--data-font-size, 13px);
 }

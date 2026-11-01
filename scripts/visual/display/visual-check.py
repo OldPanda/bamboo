@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parents[3]
 out = root / "artifacts/visual/display"
 out.mkdir(parents=True, exist_ok=True)
 mock = """globalThis.mygo={on:()=>()=>{},call:async(method)=>{
- const columns=[{name:'id',type:'BIGINT'}];
+ const columns=[{name:'id',type:'BIGINT'},{name:'missing',type:'VARCHAR'},{name:'empty_text',type:'VARCHAR'}];
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
  if(method==='Workbench.Resources')return {memoryMiB:256,memoryAuto:false,tempGiB:0,timeoutSeconds:300};
  if(method==='Workbench.DiskLimits')return {detected:true,availableGiB:20,reserveGiB:1,maxTempGiB:19,autoTempGiB:4};
@@ -22,7 +22,7 @@ mock = """globalThis.mygo={on:()=>()=>{},call:async(method)=>{
  if(method==='Workbench.Open'||method==='Workbench.OpenPath')return {path:'/example/sample.tsv',name:'sample.tsv',rows:'',bytes:'1000',rowGroups:'',columns,textOptions:{delimiter:'\\t',header:true,inferTypes:false}};
  if(method==='Workbench.SetDisplay')return new Promise(resolve=>{globalThis.finishDisplay=()=>resolve()});
  if(method==='Workbench.GetExportProgress')return {running:true,rows:'120'};
- if(method==='Workbench.Query')return {columns,rows:[['9223372036854775807']],offset:0,pageSize:100,more:true,elapsedMS:1};
+ if(method==='Workbench.Query')return {columns,rows:[['9223372036854775807',null,'']],offset:0,pageSize:100,more:true,elapsedMS:1};
  throw Error(method);
 }};
 const timer=setInterval(async()=>{if(document.body.dataset.ready!=='true')return;clearInterval(timer);

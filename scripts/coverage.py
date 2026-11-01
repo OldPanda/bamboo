@@ -216,7 +216,7 @@ def main():
         fixture = fixture_dir / "orders.parquet"
         smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop)
         with tempfile.TemporaryDirectory(prefix="bamboo-display-config-") as config:
-            for phase, count in [("display", 6), ("display-restore", 5)]:
+            for phase, count in [("display", 7), ("display-restore", 6)]:
                 smoke(
                     ROOT / "build/bamboo-covered",
                     fixture,

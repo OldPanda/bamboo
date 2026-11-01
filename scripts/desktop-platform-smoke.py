@@ -76,7 +76,7 @@ def main():
         display = json.loads((destination / "desktop-smoke.json").read_text())
         if display.get("error") or display.get("nativeZoom") != 1.25:
             raise SystemExit(f"Native display acceptance failed: {display}")
-        expected = 6 if phase == "display" else 5
+        expected = 7 if phase == "display" else 6
         if len(display["result"]["checks"]) != expected:
             raise SystemExit(f"Incomplete native display checks: {display}")
     for name, digest in before.items():

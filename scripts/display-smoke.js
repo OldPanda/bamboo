@@ -79,6 +79,17 @@ assert(
   document.querySelectorAll("#grid tbody tr").length === 100,
   "display changes retain the bounded query result",
 );
+$("sql").value =
+  "SELECT NULL::VARCHAR AS missing, '' AS empty_text FROM data LIMIT 1";
+$("run").click();
+await waitFor(() => $("busy").hidden);
+assert(
+  getComputedStyle(document.querySelector("#grid .null")).fontSize ===
+    "16px" &&
+    getComputedStyle(document.querySelector("#grid .empty-string"))
+      .fontSize === "16px",
+  "NULL and empty-string data cells use the saved data text size",
+);
 $("sql").value = "SELECT count(*) AS n FROM data";
 $("run").click();
 await waitFor(() => $("busy").hidden);

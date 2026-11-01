@@ -161,7 +161,8 @@ try {
   const usable = await evaluate(`(() => {
     const editor=document.getElementById('sql'), table=document.getElementById('grid'), footer=document.querySelector('.table-footer');
     footer.scrollIntoView({block:'end'});
-    return getComputedStyle(editor).fontSize==='21px' && getComputedStyle(table).fontSize==='20px' && footer.getBoundingClientRect().bottom<=innerHeight+1 && document.documentElement.scrollWidth<=innerWidth;
+    const missing=table.querySelector('.null'), empty=table.querySelector('.empty-string');
+    return getComputedStyle(editor).fontSize==='21px' && getComputedStyle(table).fontSize==='20px' && missing && empty && getComputedStyle(missing).fontSize==='20px' && getComputedStyle(empty).fontSize==='20px' && footer.getBoundingClientRect().bottom<=innerHeight+1 && document.documentElement.scrollWidth<=innerWidth;
   })()`);
   if (!usable) throw Error("data text size or narrow footer reachability");
   console.log(name, JSON.stringify({ ...result, mode, keyboardFocus: true }));
