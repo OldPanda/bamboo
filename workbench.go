@@ -28,17 +28,21 @@ type fileDialogs interface {
 
 // Workbench exposes local files, cloud workspaces, bounded queries and appearance.
 type Workbench struct {
-	updates      updateService
-	engine       *engine.Engine
-	remote       *cloudstorage.Store
-	remoteCancel context.CancelFunc
-	folders      *workspace.Store
-	mu           sync.Mutex
-	opMu         sync.Mutex
-	last         *engine.Result
-	initial      string
-	configDir    string
-	dialogs      fileDialogs
+	updates       updateService
+	engine        *engine.Engine
+	remote        *cloudstorage.Store
+	remoteCancel  context.CancelFunc
+	folders       *workspace.Store
+	mu            sync.Mutex
+	opMu          sync.Mutex
+	last          *engine.Result
+	lastRequest   engine.Request
+	lastRoot      string
+	exportRows    int64
+	exportRunning bool
+	initial       string
+	configDir     string
+	dialogs       fileDialogs
 }
 
 // InitialFile returns the optional Parquet path supplied at startup.
@@ -83,6 +87,8 @@ func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result
 	if err == nil {
 		w.mu.Lock()
 		w.last = result
+		w.lastRequest = r
+		w.lastRoot = ""
 		w.mu.Unlock()
 	}
 	return result, err
@@ -104,12 +110,12 @@ func (w *Workbench) ExportPage(ctx context.Context) (string, error) {
 	return w.ExportPageAs(ctx, "json")
 }
 
-// ExportPageAs exports the last successful visible page as JSON or CSV.
-// CSV prefixes formula-like text with an apostrophe; JSON preserves original values.
-// NULL and empty text both become empty CSV fields.
+// ExportPageAs exports the last successful visible page as JSON, JSONL, CSV or TSV.
+// CSV/TSV prefix formula-like text with an apostrophe; JSON/JSONL preserve values.
+// NULL and empty text both become empty delimited fields.
 func (w *Workbench) ExportPageAs(ctx context.Context, format string) (string, error) {
-	if format != "json" && format != "csv" {
-		return "", errors.New("choose JSON or CSV export format")
+	if !exportFormat(format) {
+		return "", errors.New("choose JSON, JSONL, CSV or TSV export format")
 	}
 	w.mu.Lock()
 	r := w.last
@@ -133,13 +139,13 @@ func writeExportFormat(path string, r *engine.Result, format string) error {
 }
 
 func writeExportFormatWith(path string, r *engine.Result, format string, create func(string) (io.WriteCloser, error)) error {
-	if format != "json" && format != "csv" {
-		return errors.New("choose JSON or CSV export format")
+	if !exportFormat(format) {
+		return errors.New("choose JSON, JSONL, CSV or TSV export format")
 	}
 	if r == nil {
 		return errors.New("run a query before exporting")
 	}
-	if format == "csv" {
+	if format == "csv" || format == "tsv" {
 		for _, row := range r.Rows {
 			if len(row) != len(r.Columns) {
 				return errors.New("result columns do not match row values")
@@ -155,8 +161,24 @@ func writeExportFormatWith(path string, r *engine.Result, format string, create 
 		enc := json.NewEncoder(f)
 		enc.SetIndent("", "  ")
 		err = enc.Encode(r)
+	} else if format == "jsonl" {
+		enc := json.NewEncoder(f)
+		err = enc.Encode(struct {
+			Columns []engine.Column `json:"columns"`
+		}{r.Columns})
+		for _, row := range r.Rows {
+			if err != nil {
+				break
+			}
+			err = enc.Encode(struct {
+				Row []*string `json:"row"`
+			}{row})
+		}
 	} else {
 		enc := csv.NewWriter(f)
+		if format == "tsv" {
+			enc.Comma = '\t'
+		}
 		header := make([]string, len(r.Columns))
 		for i, col := range r.Columns {
 			header[i] = spreadsheetText(col.Name, "")

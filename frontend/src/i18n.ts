@@ -3,6 +3,17 @@ export type Language = "en" | "zh-CN";
 type Params = Record<string, string | number>;
 /** App-owned Chinese translations keyed by their English UI text. */
 export const chinese: Record<string, string> = {
+  "Export scope": "导出范围",
+  "Current page": "当前页",
+  "Complete result": "完整结果",
+  "Complete result re-runs the last successful query with its filter and sort. External source changes may affect the result.":
+    "完整结果会重新执行最后一次成功查询，并保留筛选和排序。外部源数据变更可能影响结果。",
+  "Column metadata on the first line, then one exact row per line.":
+    "第一行是列元数据，随后每行保存一条精确结果。",
+  "Tab-separated values with the same spreadsheet protection as CSV.":
+    "制表符分隔，使用与 CSV 相同的电子表格保护。",
+  "Exporting… {rows} rows written": "正在导出…已写入 {rows} 行",
+  "Exported complete result to {path}": "完整结果已导出到 {path}",
   "Wide result: up to {rows} rows per page; all columns shown.":
     "宽表每页最多显示 {rows} 行，保留全部列。",
   "schema exceeds 1 MiB; select fewer columns in a workspace query":
@@ -81,8 +92,7 @@ export const chinese: Record<string, string> = {
   "Single file": "单个文件",
   Welcome: "欢迎",
   Export: "导出",
-  "Export the visible result page as JSON or CSV":
-    "将当前结果页导出为 JSON 或 CSV",
+  "Export the current page or complete result": "导出当前页或完整结果",
   "Explore your data": "探索你的数据",
   "File metadata": "文件元数据",
   rows: "行",
@@ -130,8 +140,7 @@ export const chinese: Record<string, string> = {
   "Reading your file…": "正在读取文件…",
   Cancel: "取消",
   "Export data": "导出数据",
-  "Export the current preview page. Choose a format.":
-    "导出当前预览页。请选择格式。",
+  "Choose the result scope and format.": "选择导出范围和格式。",
   "Close export chooser": "关闭导出选项",
   "Preserve column types, exact values and NULL.":
     "保留字段类型、精确数值和 NULL。",

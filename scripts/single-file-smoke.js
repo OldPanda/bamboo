@@ -20,6 +20,23 @@ assert(
   "first page: 100 real rows",
 );
 assert($("row-count").textContent === "240", "footer metadata: 240 rows");
+await click("export");
+$("export-scope").value = "full";
+for (const format of ["json", "csv", "jsonl", "tsv"]) {
+  if (!$("export-dialog").open) await click("export");
+  await click("export-" + format);
+  const progress = await mygo.call("Workbench.GetExportProgress");
+  assert(
+    !progress.running &&
+      progress.rows === "240" &&
+      !$("notification").classList.contains("error"),
+    "native complete " + format + " export writes every row through IPC",
+  );
+}
+assert(
+  document.querySelectorAll("#grid tbody tr").length === 100,
+  "complete export preserves the bounded preview",
+);
 assert(
   $("tab-explore").textContent === "Explore Data" &&
     !$("sql-panel").hidden &&

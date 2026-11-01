@@ -13,6 +13,8 @@ import (
 
 // Resources budgets DuckDB, not the entire process (UI and network caches are separate).
 type Resources struct {
+	// One native pipeline serializes export callbacks and preserves result order.
+	exportStream   bool
 	MemoryMiB      int  `json:"memoryMiB"`
 	MemoryAuto     bool `json:"memoryAuto"`
 	TempGiB        int  `json:"tempGiB"`
@@ -110,7 +112,11 @@ func newDatabase(ctx context.Context, configs ...Resources) (*database, error) {
 	if err := r.validateMemory(limits); err != nil {
 		return nil, err
 	}
-	raw, err := sql.Open("duckdb", fmt.Sprintf("?threads=2&memory_limit=%dMiB&max_temp_directory_size=0B&autoload_known_extensions=false&autoinstall_known_extensions=false", r.memoryBudget(limits)))
+	threads := 2
+	if r.exportStream {
+		threads = 1
+	}
+	raw, err := sql.Open("duckdb", fmt.Sprintf("?threads=%d&memory_limit=%dMiB&max_temp_directory_size=0B&autoload_known_extensions=false&autoinstall_known_extensions=false", threads, r.memoryBudget(limits)))
 	if err != nil {
 		return nil, err
 	}

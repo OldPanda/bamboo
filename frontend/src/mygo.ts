@@ -51,6 +51,15 @@ export interface Entry {
   directory: boolean;
 }
 
+/**
+ * ExportProgress reports completed rows as an exact decimal string. It never
+ * counts or executes a second query and does not promise a known total.
+ */
+export interface ExportProgress {
+  running: boolean;
+  rows: string;
+}
+
 export interface File {
   warning?: string;
   name: string;
@@ -186,6 +195,15 @@ export const Workbench = {
     return call("Workbench.DiskLimits");
   },
   /**
+   * ExportFullAs re-executes the last successful query, including its filter and
+   * sort, within its original workspace. Pagination is excluded. Source changes
+   * outside Bamboo are not transactional. The destination is created only after
+   * the bounded stream finishes successfully; existing files are never replaced.
+   */
+  exportFullAs(format: string): Promise<string> {
+    return call("Workbench.ExportFullAs", format);
+  },
+  /**
    * ExportPage saves the last successful page as typed JSON, keeping null distinct
    * from empty text and preserving numeric precision. It never re-runs the query.
    */
@@ -193,12 +211,16 @@ export const Workbench = {
     return call("Workbench.ExportPage");
   },
   /**
-   * ExportPageAs exports the last successful visible page as JSON or CSV.
-   * CSV prefixes formula-like text with an apostrophe; JSON preserves original values.
-   * NULL and empty text both become empty CSV fields.
+   * ExportPageAs exports the last successful visible page as JSON, JSONL, CSV or TSV.
+   * CSV/TSV prefix formula-like text with an apostrophe; JSON/JSONL preserve values.
+   * NULL and empty text both become empty delimited fields.
    */
   exportPageAs(format: string): Promise<string> {
     return call("Workbench.ExportPageAs", format);
+  },
+  /** GetExportProgress can be polled while a full export owns the operation gate. */
+  getExportProgress(): Promise<ExportProgress> {
+    return call("Workbench.GetExportProgress");
   },
   /** InitialFile returns the optional Parquet path supplied at startup. */
   initialFile(): Promise<string> {

@@ -121,6 +121,11 @@ beforeEach(() => {
     "Workbench.Query": (r: Request) => page(r.offset, r.offset < 200),
     "Workbench.ExportPage": () => "/local/page.json",
     "Workbench.ExportPageAs": (format: string) => `/local/page.${format}`,
+    "Workbench.ExportFullAs": (format: string) => `/local/result.${format}`,
+    "Workbench.GetExportProgress": () => ({
+      running: true,
+      rows: "9007199254740993",
+    }),
     "Workbench.Cancel": () => undefined,
   };
   bridge.call.mockImplementation(async (name: string, ...args: any[]) => {
@@ -747,6 +752,87 @@ describe("the shipped page through its generated IPC binding", () => {
     await click("export-json");
     expect($("notification").textContent).toBe("choose a new filename");
     expect($("grid").textContent).toBe(previous);
+  });
+  it("exports all formats with explicit complete-result scope and preserves the preview", async () => {
+    await open();
+    const previous = $("grid").textContent;
+    for (const format of ["json", "csv", "jsonl", "tsv"]) {
+      await click("export");
+      value("export-scope", "full");
+      await click("export-" + format);
+      expect(bridge.call).toHaveBeenCalledWith(
+        "Workbench.ExportFullAs",
+        format,
+      );
+      expect($("notification").textContent).toBe(
+        `Exported complete result to /local/result.${format}`,
+      );
+    }
+    expect($("grid").textContent).toBe(previous);
+    for (const format of ["jsonl", "tsv"]) {
+      await click("export");
+      value("export-scope", "page");
+      await click("export-" + format);
+      expect(bridge.call).toHaveBeenCalledWith(
+        "Workbench.ExportPageAs",
+        format,
+      );
+    }
+  });
+
+  it("shows exact export progress, cancels, and ignores late or failed progress replies", async () => {
+    await open();
+    let finish!: (path: string) => void;
+    responses["Workbench.ExportFullAs"] = () =>
+      new Promise<string>((resolve) => {
+        finish = resolve;
+      });
+    await click("export");
+    value("export-scope", "full");
+    $("export-jsonl").click();
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    expect($<HTMLButtonElement>("export").disabled).toBe(true);
+    const poll = vi
+      .mocked(window.setInterval)
+      .mock.calls.findLast(
+        ([, delay]) => delay === 500,
+      )![0] as () => Promise<void>;
+    await poll();
+    expect($("busy-text").textContent).toBe(
+      "Exporting… 9007199254740993 rows written",
+    );
+    $("cancel").click();
+    expect(bridge.call).toHaveBeenCalledWith("Workbench.Cancel");
+    responses["Workbench.GetExportProgress"] = () => {
+      throw new Error("status unavailable");
+    };
+    await poll();
+    expect($("notification").hidden).toBe(true);
+    responses["Workbench.GetExportProgress"] = () => ({
+      running: false,
+      rows: "0",
+    });
+    await poll();
+    let report!: (value: unknown) => void;
+    responses["Workbench.GetExportProgress"] = () =>
+      new Promise((resolve) => {
+        report = resolve;
+      });
+    const pending = poll();
+    await poll();
+    finish("");
+    await settled();
+    report({ running: true, rows: "123" });
+    await pending;
+    expect($("busy-text").textContent).toContain("9007199254740993");
+    expect($("notification").hidden).toBe(true);
+    responses["Workbench.ExportFullAs"] = () => {
+      throw new Error("export canceled");
+    };
+    await click("export");
+    await click("export-json");
+    expect($("notification").textContent).toBe("export canceled");
+    expect($<HTMLButtonElement>("export").disabled).toBe(false);
   });
 });
 

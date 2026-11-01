@@ -85,7 +85,7 @@ def smoke(
     frontend_url=None,
     launch_args=None,
     extra_env=None,
-    expected_checks=24,
+    expected_checks=29,
 ):
     """Run native desktop checks and validate the emitted IPC and layout report."""
     destination.mkdir(parents=True, exist_ok=True)

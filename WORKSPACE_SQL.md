@@ -21,7 +21,7 @@ The **Workspace tables** disclosure above the editor lists the active file and f
 
 Click a workspace name in the sidebar to return to its independent editor. Each workspace retains its own draft and last successful SQL across switches and restarts, separately from per-file queries. A blank editor waits for input; it does not automatically select or load a file. Closing the last file keeps an available workspace editor; the welcome screen appears when no documents or workspaces remain.
 
-Queries remain read-only. JOIN, UNION, CTEs, aggregation, result paging/filtering/sorting, cancellation, exact string/null values and page export use the existing path. File queries remain attached to their document; workspace queries are saved separately under the workspace. Opening a folder shows its workspace editor and retains any existing open documents.
+Queries remain read-only. JOIN, UNION, CTEs, aggregation, result paging/filtering/sorting, cancellation, exact string/null values and page/full-result export use the existing path. File queries remain attached to their document; workspace queries are saved separately under the workspace. Opening a folder shows its workspace editor and retains any existing open documents.
 
 ## Scope and resource behavior
 
@@ -40,3 +40,46 @@ Real DuckDB tests cover JOIN, UNION ALL, active-file aliases, quoted/Unicode and
 `npm run coverage` also executes `scripts/cross-file-query-smoke.js` through the native desktop and real IPC: JOIN of an unopened nested file, UNION, exact values, pagination, rejected traversal/malformed files, recovery and a second-process saved-query restore. It runs against both the instrumented binary and signed delivered app. Current measurements and raw results are in `artifacts/coverage/`; native picker/save/Finder gestures remain a separate manual check.
 
 `scripts/workspace-query-smoke.js` additionally verifies workspace-only JOIN/paging/export availability, switching from a file back to the workspace draft, closing the last file without losing the editor, and restoring a workspace draft/result in a second process with no document reopened.
+
+## Exporting results
+
+The export chooser offers **Current page** (the existing in-memory snapshot) or
+**Complete result**. Complete result re-executes the last successful SQL with its
+column projection, filter and sort in the original local or cloud workspace,
+without the preview offset/limit. An explicit SQL `LIMIT` remains part of that
+query. Editing SQL or a failed query never replaces the captured successful
+request. Opening another file or workspace clears export eligibility until a
+query succeeds. Sources can change outside Bamboo between preview and export;
+this is a captured query, not a transactional copy of the original source bytes.
+
+Complete exports stream rows through a native scalar sink into a private
+temporary file beside the destination. A private single-threaded query connection
+preserves row order; the driver receives only the sink's scalar aggregate, since
+its ordinary cursor would materialize the full native result. Sorts and joins can
+still require their own intermediate memory or spill space. The exported result
+does not accumulate in native result storage, the WebView or a Go slice.
+Schema and 64 KiB cell limits remain; each streamed row is limited to
+4 MiB of value text. Query memory, temporary disk and timeout settings still
+apply. The growing export file itself is not query spill and requires enough
+space on the destination volume. Progress reports rows written, without running
+an extra count query. Cancel interrupts the same operation and retains the preview.
+
+All four formats are available for both scopes:
+
+- **JSON:** an object with `columns` (name/type metadata), `rows` (arrays of
+  strings or null), `more` and `offset`. A complete export has `more: false`
+  and `offset: 0`. Strings preserve exact numeric, temporal and nested values.
+- **JSONL:** the first line is `{"columns":[...]}`; each subsequent line is
+  `{"row":[...]}` with the same exact string/null representation. The metadata
+  line remains for an empty result. Arrays preserve duplicate column positions.
+- **CSV / TSV:** a header followed by comma/tab-delimited records with standard
+  double-quote escaping, including multiline values. Formula-like text and
+  headers receive a leading apostrophe; typed numeric values remain unchanged.
+  NULL and empty text both become empty fields. Use JSON/JSONL for original values.
+
+Existing paths are never overwritten. Complete exports publish their final name
+only after the stream, buffered writes, sync and close succeed, using an exclusive
+hard link on the destination filesystem. Filesystems without hard-link support
+are rejected; choose another destination. Failures and cancellation remove the
+partial file, and cleanup errors are reported. A process crash may leave a hidden
+`.bamboo-export-partial-*` file, never a falsely complete destination file.

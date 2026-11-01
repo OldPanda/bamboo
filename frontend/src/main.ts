@@ -54,7 +54,7 @@ app.innerHTML = `
   </div>
 </aside>
 <main>
-  <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge" hidden></span><button id="export" title="Export the visible result page as JSON or CSV" aria-haspopup="dialog" aria-controls="export-dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m-5 5 5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg><span>Export</span></button></div></header>
+  <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge" hidden></span><button id="export" title="Export the current page or complete result" aria-haspopup="dialog" aria-controls="export-dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m-5 5 5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg><span>Export</span></button></div></header>
   <section id="welcome" class="welcome">
     <h1 id="welcome-title">Explore your data</h1>
     <div id="welcome-drop-zone" class="welcome-drop-zone" role="region" aria-labelledby="welcome-drop-title">
@@ -79,9 +79,13 @@ app.innerHTML = `
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Reading your file…</span><button id="cancel">Cancel</button></div>
 </main>
 <dialog id="export-dialog" class="connection-dialog" aria-labelledby="export-title" aria-describedby="export-description">
- <div class="connection-heading"><div><h2 id="export-title" tabindex="-1">Export data</h2><p id="export-description">Export the current preview page. Choose a format.</p></div><button id="export-dismiss" class="quiet" aria-label="Close export chooser">×</button></div>
+ <div class="connection-heading"><div><h2 id="export-title" tabindex="-1">Export data</h2><p id="export-description">Choose the result scope and format.</p></div><button id="export-dismiss" class="quiet" aria-label="Close export chooser">×</button></div>
+ <label for="export-scope">Export scope</label><select id="export-scope"><option value="page">Current page</option><option value="full">Complete result</option></select>
+ <p class="settings-help">Complete result re-runs the last successful query with its filter and sort. External source changes may affect the result.</p>
  <button id="export-json" class="source-option"><svg class="button-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M10 11H9a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1h1m4-6h1a1 1 0 0 1 1 1v1a1 1 0 0 0 1 1 1 1 0 0 0-1 1v1a1 1 0 0 1-1 1h-1"/></svg><span><strong>JSON</strong><small>Preserve column types, exact values and NULL.</small></span></button>
  <button id="export-csv" class="source-option"><svg class="button-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><rect x="7" y="11" width="10" height="7" rx=".5"/><path d="M7 14h10m-6-3v7"/></svg><span><strong>CSV</strong><small>Formula-like text gets a leading apostrophe. NULL and empty text export as empty fields. Use JSON for original values.</small></span></button>
+ <button id="export-jsonl" class="source-option"><span><strong>JSONL</strong><small>Column metadata on the first line, then one exact row per line.</small></span></button>
+ <button id="export-tsv" class="source-option"><span><strong>TSV</strong><small>Tab-separated values with the same spreadsheet protection as CSV.</small></span></button>
 </dialog>
 <dialog id="source-dialog" class="connection-dialog source-dialog" aria-labelledby="source-title">
  <div class="connection-heading"><div><h2 id="source-title">Open data</h2><p>Choose where your data lives.</p></div><button id="source-dismiss" class="quiet" aria-label="Close data source chooser">×</button></div>
@@ -2087,13 +2091,47 @@ $("export").onclick = () => {
 };
 $("export-dismiss").onclick = () => exportDialog.close();
 exportDialog.onclose = () => $("export").focus();
-for (const format of ["json", "csv"])
+for (const format of ["json", "csv", "jsonl", "tsv"])
   $("export-" + format).onclick = () => {
+    const full = $<HTMLSelectElement>("export-scope").value === "full";
     exportDialog.close();
     void task("Choose where to export…", async () => {
-      const path = await Workbench.exportPageAs(format);
-      if (path) notify("Exported visible page to {path}", false, { path });
-    });
+      let active = true;
+      let polling = false;
+      const timer = full
+        ? setInterval(async () => {
+            if (polling) return;
+            polling = true;
+            try {
+              const progress = await Workbench.getExportProgress();
+              if (active && progress.running)
+                setText($("busy-text"), "Exporting… {rows} rows written", {
+                  rows: progress.rows,
+                });
+            } catch {
+              // A failed status read does not cancel the independently running export.
+            } finally {
+              polling = false;
+            }
+          }, 500)
+        : undefined;
+      try {
+        const path = full
+          ? await Workbench.exportFullAs(format)
+          : await Workbench.exportPageAs(format);
+        if (path)
+          notify(
+            full
+              ? "Exported complete result to {path}"
+              : "Exported visible page to {path}",
+            false,
+            { path },
+          );
+      } finally {
+        active = false;
+        clearInterval(timer);
+      }
+    }).finally(() => $("export").focus());
   };
 document.addEventListener("keydown", (e) => {
   if (

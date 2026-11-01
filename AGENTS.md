@@ -156,6 +156,9 @@ npm run build
   `npm run test:perf -- --quick --runs 1`; run the full suite when relevant and
   resources permit. Clean generated data and distinguish simulated latency from
   actual cloud measurements. Do not infer a p95 from three samples.
+- A row cursor does not prove native streaming. Check the pinned driver's
+  execution path, and verify incremental output with a real source larger than
+  the memory budget and a late execution failure, not just a final row count.
 - Reproduce regressions before fixing them where practical. A test asserting that
   an exploit succeeds is an audit probe; the final regression must assert rejection
   and unchanged data. Do not weaken tests just to produce a green result.
