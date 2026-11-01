@@ -46,6 +46,52 @@ assert(
     !document.querySelector("#tab-data, #tab-sql"),
   "Explore Data shows query editor above preview on file open",
 );
+await click("analyze");
+$("profile-column").value = "city";
+await click("profile-run");
+let statistics = document.querySelectorAll(
+  "#profile-result table:first-child tbody tr",
+);
+assert(
+  statistics[0].lastChild.textContent === "240" &&
+    statistics[2].lastChild.textContent === "4",
+  "native column profile uses all 240 query rows",
+);
+$("profile-column").value = "note";
+await click("profile-run");
+statistics = document.querySelectorAll(
+  "#profile-result table:first-child tbody tr",
+);
+assert(
+  statistics[1].lastChild.textContent === "35" &&
+    statistics[2].lastChild.textContent === "1",
+  "native profile preserves NULL and distinct semantics",
+);
+$("pivot-group").value = "city";
+$("pivot-operation").value = "SUM";
+$("pivot-operation").dispatchEvent(new Event("change"));
+$("pivot-metric").value = "order_id";
+await click("pivot-run");
+const pivotRows = document.querySelectorAll("#pivot-result tbody tr");
+assert(
+  pivotRows.length === 4 &&
+    pivotRows[0].firstChild.textContent === "Copenhagen" &&
+    pivotRows[0].lastChild.textContent === "67320",
+  "native pivot matches the complete-query aggregate oracle",
+);
+await click("pivot-export");
+await click("export-json");
+assert(
+  $("analysis-status").textContent.includes("bamboo-pivot.json"),
+  "native pivot export writes its separate snapshot",
+);
+await click("analysis-dismiss");
+assert(
+  document.querySelectorAll("#grid tbody tr").length === 100 &&
+    document.querySelectorAll("#grid tbody tr:first-child td")[1]
+      .textContent === "1001",
+  "native analysis retains the original preview",
+);
 await click("next");
 assert(
   document.querySelector("#grid tbody tr td").textContent === "101",

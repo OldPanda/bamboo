@@ -55,7 +55,7 @@ app.innerHTML = `
   </div>
 </aside>
 <main>
-  <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><span class="local-badge" hidden></span><button id="export" title="Export the current page or complete result" aria-haspopup="dialog" aria-controls="export-dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m-5 5 5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg><span>Export</span></button></div></header>
+  <header><div class="breadcrumb"><span id="scope-name">File</span> <span>/</span> <strong id="breadcrumb">Welcome</strong></div><div class="header-actions"><button id="analyze" aria-haspopup="dialog" aria-controls="analysis-dialog">Analyze</button><span class="local-badge" hidden></span><button id="export" title="Export the current page or complete result" aria-haspopup="dialog" aria-controls="export-dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m-5 5 5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg><span>Export</span></button></div></header>
   <section id="welcome" class="welcome">
     <h1 id="welcome-title">Explore your data</h1>
     <div id="welcome-drop-zone" class="welcome-drop-zone" role="region" aria-labelledby="welcome-drop-title">
@@ -80,6 +80,12 @@ app.innerHTML = `
   <div id="notification" role="status" aria-live="polite" hidden></div>
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Reading your file…</span><button id="cancel">Cancel</button></div>
 </main>
+<dialog id="analysis-dialog" class="connection-dialog analysis-dialog" aria-labelledby="analysis-title">
+ <div class="connection-heading"><div><h2 id="analysis-title" tabindex="-1">Analyze query result</h2><p>Uses the complete last successful query, including its filter. Sources are read again. No sampling.</p></div><button id="analysis-dismiss" class="quiet" aria-label="Close analysis">×</button></div>
+ <section><h3>Column statistics</h3><div class="analysis-controls"><label for="profile-column">Column<select id="profile-column"></select></label><button id="profile-run">Profile column</button></div><p>Exact counts, NULLs, distinct values, minimum, maximum and the 20 most frequent values. Limited to 10,000 distinct values.</p><div id="profile-result"></div></section>
+ <section><h3>Pivot</h3><div class="analysis-controls"><label for="pivot-group">Group by<select id="pivot-group"></select></label><label for="pivot-operation">Aggregate<select id="pivot-operation"><option>COUNT</option><option>SUM</option><option>AVG</option><option>MIN</option><option>MAX</option></select></label><label for="pivot-metric">Metric<select id="pivot-metric"></select></label><button id="pivot-run">Build pivot</button></div><p>COUNT counts rows. Other aggregates use the selected metric and DuckDB types. At most 1,000 groups and 4 MiB; larger results require a filter.</p><div id="pivot-result"></div><button id="pivot-export" hidden>Export pivot</button></section>
+ <p id="analysis-status" role="status"></p><button id="analysis-cancel" hidden>Cancel operation</button>
+</dialog>
 <dialog id="text-dialog" class="connection-dialog" aria-labelledby="text-title">
  <form id="text-form">
   <div class="connection-heading"><h2 id="text-title" tabindex="-1">CSV / TSV reading options</h2><button id="text-dismiss" type="button" class="quiet" aria-label="Close reading options">×</button></div>
@@ -93,8 +99,8 @@ app.innerHTML = `
 </dialog>
 <dialog id="export-dialog" class="connection-dialog" aria-labelledby="export-title" aria-describedby="export-description">
  <div class="connection-heading"><div><h2 id="export-title" tabindex="-1">Export data</h2><p id="export-description">Choose the result scope and format.</p></div><button id="export-dismiss" class="quiet" aria-label="Close export chooser">×</button></div>
- <label for="export-scope">Export scope</label><select id="export-scope"><option value="page">Current page</option><option value="full">Complete result</option></select>
- <p class="settings-help">Complete result re-runs the last successful query with its filter and sort. External source changes may affect the result.</p>
+ <label id="export-scope-label" for="export-scope">Export scope</label><select id="export-scope"><option value="page">Current page</option><option value="full">Complete result</option></select>
+ <p id="export-reexecute" class="settings-help">Complete result re-runs the last successful query with its filter and sort. External source changes may affect the result.</p>
  <button id="export-json" class="source-option"><svg class="button-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M10 11H9a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1h1m4-6h1a1 1 0 0 1 1 1v1a1 1 0 0 0 1 1 1 1 0 0 0-1 1v1a1 1 0 0 1-1 1h-1"/></svg><span><strong>JSON</strong><small>Preserve column types, exact values and NULL.</small></span></button>
  <button id="export-csv" class="source-option"><svg class="button-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><rect x="7" y="11" width="10" height="7" rx=".5"/><path d="M7 14h10m-6-3v7"/></svg><span><strong>CSV</strong><small>Formula-like text gets a leading apostrophe. NULL and empty text export as empty fields. Use JSON for original values.</small></span></button>
  <button id="export-jsonl" class="source-option"><span><strong>JSONL</strong><small>Column metadata on the first line, then one exact row per line.</small></span></button>
@@ -1826,6 +1832,7 @@ function notify(
 function controls() {
   pruneTranslations();
   $("settings-cancel").hidden = !busy;
+  $("analysis-cancel").hidden = !busy;
   document
     .querySelectorAll<
       | HTMLButtonElement
@@ -1844,7 +1851,8 @@ function controls() {
           busy &&
           n.id !== "cancel" &&
           n.id !== "r2-cancel" &&
-          n.id !== "settings-cancel";
+          n.id !== "settings-cancel" &&
+          n.id !== "analysis-cancel";
     });
   updateControls();
   $("previous").toggleAttribute(
@@ -1853,6 +1861,11 @@ function controls() {
   );
   $("next").toggleAttribute("disabled", busy || !result?.more);
   $("export").toggleAttribute("disabled", busy || !result);
+  $("analyze").toggleAttribute("disabled", busy || !result);
+  $("pivot-metric").toggleAttribute(
+    "disabled",
+    busy || $<HTMLSelectElement>("pivot-operation").value === "COUNT",
+  );
   if (!result) $("page-size-note").hidden = true;
   $("run").toggleAttribute(
     "disabled",
@@ -2197,17 +2210,153 @@ $("page-size").onchange = () =>
       limit: Number($<HTMLSelectElement>("page-size").value),
     }),
   );
-const exportDialog = $<HTMLDialogElement>("export-dialog");
-$("export").onclick = () => {
+const analysisDialog = $<HTMLDialogElement>("analysis-dialog");
+function analysisTable(headers: string[], rows: (string | null)[][]) {
+  const scroll = el("div", "", "analysis-table");
+  scroll.tabIndex = 0;
+  setAttribute(scroll, "aria-label", "Analysis results");
+  const table = document.createElement("table");
+  const head = document.createElement("thead"),
+    body = document.createElement("tbody"),
+    heading = document.createElement("tr");
+  for (const header of headers) heading.append(el("th", header));
+  head.append(heading);
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    for (const value of row)
+      tr.append(
+        el(
+          "td",
+          value === null ? "NULL" : value === "" ? t("empty") : value,
+          value === null ? "null" : "",
+        ),
+      );
+    body.append(tr);
+  }
+  table.append(head, body);
+  scroll.append(table);
+  return scroll;
+}
+$("analyze").onclick = () => {
   if (busy || !result) return;
+  for (const id of ["profile-column", "pivot-group", "pivot-metric"]) {
+    const select = $<HTMLSelectElement>(id);
+    select.replaceChildren(
+      ...result.columns.map((column) =>
+        Object.assign(el("option", column.name), { value: column.name }),
+      ),
+    );
+  }
+  $("profile-result").replaceChildren();
+  $("pivot-result").replaceChildren();
+  $("pivot-export").hidden = true;
+  rawText($("analysis-status"), "");
+  controls();
+  analysisDialog.showModal();
+  $("analysis-title").focus();
+};
+$("analysis-dismiss").onclick = () => analysisDialog.close();
+analysisDialog.onclose = () => $("analyze").focus();
+analysisDialog.oncancel = (event) => {
+  if (busy) {
+    event.preventDefault();
+    void Workbench.cancel();
+  }
+};
+$("analysis-cancel").onclick = () => void Workbench.cancel();
+$("pivot-operation").onchange = controls;
+async function analysisTask(
+  label: string,
+  focus: string,
+  run: () => Promise<void>,
+) {
+  if (busy) return;
+  setText($("analysis-status"), label);
+  await task(label, async () => {
+    try {
+      await run();
+      setText($("analysis-status"), "Complete result analyzed");
+    } catch (error) {
+      rawText($("analysis-status"), t(String(error)));
+      throw error;
+    }
+  });
+  if (analysisDialog.open) $(focus).focus({ preventScroll: true });
+}
+$("profile-run").onclick = () =>
+  void analysisTask("Profiling column…", "profile-run", async () => {
+    const profile = await Workbench.profileColumn(
+      $<HTMLSelectElement>("profile-column").value,
+    );
+    if (!profile) throw new Error("No profile returned");
+    const stats = analysisTable(
+      [t("Statistic"), t("Value")],
+      [
+        [t("Total rows"), profile.total],
+        [t("NULL rows"), profile.nulls],
+        [t("Distinct non-NULL values"), profile.distinct],
+        [t("Minimum"), profile.min],
+        [t("Maximum"), profile.max],
+      ],
+    );
+    const frequencies = analysisTable(
+      [t("Value"), t("Count")],
+      profile.values.map((value) => [value.value, value.count]),
+    );
+    $("profile-result").replaceChildren(
+      stats,
+      ui("h4", "Most frequent values"),
+      frequencies,
+    );
+  });
+$("pivot-run").onclick = () =>
+  void analysisTask("Building pivot…", "pivot-run", async () => {
+    const pivot = await Workbench.pivot({
+      group: $<HTMLSelectElement>("pivot-group").value,
+      operation: $<HTMLSelectElement>("pivot-operation").value,
+      metric: $<HTMLSelectElement>("pivot-metric").value,
+    });
+    if (!pivot) throw new Error("No pivot returned");
+    $("pivot-result").replaceChildren(
+      ui("p", "{groups} groups · complete result", "", {
+        groups: pivot.rows.length,
+      }),
+      analysisTable(
+        [
+          $<HTMLSelectElement>("pivot-group").value,
+          $<HTMLSelectElement>("pivot-operation").value,
+        ],
+        pivot.rows,
+      ),
+    );
+    $("pivot-export").hidden = false;
+  });
+const exportDialog = $<HTMLDialogElement>("export-dialog");
+let exportTarget: "query" | "pivot" = "query";
+function showExport(target: "query" | "pivot") {
+  if (busy || !result) return;
+  exportTarget = target;
+  for (const id of ["export-scope-label", "export-scope", "export-reexecute"])
+    $(id).hidden = target === "pivot";
+  setText(
+    $("export-description"),
+    target === "pivot"
+      ? "Export the complete pivot snapshot."
+      : "Choose the result scope and format.",
+  );
   exportDialog.showModal();
   $("export-title").focus();
-};
+}
+$("export").onclick = () => showExport("query");
+$("pivot-export").onclick = () => showExport("pivot");
 $("export-dismiss").onclick = () => exportDialog.close();
-exportDialog.onclose = () => $("export").focus();
+exportDialog.onclose = () =>
+  $(exportTarget === "pivot" ? "pivot-export" : "export").focus();
 for (const format of ["json", "csv", "jsonl", "tsv"])
   $("export-" + format).onclick = () => {
-    const full = $<HTMLSelectElement>("export-scope").value === "full";
+    const pivot = exportTarget === "pivot";
+    const full =
+      !pivot && $<HTMLSelectElement>("export-scope").value === "full";
     exportDialog.close();
     void task("Choose where to export…", async () => {
       let active = true;
@@ -2230,27 +2379,37 @@ for (const format of ["json", "csv", "jsonl", "tsv"])
           }, 500)
         : undefined;
       try {
-        const path = full
-          ? await Workbench.exportFullAs(format)
-          : await Workbench.exportPageAs(format);
+        const path = pivot
+          ? await Workbench.exportPivotAs(format)
+          : full
+            ? await Workbench.exportFullAs(format)
+            : await Workbench.exportPageAs(format);
         if (path)
           notify(
-            full
-              ? "Exported complete result to {path}"
-              : "Exported visible page to {path}",
+            pivot
+              ? "Exported pivot to {path}"
+              : full
+                ? "Exported complete result to {path}"
+                : "Exported visible page to {path}",
             false,
             { path },
           );
+        if (pivot && path)
+          setText($("analysis-status"), "Exported pivot to {path}", { path });
+      } catch (error) {
+        if (pivot) rawText($("analysis-status"), t(String(error)));
+        throw error;
       } finally {
         active = false;
         clearInterval(timer);
       }
-    }).finally(() => $("export").focus());
+    }).finally(() => $(pivot ? "pivot-export" : "export").focus());
   };
 document.addEventListener("keydown", (e) => {
   if (
     (r2Dialog.open ||
       textDialog.open ||
+      analysisDialog.open ||
       settingsDialog.open ||
       connectionPicker.open ||
       exportDialog.open) &&
@@ -2313,6 +2472,7 @@ const acceptsDrop = () =>
   !busy &&
   !r2Dialog.open &&
   !textDialog.open &&
+  !analysisDialog.open &&
   !settingsDialog.open &&
   !connectionPicker.open &&
   !exportDialog.open;

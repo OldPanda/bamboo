@@ -88,6 +88,7 @@ func (w *Workbench) OpenWorkspaceFile(ctx context.Context, root, relative string
 	}
 	w.mu.Lock()
 	w.last = nil
+	w.pivot = nil
 	w.mu.Unlock()
 	r := &WorkspaceFile{File: f, Query: q}
 	if err = w.folders.Select(root, relative); err != nil {
@@ -142,6 +143,7 @@ func (w *Workbench) ClearPreview() error {
 	w.engine.Close()
 	w.mu.Lock()
 	w.last = nil
+	w.pivot = nil
 	w.mu.Unlock()
 	return nil
 }
@@ -156,6 +158,7 @@ func (w *Workbench) OpenWorkspaceQuery(root string) (workspace.Query, error) {
 	if err == nil {
 		w.mu.Lock()
 		w.last = nil
+		w.pivot = nil
 		w.mu.Unlock()
 	}
 	return q, err
@@ -190,6 +193,7 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 		if err == nil {
 			w.mu.Lock()
 			w.last = result
+			w.pivot = nil
 			w.lastRequest = r
 			w.lastRoot = root
 			w.mu.Unlock()
@@ -203,6 +207,7 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 	if err == nil {
 		w.mu.Lock()
 		w.last = result
+		w.pivot = nil
 		w.lastRequest = r
 		w.lastRoot = root
 		w.mu.Unlock()

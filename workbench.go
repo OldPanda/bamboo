@@ -36,6 +36,7 @@ type Workbench struct {
 	mu            sync.Mutex
 	opMu          sync.Mutex
 	last          *engine.Result
+	pivot         *engine.Result
 	lastRequest   engine.Request
 	lastRoot      string
 	exportRows    int64
@@ -67,6 +68,7 @@ func (w *Workbench) OpenPath(ctx context.Context, path string) (*engine.File, er
 	if err == nil {
 		w.mu.Lock()
 		w.last = nil
+		w.pivot = nil
 		w.mu.Unlock()
 	}
 	if err == nil && w.folders != nil {
@@ -87,6 +89,7 @@ func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result
 	if err == nil {
 		w.mu.Lock()
 		w.last = result
+		w.pivot = nil
 		w.lastRequest = r
 		w.lastRoot = ""
 		w.mu.Unlock()

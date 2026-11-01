@@ -3630,3 +3630,114 @@ it("keeps defaults when display preferences cannot be read", async () => {
   expect($("notification").textContent).toContain("display unavailable");
   expect($<HTMLInputElement>("display-zoom").value).toBe("100");
 });
+
+it("profiles complete results and exports a separate pivot snapshot without changing the main table", async () => {
+  responses["Workbench.ProfileColumn"] = () => ({
+    total: "9007199254740993",
+    nulls: "2",
+    distinct: "3",
+    min: "",
+    max: "<img src=x>",
+    values: [
+      { value: null, count: "2" },
+      { value: "", count: "1" },
+      { value: "<script>", count: "1" },
+    ],
+  });
+  responses["Workbench.Pivot"] = () => ({
+    columns: [
+      { name: "text", type: "VARCHAR" },
+      { name: "SUM(id)", type: "HUGEINT" },
+    ],
+    rows: [
+      ["<img src=x>", "9007199254740993"],
+      [null, null],
+    ],
+    offset: 0,
+    more: false,
+  });
+  responses["Workbench.ExportPivotAs"] = (format: string) =>
+    `/local/pivot.${format}`;
+  await open();
+  const original = $("grid").textContent;
+  await click("analyze");
+  expect($<HTMLDialogElement>("analysis-dialog").open).toBe(true);
+  expect($<HTMLSelectElement>("profile-column").options).toHaveLength(3);
+  await click("profile-run");
+  expect(bridge.call).toHaveBeenCalledWith("Workbench.ProfileColumn", "id");
+  expect($("profile-result").textContent).toContain("9007199254740993");
+  expect($("profile-result").querySelector("img,script")).toBeNull();
+  expect($("profile-result").textContent).toContain("NULL");
+  expect(document.activeElement).toBe($("profile-run"));
+  value("pivot-group", "text");
+  value("pivot-operation", "SUM");
+  $("pivot-operation").dispatchEvent(new Event("change"));
+  expect($<HTMLSelectElement>("pivot-metric").disabled).toBe(false);
+  await click("pivot-run");
+  expect(bridge.call).toHaveBeenCalledWith("Workbench.Pivot", {
+    group: "text",
+    operation: "SUM",
+    metric: "id",
+  });
+  expect($("pivot-result").textContent).toContain("9007199254740993");
+  expect($("pivot-result").querySelector("img")).toBeNull();
+  expect($("grid").textContent).toBe(original);
+  for (const format of ["json", "jsonl", "csv", "tsv"]) {
+    await click("pivot-export");
+    expect($("export-scope").hidden).toBe(true);
+    await click("export-" + format);
+    expect(bridge.call).toHaveBeenCalledWith("Workbench.ExportPivotAs", format);
+    expect($("analysis-status").textContent).toContain(
+      `/local/pivot.${format}`,
+    );
+    expect(document.activeElement).toBe($("pivot-export"));
+  }
+  responses["Workbench.ExportPivotAs"] = () => {
+    throw new Error("destination full");
+  };
+  await click("pivot-export");
+  await click("export-json");
+  expect($("analysis-status").textContent).toContain("destination full");
+  await click("analysis-dismiss");
+  expect(document.activeElement).toBe($("analyze"));
+  await click("export");
+  expect($("export-scope").hidden).toBe(false);
+  await click("export-json");
+  expect(bridge.call).toHaveBeenCalledWith("Workbench.ExportPageAs", "json");
+});
+
+it("cancels analysis and recovers locally without losing the workspace", async () => {
+  await open();
+  let reject!: (error: Error) => void;
+  responses["Workbench.ProfileColumn"] = () =>
+    new Promise((_resolve, fail) => {
+      reject = fail;
+    });
+  responses["Workbench.Cancel"] = () => {
+    reject(new Error("query canceled"));
+  };
+  await click("analyze");
+  $("profile-run").click();
+  await vi.waitFor(() => expect($("analysis-cancel").hidden).toBe(false));
+  const event = new Event("cancel", { cancelable: true });
+  $("analysis-dialog").dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+  await settled();
+  expect($("analysis-status").textContent).toContain("query canceled");
+  responses["Workbench.ProfileColumn"] = () => null;
+  await click("profile-run");
+  expect($("analysis-status").textContent).toContain("No profile returned");
+  responses["Workbench.Pivot"] = () => null;
+  await click("pivot-run");
+  expect($("analysis-status").textContent).toContain("No pivot returned");
+  expect($("pivot-export").hidden).toBe(true);
+  responses["Workbench.Cancel"] = () => undefined;
+  $("analysis-cancel").click();
+  expect(key("Enter", { ctrlKey: true }).defaultPrevented).toBe(true);
+  expect(key("o", { ctrlKey: true }).defaultPrevented).toBe(true);
+  const close = new Event("cancel", { cancelable: true });
+  $("analysis-dialog").dispatchEvent(close);
+  expect(close.defaultPrevented).toBe(false);
+  await click("analysis-dismiss");
+  expect($("grid").querySelectorAll("tbody tr")).toHaveLength(2);
+});

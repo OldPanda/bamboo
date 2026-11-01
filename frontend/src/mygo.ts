@@ -9,6 +9,20 @@ export interface Column {
   type: string;
 }
 
+/**
+ * ColumnProfile is an exact full-query profile, never a sample or page summary.
+ * Distinct excludes NULL. Values holds at most the 20 most frequent groups,
+ * including NULL; equal-frequency groups retain the database's value order.
+ */
+export interface ColumnProfile {
+  total: string;
+  nulls: string;
+  distinct: string;
+  min: string | null;
+  max: string | null;
+  values: ValueCount[];
+}
+
 export interface Config {
   provider?: string;
   region?: string;
@@ -99,6 +113,12 @@ export interface Page {
   more: boolean;
 }
 
+export interface PivotSpec {
+  group: string;
+  operation: string;
+  metric: string;
+}
+
 export interface Query {
   draft: string;
   applied: string;
@@ -154,6 +174,12 @@ export interface TextOptions {
   delimiter: string;
   header: boolean;
   inferTypes: boolean;
+}
+
+/** ValueCount is one exact value and its full-query frequency. NULL has a nil Value. */
+export interface ValueCount {
+  value: string | null;
+  count: string;
 }
 
 /** WorkspaceFile combines file metadata, restored SQL and any persistence warning. */
@@ -241,6 +267,13 @@ export const Workbench = {
   exportPageAs(format: string): Promise<string> {
     return call("Workbench.ExportPageAs", format);
   },
+  /**
+   * ExportPivotAs saves the selected complete pivot snapshot without re-executing
+   * source queries or replacing the normal preview's export target.
+   */
+  exportPivotAs(format: string): Promise<string> {
+    return call("Workbench.ExportPivotAs", format);
+  },
   /** GetExportProgress can be polled while a full export owns the operation gate. */
   getExportProgress(): Promise<ExportProgress> {
     return call("Workbench.GetExportProgress");
@@ -284,6 +317,22 @@ export const Workbench = {
   /** OpenWorkspaceQuery restores the independent folder query and remembers this view. */
   openWorkspaceQuery(root: string): Promise<Query> {
     return call("Workbench.OpenWorkspaceQuery", root);
+  },
+  /**
+   * Pivot computes all groups of an explicit aggregate over the captured query.
+   * It rejects more than 1,000 groups or 4 MiB of values before exposing a result.
+   * The normal preview/export remains intact; pivot export owns a separate snapshot.
+   */
+  pivot(spec: PivotSpec): Promise<Result | null> {
+    return call("Workbench.Pivot", spec);
+  },
+  /**
+   * ProfileColumn explicitly reruns the captured successful query and its bound
+   * filter, within the same scope. More than 10,000 distinct non-NULL values fails
+   * instead of returning a partial profile. Query budgets and cancellation apply.
+   */
+  profileColumn(column: string): Promise<ColumnProfile | null> {
+    return call("Workbench.ProfileColumn", column);
   },
   /** Query runs a preview and retains the successful page for export. */
   query(r: Request): Promise<Result | null> {

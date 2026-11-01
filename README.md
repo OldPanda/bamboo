@@ -21,6 +21,7 @@ Query with DuckDB, without importing your data into a database.
 
 - **Explore files.** Preview Parquet and local CSV/TSV, inspect schemas, sort and filter columns.
 - **Query across files.** Write SQL with inline completion, joins and aggregations.
+- **Analyze and export.** Profile columns, build pivots, and export complete results or the current page.
 - **Connect your storage.** Open local folders, S3 or R2 workspaces; cloud credentials stay in macOS Keychain.
 - **Pick up where you left off.** Keep multiple files open and restore saved query drafts.
 
@@ -47,7 +48,7 @@ The build downloads Go 1.27.3 as needed. Local builds are ad-hoc signed, not not
 
 ## Documentation
 
-[Cross-file SQL](WORKSPACE_SQL.md) · [CSV / TSV](TEXT_FILES.md) · [Amazon S3](S3_WORKSPACES.md) · [Cloudflare R2](R2_WORKSPACES.md) · [Development and tests](CONTRIBUTING.md)
+[Cross-file SQL](WORKSPACE_SQL.md) · [CSV / TSV](TEXT_FILES.md) · [Analysis](ANALYSIS.md) · [Amazon S3](S3_WORKSPACES.md) · [Cloudflare R2](R2_WORKSPACES.md) · [Development and tests](CONTRIBUTING.md)
 
 ## License
 

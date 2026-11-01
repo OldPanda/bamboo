@@ -42,6 +42,7 @@ func (w *Workbench) openRemoteFile(ctx context.Context, root, relative string) (
 	}
 	w.mu.Lock()
 	w.last = nil
+	w.pivot = nil
 	w.mu.Unlock()
 	r := &WorkspaceFile{File: f, Query: q}
 	if w.folders != nil {

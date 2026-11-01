@@ -3,6 +3,54 @@ export type Language = "en" | "zh-CN";
 type Params = Record<string, string | number>;
 /** App-owned Chinese translations keyed by their English UI text. */
 export const chinese: Record<string, string> = {
+  Analyze: "分析",
+  "Analyze query result": "分析查询结果",
+  "Uses the complete last successful query, including its filter. Sources are read again. No sampling.":
+    "基于最后一次成功查询的完整结果（含筛选），重新读取数据源，不使用采样。",
+  "Close analysis": "关闭分析",
+  "Column statistics": "列统计",
+  "Profile column": "统计此列",
+  "Exact counts, NULLs, distinct values, minimum, maximum and the 20 most frequent values. Limited to 10,000 distinct values.":
+    "精确统计总数、NULL、不同值、最小值、最大值和频次最高的 20 个值，最多支持 10,000 个不同值。",
+  Pivot: "透视分析",
+  "Group by": "分组列",
+  Aggregate: "聚合方式",
+  Metric: "指标列",
+  "Build pivot": "生成透视结果",
+  "COUNT counts rows. Other aggregates use the selected metric and DuckDB types. At most 1,000 groups and 4 MiB; larger results require a filter.":
+    "COUNT 统计行数，其他聚合使用所选指标和 DuckDB 类型。最多 1,000 个分组及 4 MiB，更大结果需要先筛选。",
+  "Export pivot": "导出透视结果",
+  "Analysis results": "分析结果",
+  "Complete result analyzed": "已完成完整结果分析",
+  "Profiling column…": "正在统计列…",
+  "Building pivot…": "正在生成透视结果…",
+  Statistic: "统计项",
+  Value: "值",
+  "Total rows": "总行数",
+  "NULL rows": "NULL 行数",
+  "Distinct non-NULL values": "不同非 NULL 值",
+  Minimum: "最小值",
+  Maximum: "最大值",
+  Count: "数量",
+  "Most frequent values": "频次最高的值",
+  "{groups} groups · complete result": "{groups} 个分组 · 完整结果",
+  "Export the complete pivot snapshot.": "导出完整透视结果快照。",
+  "Exported pivot to {path}": "透视结果已导出到 {path}",
+  "No profile returned": "未返回列统计结果",
+  "No pivot returned": "未返回透视结果",
+  "run a query before analyzing": "请先成功运行查询再进行分析",
+  "build a pivot before exporting": "请先生成透视结果再导出",
+  "choose a group column from the successful query": "请选择成功查询中的分组列",
+  "choose a metric column from the successful query":
+    "请选择成功查询中的指标列",
+  "choose COUNT, SUM, AVG, MIN or MAX": "请选择 COUNT、SUM、AVG、MIN 或 MAX",
+  "profile exceeds 10,000 distinct values; filter the query first":
+    "列统计超过 10,000 个不同值，请先筛选查询",
+  "pivot exceeds 1,000 groups; filter the query first":
+    "透视结果超过 1,000 个分组，请先筛选查询",
+  "pivot exceeds 4 MiB; filter the query first":
+    "透视结果超过 4 MiB，请先筛选查询",
+
   "Text and zoom": "字号与缩放",
   "App zoom scales the whole interface. Data text size changes tables and the SQL editor.":
     "应用缩放调整整个界面；数据字号调整表格和 SQL 编辑器。",

@@ -57,6 +57,7 @@ type File struct {
 
 // Request specifies a read-only query, page, sort and optional text filter.
 type Request struct {
+	aggregation  *aggregation
 	SQL          string `json:"sql"`
 	Offset       int    `json:"offset"`
 	Limit        int    `json:"limit"`
@@ -226,8 +227,8 @@ func (e *Engine) OpenScoped(parent context.Context, path string, resolve func(st
 	ok = true
 	return f, nil
 }
-func describe(ctx context.Context, db *database, q string) ([]Column, error) {
-	rows, err := db.QueryContext(ctx, "DESCRIBE SELECT * FROM ("+q+"\n) AS bamboo_schema")
+func describe(ctx context.Context, db *database, q string, args ...any) ([]Column, error) {
+	rows, err := db.QueryContext(ctx, "DESCRIBE SELECT * FROM ("+q+"\n) AS bamboo_schema", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -348,6 +349,19 @@ func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output 
 	}
 	if (r.Sort != "" && !names[r.Sort]) || (r.FilterColumn != "" && !names[r.FilterColumn]) {
 		return nil, errors.New("unknown sort or filter column")
+	}
+	if r.aggregation != nil {
+		q, err = r.aggregation.query(q, cols)
+		if err != nil {
+			return nil, err
+		}
+		if err = validateSelect(ctx, db, q); err != nil {
+			return nil, err
+		}
+		cols, err = describe(ctx, db, q, args...)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// DuckDB formats values before IPC: decimals, nested types and nanosecond
 	// timestamps never round-trip through float64 or JavaScript numbers.
