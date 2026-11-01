@@ -24,3 +24,10 @@ See [README.md](README.md) for Cloudflare Pages and verification details.
 Browser readiness polls must tolerate an absent document element during navigation
 and distinguish the new page from the previous document before testing controls.
 Keep a regression for transient empty/loading documents when changing these waits.
+
+The performance table's four size labels are fixed, in this order: `128MB`,
+`512MB`, `1GB`, `2GB` (no spaces). Preserve them across releases, translations,
+refactors and benchmark updates unless the user explicitly requests a change.
+These are display labels; keep the exact byte sizes and original measurements in
+`performance-provenance.json` unchanged. The localized build and standalone
+preview regression in `tests/build.test.mjs` protects this contract.

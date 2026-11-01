@@ -160,6 +160,27 @@ test("all deployed asset names match their bytes and HTML references resolve", a
     assert((await readFile(join(f.site, ref))).length > 0, ref);
 });
 
+test("benchmark size labels stay fixed in both locales and the standalone preview", async (t) => {
+  const f = await fixture(t);
+  success(f.build("--standalone"));
+  for (const path of [
+    join(f.site, "index.html"),
+    join(f.site, "en/index.html"),
+    join(f.site, "zh/index.html"),
+    join(f.root, "build/bamboo-website-preview.html"),
+  ]) {
+    const html = await readFile(path, "utf8");
+    const table = html.match(
+      /<table\b[^>]*class="performance-table"[\s\S]*?<\/table>/,
+    )?.[0];
+    assert(table, `Missing performance table: ${path}`);
+    const sizes = [...table.matchAll(/<th scope="row">([^<]+)<\/th>/g)].map(
+      (match) => match[1],
+    );
+    assert.deepEqual(sizes, ["128MB", "512MB", "1GB", "2GB"], path);
+  }
+});
+
 test("identical sources produce identical deployment bytes", async (t) => {
   const f = await fixture(t);
   success(f.build());
