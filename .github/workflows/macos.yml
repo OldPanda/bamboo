@@ -53,6 +53,18 @@ jobs:
           git diff --exit-code -- frontend/src/mygo.ts
       - name: Native updater integration (no windows or network checks)
         run: python3 scripts/native-updater-smoke.py
+      - name: Verify candidate DMG and installed startup
+        run: |
+          npm run package:dmg
+          BAMBOO_VERSION="$(python3 scripts/release_version.py)" python3 scripts/verify-macos-package.py --launch
+      - name: Upload verified macOS candidate
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: macos-candidate-${{ github.run_attempt }}
+          path: build/releases/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
       - name: Lint all maintained languages
         run: npm run lint
       - name: Test coverage gate failure handling
@@ -96,6 +108,7 @@ jobs:
             artifacts/visual/
             artifacts/website/
             artifacts/performance/ci/
+            artifacts/macos-package-smoke/
       - name: Remove isolated CI Keychain
         if: always()
         run: bash scripts/ci-keychain.sh delete

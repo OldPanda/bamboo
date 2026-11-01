@@ -34,6 +34,8 @@ def main():
             "-i" if write else "--strict",
             "scripts/package-icon.swift",
             "scripts/update-key.swift",
+            "scripts/verify-update-signature.swift",
+            "scripts/package-window.swift",
         ],
     ]
     if not write:

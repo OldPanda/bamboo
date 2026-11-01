@@ -43,3 +43,22 @@ python3 scripts/visual/general-compact/visual-check.py
 Each check creates its own directory under `artifacts/visual/` for PNG and JSON
 results. It finds the project and its capture helper relative to the script, so
 no original developer home directory or pre-existing artifact directory is needed.
+
+## Release package evidence
+
+PR CI builds native candidate packages and verifies their installed production
+startup on disposable runners. The release workflow repeats these checks and
+then downloads the actual hosted packages for all three platforms. macOS checks
+also validate the DMG and signed appcast with the committed public key, inspect
+the mounted bundle read-only, and compare the configured latest-feed bytes.
+Native launch checks never run on a developer's desktop; local inspection is:
+
+```sh
+BAMBOO_VERSION=0.2.0 python3 scripts/verify-macos-package.py
+```
+
+This verifies an already-built DMG without opening the app. `--feed` additionally
+requires the real signed appcast; `--launch` is restricted to disposable CI.
+Reports live in `artifacts/macos-package-smoke/`. Archive signatures, installed
+startup, native feature smoke and an actual updater install/relaunch are separate
+evidence; these checks do not claim a cross-version Sparkle update was performed.

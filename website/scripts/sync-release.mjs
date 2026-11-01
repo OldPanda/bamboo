@@ -148,6 +148,9 @@ export async function releaseForRun(api, runID) {
     "Release quality gate / PR quality gate",
     "Build macOS DMG",
     "Publish GitHub Release",
+    ...(compareTags(run.head_branch, "v0.2.0") >= 0
+      ? ["Verify hosted macOS installer"]
+      : []),
     ...[
       "Build Windows and Linux packages",
       "Verify hosted Windows and Linux installers",
