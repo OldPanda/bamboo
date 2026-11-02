@@ -69,6 +69,11 @@ class QualityGateTests(unittest.TestCase):
         self.assertIn("startsWith(github.ref, 'refs/tags/v')", publish)
         desktop = workflow.split("  desktop:\n", 1)[1].split("  build:\n", 1)[0]
         self.assertNotIn("needs: quality", desktop)
+        download = workflow.split("      - name: Download verified candidate", 1)[
+            1
+        ].split("      - name: Build app", 1)[0]
+        self.assertNotIn("!inputs.rebuild", download)
+        self.assertIn("inputs.rebuild && '" + "0" * 64 + "'", download)
 
 
 if __name__ == "__main__":

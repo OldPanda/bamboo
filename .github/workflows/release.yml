@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       rebuild:
-        description: Exercise clean rebuild fallback instead of candidate reuse (never publish)
+        description: Exercise digest-mismatch rebuild fallback (never publish)
         type: boolean
         default: false
 
@@ -65,7 +65,7 @@ jobs:
           version=$(python3 scripts/release_version.py --github-output "$GITHUB_OUTPUT")
           echo "BAMBOO_VERSION=$version" >> "$GITHUB_ENV"
       - name: Download verified candidate by immutable ID
-        if: needs.quality.outputs.candidate-id != '' && !inputs.rebuild
+        if: needs.quality.outputs.candidate-id != ''
         id: download
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -76,7 +76,7 @@ jobs:
       - name: Verify candidate identity or select rebuild
         id: candidate
         env:
-          CANDIDATE_SHA256: ${{ steps.download.outcome == 'success' && needs.quality.outputs.candidate-sha256 || '' }}
+          CANDIDATE_SHA256: ${{ inputs.rebuild && '0000000000000000000000000000000000000000000000000000000000000000' || (steps.download.outcome == 'success' && needs.quality.outputs.candidate-sha256 || '') }}
         run: python3 scripts/macos_candidate.py restore
       - name: Build app and installer when candidate cannot be reused
         if: steps.candidate.outputs.reused != 'true'

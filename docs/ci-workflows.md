@@ -71,7 +71,8 @@ and SHA-256 sidecars before publication. Hosted-asset checks still download and
 install the real public bytes on fresh native runners after publication.
 
 A manual Release dispatch builds a candidate at the selected branch's package
-version and exercises transfer; `rebuild=true` deliberately exercises fallback.
+version and exercises transfer; `rebuild=true` deliberately supplies a mismatched expected digest after
+downloading the real candidate, exercising clean rebuild fallback.
 Neither manual mode reads the Sparkle signing secret, runs the publisher, creates
 a tag nor modifies a hosted release. It is not a substitute for PR-event checks
 or the next formal tag/signing/hosted-download acceptance.
