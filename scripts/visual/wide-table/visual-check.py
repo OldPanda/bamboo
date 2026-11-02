@@ -1,6 +1,7 @@
 """Verify complete wide tables, keyboard focus and selection in headless Chrome."""
 
 import http.server
+import json
 import subprocess
 import threading
 from pathlib import Path
@@ -80,6 +81,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 try:
+    captures = []
     for name, width, height, lang, dark, font, zoom in [
         ("wide-light", 1100, 800, "en", False, 12, 75),
         ("wide-dark", 1100, 800, "zh-CN", True, 20, 200),
@@ -95,7 +97,18 @@ try:
             str(height),
             "dark" if dark else "light",
         ]
-        subprocess.run(cmd, check=True, timeout=90)
+        captures.append(cmd[2:])
+    subprocess.run(
+        [
+            "node",
+            str(root / "scripts/visual/capture-runner.mjs"),
+            str(Path(__file__).with_name("visual-capture.mjs")),
+            json.dumps(captures),
+            "90",
+        ],
+        check=True,
+        timeout=90 * len(captures) + 10,
+    )
 
 finally:
     server.shutdown()

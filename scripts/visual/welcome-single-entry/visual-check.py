@@ -1,6 +1,7 @@
 """Verify welcome-single-entry layouts in headless Chrome using synthetic IPC data."""
 
 import http.server
+import json
 import subprocess
 import threading
 from pathlib import Path
@@ -87,6 +88,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 try:
+    captures = []
     for name, width, height, lang, dark in [
         ("welcome-light", 1100, 800, "en", False),
         ("welcome-dark-active", 1100, 800, "zh-CN", True),
@@ -102,7 +104,18 @@ try:
             str(height),
             "dark" if dark else "light",
         ]
-        subprocess.run(cmd, check=True, timeout=40)
+        captures.append(cmd[2:])
+    subprocess.run(
+        [
+            "node",
+            str(root / "scripts/visual/capture-runner.mjs"),
+            str(Path(__file__).with_name("visual-capture.mjs")),
+            json.dumps(captures),
+            "40",
+        ],
+        check=True,
+        timeout=40 * len(captures) + 10,
+    )
 
 finally:
     server.shutdown()

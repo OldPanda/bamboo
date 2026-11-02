@@ -1,0 +1,22 @@
+name: Select required checks
+on:
+  workflow_call:
+    outputs:
+      scope:
+        description: Full native validation unless a website-only diff is proven
+        value: ${{ jobs.scope.outputs.scope }}
+permissions:
+  contents: read
+jobs:
+  scope:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        run: python3 scripts/ci_scope.py

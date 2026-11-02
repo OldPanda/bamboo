@@ -241,19 +241,17 @@ function harness({
       const id = Number(path.split("/")[2]),
         checkRun = state[id];
       return {
-        total_count: 1,
-        jobs: [
-          {
-            name:
-              id === 2001
-                ? "PR quality gate"
-                : "Website build and browser checks",
-            run_id: id,
-            head_sha: checkRun.head_sha,
-            status: "completed",
-            conclusion: "success",
-          },
-        ],
+        total_count: id === 2001 ? 1 : 2,
+        jobs: (id === 2001
+          ? ["PR quality gate"]
+          : ["desktop (ubuntu-22.04)", "desktop (windows-2025)"]
+        ).map((name) => ({
+          name,
+          run_id: id,
+          head_sha: checkRun.head_sha,
+          status: "completed",
+          conclusion: "success",
+        })),
       };
     }
     if (path.startsWith("releases/tags/")) return release;

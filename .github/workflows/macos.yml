@@ -4,6 +4,17 @@ name: macOS checks
 # Keeping this workflow callable-only avoids running the suite twice.
 on:
   workflow_call:
+    inputs:
+      version:
+        type: string
+        default: ""
+    outputs:
+      candidate-id:
+        description: Immutable artifact from this run's verified macOS package
+        value: ${{ jobs.quality.outputs.candidate-id }}
+      candidate-sha256:
+        description: Digest of the verified disk image
+        value: ${{ jobs.quality.outputs.candidate-sha256 }}
 
 permissions:
   contents: read
@@ -13,6 +24,9 @@ jobs:
     name: macOS arm64 checks
     runs-on: macos-26
     timeout-minutes: 60
+    outputs:
+      candidate-id: ${{ steps.candidate.outputs.artifact-id }}
+      candidate-sha256: ${{ steps.provenance.outputs.sha256 }}
     env:
       GOTOOLCHAIN: go1.27.3
       GOMAXPROCS: "3"
@@ -22,6 +36,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Select exact package version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$REQUESTED_VERSION" ]; then export BAMBOO_VERSION="$REQUESTED_VERSION"; fi
+          version=$(python3 scripts/release_version.py)
+          echo "BAMBOO_VERSION=$version" >> "$GITHUB_ENV"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "22.23.4"
@@ -57,7 +78,11 @@ jobs:
         run: |
           npm run package:dmg
           BAMBOO_VERSION="$(python3 scripts/release_version.py)" python3 scripts/verify-macos-package.py --launch
+      - name: Record candidate identity
+        id: provenance
+        run: python3 scripts/macos_candidate.py record
       - name: Upload verified macOS candidate
+        id: candidate
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: macos-candidate-${{ github.run_attempt }}
@@ -79,10 +104,10 @@ jobs:
         run: npm run coverage:ci
       - name: Headless visual regressions
         run: |
+          node --test scripts/visual/browser.test.mjs
           for check in scripts/visual/*/visual-check.py; do
             python3 "$check"
           done
-          npm run test:website
       - name: All production-size performance cases
         run: npm run test:perf -- --runs 1 --output artifacts/performance/ci
       - name: Upload test evidence

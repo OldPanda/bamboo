@@ -7,32 +7,60 @@ on:
   merge_group:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      version:
+        type: string
+        default: ""
+    outputs:
+      candidate-id:
+        description: Verified macOS candidate artifact ID
+        value: ${{ jobs.macos.outputs.candidate-id }}
+      candidate-sha256:
+        description: Verified macOS DMG digest
+        value: ${{ jobs.macos.outputs.candidate-sha256 }}
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  scope:
+    uses: ./.github/workflows/scope.yml
+
+  website:
+    name: Website
+    uses: ./.github/workflows/website.yml
+
   macos:
     name: macOS
+    needs: scope
+    if: needs.scope.outputs.scope != 'website'
     uses: ./.github/workflows/macos.yml
+    with:
+      version: ${{ inputs.version }}
 
   quality:
     # Preserve the existing status-check context for branch protection.
     name: PR quality gate
-    needs: macos
+    needs: [scope, macos, website]
     if: ${{ always() }}
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
-      - name: Require successful macOS checks
+      - name: Require every check selected for this source
         env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          SCOPE: ${{ needs.scope.outputs.scope }}
           MACOS_RESULT: ${{ needs.macos.result }}
+          WEBSITE_RESULT: ${{ needs.website.result }}
         run: |
-          if [ "$MACOS_RESULT" != success ]; then
-            echo "::error::macOS checks did not succeed ($MACOS_RESULT)."
-            exit 1
-          fi
+          test "$SCOPE_RESULT" = success
+          test "$WEBSITE_RESULT" = success
+          case "$SCOPE" in
+            full) test "$MACOS_RESULT" = success ;;
+            website) test "$MACOS_RESULT" = skipped ;;
+            *) exit 1 ;;
+          esac

@@ -15,7 +15,8 @@ const catalogPath = "website/downloads.json";
 // Read Actions runs belonging to these workflows, not arbitrary same-name checks.
 const requiredWorkflows = [
   ["ci.yml", "PR quality gate"],
-  ["website.yml", "Website build and browser checks"],
+  ["desktop-x64.yml", "desktop (ubuntu-22.04)"],
+  ["desktop-x64.yml", "desktop (windows-2025)"],
 ];
 
 /** Bound and paginate repository API collections; truncation is never success. */
@@ -385,7 +386,7 @@ export async function synchronize({
         head: branch,
         base: "main",
         title: `chore(website): synchronize ${catalog.tag} downloads`,
-        body: `All five public packages passed SHA-256 and size verification after [Release run](https://github.com/${repository}/actions/runs/${runID}).\n\nOpening this pull request runs the normal CI and Website checks on its head; the sync waits for those required checks and then merges through the protected PR API. Cloudflare Pages deploys main through its existing Git integration.`,
+        body: `All five public packages passed SHA-256 and size verification after [Release run](https://github.com/${repository}/actions/runs/${runID}).\n\nOpening this pull request runs the scope-aware CI (including Website checks) and desktop summaries on its head; the sync waits for those required checks and then merges through the protected PR API. Cloudflare Pages deploys main through its existing Git integration.`,
       });
     assert(
       pr.state === "open",
