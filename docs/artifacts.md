@@ -40,15 +40,19 @@ python3 scripts/visual/welcome-single-entry/visual-check.py
 python3 scripts/visual/general-compact/visual-check.py
 ```
 
-Each check creates its own directory under `artifacts/visual/` for PNG and JSON
-results. It finds the project and its capture helper relative to the script, so
+Each check creates its own directory under `artifacts/visual/` for PNG/JSON
+results and bounded browser diagnostics. A fixture group shares one headless
+browser; each capture gets an isolated context, with all assertions retained. It finds the project and its capture helper relative to the script, so
 no original developer home directory or pre-existing artifact directory is needed.
 
 ## Release package evidence
 
-PR CI builds native candidate packages and verifies their installed production
-startup on disposable runners. The release workflow repeats these checks and
-then downloads the actual hosted packages for all three platforms. macOS checks
+Application PR CI builds native candidate packages and verifies their installed
+production startup on disposable runners. Website-only PRs run website checks
+and scope summaries instead. A release runs the complete suite, reuses its own
+verified macOS DMG for signing, and then downloads the actual hosted packages
+for all three platforms. See [CI scheduling](ci-workflows.md) for transfer identity,
+clean rebuild fallback and the non-publishing candidate dispatch. macOS checks
 also validate the DMG and signed appcast with the committed public key, inspect
 the mounted bundle read-only, and compare the configured latest-feed bytes when
 GitHub identifies the verified tag as the latest release. Rerunning an older

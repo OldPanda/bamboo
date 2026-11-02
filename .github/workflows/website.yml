@@ -1,25 +1,12 @@
 name: Website
 
+# CI owns pull-request/main/merge-queue triggers and aggregates this result.
 on:
-  pull_request:
-    paths:
-      - "website/**"
-      - ".github/workflows/website.yml"
-      - ".github/workflows/release-website.yml"
-  push:
-    branches: [main]
-    paths:
-      - "website/**"
-      - ".github/workflows/website.yml"
-      - ".github/workflows/release-website.yml"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: website-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 jobs:
   verify:

@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ["v[0-9]*"]
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: Exercise digest-mismatch rebuild fallback (never publish)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,13 +21,14 @@ jobs:
   quality:
     name: Release quality gate
     uses: ./.github/workflows/ci.yml
+    with:
+      version: ${{ github.event_name == 'push' && github.ref_name || '' }}
 
   desktop:
     name: Build Windows and Linux packages
-    needs: quality
     uses: ./.github/workflows/desktop-x64.yml
     with:
-      version: ${{ github.ref_name }}
+      version: ${{ github.event_name == 'push' && github.ref_name || '' }}
 
   build:
     name: Build macOS DMG
@@ -29,7 +36,6 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     env:
-      BAMBOO_VERSION: ${{ github.ref_name }}
       GOTOOLCHAIN: go1.27.3
       GOMAXPROCS: "3"
     outputs:
@@ -52,17 +58,56 @@ jobs:
           cache: false
       - name: Validate tag version
         id: version
-        run: python3 scripts/release_version.py --github-output "$GITHUB_OUTPUT"
-      - name: Build app and installer
+        env:
+          REQUESTED_VERSION: ${{ github.event_name == 'push' && github.ref_name || '' }}
+        run: |
+          if [ -n "$REQUESTED_VERSION" ]; then export BAMBOO_VERSION="$REQUESTED_VERSION"; fi
+          version=$(python3 scripts/release_version.py --github-output "$GITHUB_OUTPUT")
+          echo "BAMBOO_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Download verified candidate by immutable ID
+        if: needs.quality.outputs.candidate-id != ''
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          artifact-ids: ${{ needs.quality.outputs.candidate-id }}
+          merge-multiple: true
+          path: build/candidate
+      - name: Verify real reuse before the deliberate mismatch
+        if: inputs.rebuild
+        env:
+          DOWNLOAD_RESULT: ${{ steps.download.outcome }}
+          CANDIDATE_SHA256: ${{ needs.quality.outputs.candidate-sha256 }}
+        run: |
+          test "$DOWNLOAD_RESULT" = success
+          python3 scripts/macos_candidate.py restore
+          python3 scripts/verify-macos-package.py
+      - name: Verify candidate identity or select rebuild
+        id: candidate
+        env:
+          CANDIDATE_SHA256: ${{ inputs.rebuild && '0000000000000000000000000000000000000000000000000000000000000000' || (steps.download.outcome == 'success' && needs.quality.outputs.candidate-sha256 || '') }}
+        run: python3 scripts/macos_candidate.py restore
+      - name: Require deliberate mismatch rejection
+        if: inputs.rebuild
+        env:
+          REUSED: ${{ steps.candidate.outputs.reused }}
+        run: test "$REUSED" = false
+      - name: Build app and installer when candidate cannot be reused
+        if: steps.candidate.outputs.reused != 'true'
         run: |
           test "$(uname -m)" = arm64
-          npm ci
+          npm ci --prefer-offline
           python3 -m pip install -r requirements-build.txt
           go mod download go.duckdb.org/libduckdb/darwin-arm64
           npm run build
           git diff --exit-code -- frontend/src/mygo.ts
           npm run package:dmg
+          python3 scripts/verify-macos-package.py --launch
+      - name: Prepare pinned signing tools
+        if: github.event_name == 'push'
+        run: python3 scripts/prepare-sparkle.py
       - name: Sign archive and update feed
+        if: github.event_name == 'push'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: python3 scripts/sign-appcast.py
@@ -75,12 +120,18 @@ jobs:
           else
             printf '%s\n' "macOS Apple Silicon (arm64). This build is ad-hoc signed and is not Apple-notarized." > build/releases/release-notes.md
           fi
-      - name: Verify signed DMG and installed startup
-        run: python3 scripts/verify-macos-package.py --feed --launch
+      - name: Verify transferred package and optional signed feed
+        env:
+          SIGNED: ${{ github.event_name == 'push' }}
+        run: |
+          args=()
+          if [ "$SIGNED" = true ]; then args+=(--feed); fi
+          python3 scripts/verify-macos-package.py "${args[@]}"
       - name: Upload verified installer
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: macos-installer
+          overwrite: true
           path: build/releases/*
           if-no-files-found: error
           retention-days: 7
@@ -130,7 +181,11 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    needs: [build, desktop]
+    needs: [quality, build, desktop]
+    if: >-
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.quality.result == 'success' && needs.build.result == 'success' &&
+      needs.desktop.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
