@@ -73,6 +73,13 @@ jobs:
           artifact-ids: ${{ needs.quality.outputs.candidate-id }}
           merge-multiple: true
           path: build/candidate
+      - name: Verify real reuse before the deliberate mismatch
+        if: inputs.rebuild && steps.download.outcome == 'success'
+        env:
+          CANDIDATE_SHA256: ${{ needs.quality.outputs.candidate-sha256 }}
+        run: |
+          python3 scripts/macos_candidate.py restore
+          python3 scripts/verify-macos-package.py
       - name: Verify candidate identity or select rebuild
         id: candidate
         env:
