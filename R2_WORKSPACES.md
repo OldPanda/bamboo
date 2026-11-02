@@ -21,8 +21,26 @@ ORDER BY a.order_id
 - Credentials are stored through the native macOS Security framework under Bamboo's Keychain service. They are absent from JSON settings, SQL and logs; the form clears inputs on submit/close. Unlock or approve Keychain access if macOS requests it. Rebuilding an ad-hoc signed app can cause macOS to request access again.
 - Metadata and SQL are stored in `~/Library/Application Support/Bamboo/r2-workspaces.json` with private file permissions and atomic replacement. No metadata is written into the bucket.
 - Queries execute locally. Each query obtains current metadata, then reads selected byte ranges guarded by ETag/If-Match. It does not silently fall back to downloading entire objects. There is no persistent object cache. Different queries may observe newer versions; multiple objects do not form a transactional snapshot.
+
 - A random, short-lived loopback capability gateway exposes only the exact objects referenced in a query. DuckDB receives no R2 credentials. Its allowed paths are those exact URLs; external access and configuration remain locked, persistent secret loading is disabled, and arbitrary file/network URLs are rejected. The gateway permits only HEAD and ranged GET; upstream transfers use chunks of at most 8 MiB. Queries expire after 15 seconds and retain existing output/memory limits.
 - Source objects are read-only. Bamboo implements no remote upload/delete/rename operations. Prefix restrictions are enforced by Bamboo; Cloudflare's Object Read credentials are scoped to buckets.
+
+Workspace queries may retain validated range blocks for the same exact object
+set for 30 idle seconds. Each new scope still performs signed HEAD requests and
+uses new random gateway URLs and a new DuckDB connection. Object key, size and
+ETag must match; access denial, credential/location changes, closing or forgetting
+the connection clears retained blocks. A failed new scope leaves an existing
+reader's lease usable, then releases those blocks when that reader closes.
+All readers share a 64 MiB retained-payload
+budget and a separate 32 MiB in-flight-fetch budget, with at most 256 entries per
+cache. A full shared budget can cause uncached reads. These limits exclude native
+engine memory and buffers still being sent after eviction; they do not cap RSS.
+
+工作区查询可在空闲 30 秒内复用已验证的对象分块，但每次仍重新进行签名 HEAD 请求，
+创建新的本地网关和数据库连接。所有读取器共享 64 MiB 保留缓存及独立的 32 MiB
+传输缓冲预算；权限拒绝、凭据或位置变更、关闭及删除连接会清理缓存。它们不是
+应用总内存上限，也不提供跨对象事务快照。新查询范围的验证失败不会中断已有读取器；
+该读取器关闭时会立即清理相应分块，不再保留。
 
 ## Validation and limits
 

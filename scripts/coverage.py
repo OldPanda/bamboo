@@ -61,17 +61,22 @@ def sources():
 def run(args, log, *, cwd=ROOT, env=None, timeout=300):
     """Run a command with a deadline and preserve its combined output in a log."""
     print("+", " ".join(map(str, args)), flush=True)
-    result = subprocess.run(
-        args,
-        cwd=cwd,
-        env=env or ENV,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=timeout,
-    )
-    (OUT / log).write_text(result.stdout)
-    print(result.stdout, end="", flush=True)
+    path = OUT / log
+    with path.open("w") as output:
+        try:
+            result = subprocess.run(
+                args,
+                cwd=cwd,
+                env=env or ENV,
+                text=True,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                timeout=timeout,
+            )
+        finally:
+            # Preserve diagnostics even when subprocess.run kills a timeout.
+            output.flush()
+            print(path.read_text(), end="", flush=True)
     result.check_returncode()
 
 
@@ -85,7 +90,8 @@ def smoke(
     frontend_url=None,
     launch_args=None,
     extra_env=None,
-    expected_checks=39,
+    expected_checks=49,
+    timeout=45,
 ):
     """Run native desktop checks and validate the emitted IPC and layout report."""
     destination.mkdir(parents=True, exist_ok=True)
@@ -107,7 +113,7 @@ def smoke(
         str(destination.relative_to(OUT) / "process.log"),
         cwd=cwd,
         env=env,
-        timeout=45,
+        timeout=timeout,
     )
     result = json.loads(report_path.read_text())
     if expected:
@@ -214,7 +220,10 @@ def main():
         )
         run([str(ROOT / "build/bamboo-fixtures"), str(fixture_dir)], "fixtures.log")
         fixture = fixture_dir / "orders.parquet"
-        smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop)
+        # Full single-file acceptance includes 2048-column layout/zoom/selection
+        # plus native screenshots. Match the bounded Windows/Linux allowance;
+        # individual failure fixtures and smaller smoke phases retain 45 seconds.
+        smoke(ROOT / "build/bamboo-covered", fixture, ROOT, desktop, timeout=120)
         with tempfile.TemporaryDirectory(prefix="bamboo-display-config-") as config:
             for phase, count in [("display", 7), ("display-restore", 6)]:
                 smoke(
@@ -397,6 +406,7 @@ def main():
             ROOT,
             OUT / "app-desktop",
             covered=False,
+            timeout=120,
         )
         run(
             ["codesign", "--verify", "--deep", "--strict", "build/Bamboo.app"],

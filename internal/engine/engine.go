@@ -80,24 +80,28 @@ type Result struct {
 
 // Engine has one active operation and a separately cancellable context.
 type Engine struct {
-	gate         chan struct{}
-	mu           sync.Mutex
-	cancel       context.CancelFunc
-	db           *database
-	resources    Resources
-	file         *File
-	resolve      func(string) (string, error)
-	textOptions  func(string) (datafile.TextOptions, error)
-	httpfs       string
-	remote       RemoteResolver
-	remoteRef    string
-	remoteScope  *RemoteScope
-	remoteKeep   *RemoteScope
-	remoteCancel context.CancelFunc
+	gate           chan struct{}
+	mu             sync.Mutex
+	cancel         context.CancelFunc
+	db             *database
+	resources      Resources
+	file           *File
+	resolve        func(string) (string, error)
+	textOptions    func(string) (datafile.TextOptions, error)
+	httpfs         string
+	remote         RemoteResolver
+	remoteRef      string
+	remoteScope    *RemoteScope
+	remoteKeep     *RemoteScope
+	remoteCancel   context.CancelFunc
+	workspaceReuse *workspaceReuse
+	workspaceRoot  string
 }
 
 // New creates an idle engine with default resource budgets.
-func New() *Engine { return &Engine{gate: make(chan struct{}, 1), resources: DefaultResources()} }
+func New() *Engine {
+	return &Engine{gate: make(chan struct{}, 1), resources: DefaultResources(), workspaceReuse: &workspaceReuse{}}
+}
 func (e *Engine) start(parent context.Context, query ...bool) (context.Context, func(), error) {
 	select {
 	case e.gate <- struct{}{}:
@@ -124,6 +128,9 @@ func (e *Engine) Cancel() {
 	}
 }
 func (e *Engine) dropKept() {
+	if e.workspaceReuse != nil {
+		e.workspaceReuse.close()
+	}
 	if e.remoteCancel != nil {
 		e.remoteCancel()
 		e.remoteCancel = nil
@@ -290,14 +297,26 @@ func (e *Engine) Query(parent context.Context, r Request) (*Result, error) {
 }
 
 // QueryWorkspace queries an explicitly selected folder without opening a document.
-func (e *Engine) QueryWorkspace(parent context.Context, r Request, resolve func(string) (string, error)) (*Result, error) {
+// Supplying its canonical root enables one short-lived Parquet catalog; the
+// resolver still authorizes every reference on every call. Other scopes stay fresh.
+func (e *Engine) QueryWorkspace(parent context.Context, r Request, resolve func(string) (string, error), roots ...string) (*Result, error) {
 	ctx, done, err := e.start(parent, true)
 	if err != nil {
 		return nil, err
 	}
 	defer done()
 	scoped := &Engine{resolve: resolve, resources: e.resources, textOptions: e.textOptions}
-	return scoped.run(ctx, r)
+	if len(roots) == 1 {
+		scoped.workspaceReuse = e.workspaceReuse
+		scoped.workspaceRoot = roots[0]
+	} else if e.workspaceReuse != nil {
+		e.workspaceReuse.close()
+	}
+	result, err := scoped.run(ctx, r)
+	if err != nil && scoped.workspaceReuse != nil {
+		scoped.workspaceReuse.close()
+	}
+	return result, err
 }
 func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output *Result, failure error) {
 	if e.file == nil && e.db == nil && e.resolve == nil && e.remote == nil {

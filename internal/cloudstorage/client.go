@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -143,10 +144,12 @@ type Client struct {
 	config      Config
 	credentials Credentials
 	http        *http.Client
+	reuseMu     sync.Mutex
+	reuseCache  *retainedRanges
 }
 
 func newClient(c Config, credentials Credentials) *Client {
-	return &Client{c, credentials, &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Transport: &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: 10 * time.Second, MaxIdleConnsPerHost: 4, IdleConnTimeout: 30 * time.Second}}}
+	return &Client{config: c, credentials: credentials, http: &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Transport: &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: 10 * time.Second, MaxIdleConnsPerHost: 4, IdleConnTimeout: 30 * time.Second}}}
 }
 func (c *Client) key(relative string) (string, error) {
 	if !validRelative(relative) {
@@ -299,7 +302,14 @@ type Scope struct {
 	Error   func() error
 }
 
-func (c *Client) scope(ctx context.Context, refs []string) (*Scope, error) {
+func (c *Client) scope(ctx context.Context, refs []string) (scope *Scope, failure error) {
+	// A metadata failure prevents later retention without revoking another
+	// scope's active lease. This scope has no lease until every HEAD succeeds.
+	defer func() {
+		if failure != nil && ctx.Err() == nil {
+			c.invalidateRangeRetention()
+		}
+	}()
 	objects := make([]Object, len(refs))
 	for i, ref := range refs {
 		if !strings.EqualFold(path.Ext(ref), ".parquet") {
@@ -328,14 +338,17 @@ func (c *Client) scope(ctx context.Context, refs []string) (*Scope, error) {
 		routes[p] = o
 		urls[i] = "http://" + listener.Addr().String() + p
 	}
+	ctx, cancelScope := context.WithCancel(ctx)
+	var failed atomic.Bool
 	errorsCh := make(chan error, 1)
 	record := func(e error) {
+		failed.Store(true)
 		select {
 		case errorsCh <- e:
 		default:
 		}
 	}
-	cache := newRangeCache(ctx)
+	cache, releaseCache := c.queryRangeCache(ctx, objects)
 	srv := &http.Server{ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 120 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		o, ok := routes[r.URL.Path]
 		if !ok || r.URL.RawQuery != "" || r.Host != listener.Addr().String() {
@@ -395,6 +408,7 @@ func (c *Client) scope(ctx context.Context, refs []string) (*Scope, error) {
 				sent = true
 			}
 			if _, e = w.Write(body); e != nil {
+				record(e)
 				return
 			}
 			position += int64(len(body))
@@ -402,7 +416,17 @@ func (c *Client) scope(ctx context.Context, refs []string) (*Scope, error) {
 	})}
 	go srv.Serve(listener)
 	var once sync.Once
-	closeScope := func() { once.Do(func() { cache.close(); srv.Close() }) }
+	closeScope := func() {
+		once.Do(func() {
+			invalid := ctx.Err() != nil || failed.Load()
+			cancelScope()
+			srv.Close()
+			if invalid {
+				c.discardRangeCache(cache)
+			}
+			releaseCache()
+		})
+	}
 	stop := context.AfterFunc(ctx, closeScope)
 	return &Scope{URLs: urls, Objects: objects, Close: func() { stop(); closeScope() }, Error: func() error {
 		select {

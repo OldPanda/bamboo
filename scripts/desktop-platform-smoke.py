@@ -49,7 +49,12 @@ def main():
             check=True,
         )
     report = json.loads((output / "desktop-smoke.json").read_text())
-    if report.get("error") or not report.get("result"):
+    if (
+        report.get("error")
+        or not report.get("result")
+        # Windows/Linux omit macOS's unavailable native-updater invocation.
+        or len(report["result"]["checks"]) != 48
+    ):
         raise SystemExit(f"Native UI acceptance failed: {report}")
     for phase in ["display", "display-restore"]:
         destination = output / phase
