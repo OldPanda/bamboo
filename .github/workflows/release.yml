@@ -74,10 +74,12 @@ jobs:
           merge-multiple: true
           path: build/candidate
       - name: Verify real reuse before the deliberate mismatch
-        if: inputs.rebuild && steps.download.outcome == 'success'
+        if: inputs.rebuild
         env:
+          DOWNLOAD_RESULT: ${{ steps.download.outcome }}
           CANDIDATE_SHA256: ${{ needs.quality.outputs.candidate-sha256 }}
         run: |
+          test "$DOWNLOAD_RESULT" = success
           python3 scripts/macos_candidate.py restore
           python3 scripts/verify-macos-package.py
       - name: Verify candidate identity or select rebuild
@@ -85,6 +87,11 @@ jobs:
         env:
           CANDIDATE_SHA256: ${{ inputs.rebuild && '0000000000000000000000000000000000000000000000000000000000000000' || (steps.download.outcome == 'success' && needs.quality.outputs.candidate-sha256 || '') }}
         run: python3 scripts/macos_candidate.py restore
+      - name: Require deliberate mismatch rejection
+        if: inputs.rebuild
+        env:
+          REUSED: ${{ steps.candidate.outputs.reused }}
+        run: test "$REUSED" = false
       - name: Build app and installer when candidate cannot be reused
         if: steps.candidate.outputs.reused != 'true'
         run: |
