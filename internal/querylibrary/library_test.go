@@ -212,7 +212,8 @@ func TestPrivateLibraryFailuresAndCapacity(t *testing.T) {
 		if err := s.Save(scope, "SELECT 1", false); err != nil {
 			t.Fatal(err)
 		}
-		testutil.DenyRead(t, dir)
+		// A protected child file does not inherit a directory-listing denial on Windows.
+		testutil.DenyRead(t, s.path)
 		if _, err := New(dir).Entries(); err == nil {
 			t.Fatal("read denial ignored")
 		}

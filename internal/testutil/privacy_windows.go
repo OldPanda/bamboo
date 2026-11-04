@@ -38,7 +38,7 @@ func Private(t *testing.T, path string, _ os.FileMode) {
 	}
 }
 
-// DenyRead denies directory listing to this user and restores its original ACL.
+// DenyRead denies file reads or directory listing and restores the original ACL.
 func DenyRead(t *testing.T, path string) {
 	t.Helper()
 	// Elevated runners may carry an enabled backup privilege, which bypasses
@@ -69,7 +69,7 @@ func DenyRead(t *testing.T, path string) {
 	denyAccess(t, path, "FR")
 	if f, err := os.Open(path); err == nil {
 		f.Close()
-		t.Fatal("test directory ACL failed to deny read access")
+		t.Fatal("test ACL failed to deny read access")
 	}
 }
 
