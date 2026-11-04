@@ -1,6 +1,18 @@
 /** Verify the source card's rendered motion and reduced-motion fallback in Chrome. */
 import assert from "node:assert/strict";
 
+/** Reject the outgoing or transient empty document, even on same-URL navigation. */
+export function flowPageReady(url) {
+  const root = document.documentElement;
+  return Boolean(
+    root &&
+    !root.dataset.flowTestLeaving &&
+    location.href === url &&
+    document.readyState === "complete" &&
+    document.querySelectorAll(".flow-dot").length === 4,
+  );
+}
+
 export async function checkFlow({ send, evaluate, origin, screenshot }) {
   const results = [];
   for (const width of [1280, 320]) {
@@ -19,11 +31,14 @@ export async function checkFlow({ send, evaluate, origin, screenshot }) {
           ],
         });
         const url = `${origin}/${language}/`;
+        await evaluate(
+          "if (document.documentElement) document.documentElement.dataset.flowTestLeaving = 'true'",
+        );
         await send("Page.navigate", { url });
         let ready = false;
         for (let attempt = 0; attempt < 100; attempt++) {
           ready = await evaluate(
-            `location.href === ${JSON.stringify(url)} && document.readyState === 'complete' && document.querySelectorAll('.flow-dot').length === 4`,
+            `(${flowPageReady.toString()})(${JSON.stringify(url)})`,
           );
           if (ready) break;
           await new Promise((done) => setTimeout(done, 30));
