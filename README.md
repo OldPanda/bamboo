@@ -1,3 +1,5 @@
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 <div align="center">
 
 <img src="assets/bamboo.png" width="112" height="112" alt="Bamboo logo" />
@@ -29,13 +31,13 @@ Query with DuckDB, without importing your data into a database.
 
 ## Quick start
 
-Download [Bamboo 0.2.0](https://github.com/OldPanda/bamboo/releases/tag/v0.2.0) for your platform:
+Download the [latest release](https://github.com/OldPanda/bamboo/releases/latest) for your platform:
 
-| Platform            | Download and install                                                                                                                                                                                                                                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| macOS Apple Silicon | [DMG](https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-macOS-arm64.dmg) — drag Bamboo into Applications.                                                                                                                                                                                   |
-| Windows x64         | Run the [setup EXE](https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-windows-x64-setup.exe), or extract the portable [ZIP](https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-windows-x64.zip).                                                                      |
-| Linux x64           | Install the [DEB](https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-linux-x64.deb) on Ubuntu 22.04+ / compatible Debian desktops, or extract the [tar.gz](https://github.com/OldPanda/bamboo/releases/download/v0.2.0/Bamboo-0.2.0-linux-x64.tar.gz) with the required libraries installed. |
+| Platform            | Download and install                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS Apple Silicon | [DMG](https://getbamboo.app/en/#download-macos) — drag Bamboo into Applications.                                                                                                                                    |
+| Windows x64         | Run the [setup EXE](https://getbamboo.app/en/#download-windows), or extract the portable [ZIP](https://getbamboo.app/en/#download-windows).                                                                         |
+| Linux x64           | Install the [DEB](https://getbamboo.app/en/#download-linux) on Ubuntu 22.04+ / compatible Debian desktops, or extract the [tar.gz](https://getbamboo.app/en/#download-linux) with the required libraries installed. |
 
 See the [installation guide](docs/first-install.md) for system requirements and first-launch instructions. Each package has a SHA-256 checksum on the release page.
 
