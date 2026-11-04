@@ -22,7 +22,7 @@ globalThis.mygo={on:()=>()=>{},call:async(method,...args)=>{
  if(method==='Workbench.RestoreWorkspaces')return {workspaces:[],warning:''};
  if(method==='Workbench.ListConnections')return [];
  if(method==='Workbench.InitialFile')return '';
- if(method==='Workbench.Open')return {path:'/example/sample.parquet',name:'sample.parquet',rows:'3',bytes:'1000',rowGroups:'1',columns};
+ if(method==='Workbench.Open'){libraryAudit.opens=(libraryAudit.opens||0)+1;return {path:'/example/sample.parquet',name:'sample.parquet',rows:'3',bytes:'1000',rowGroups:'1',columns};}
  if(method==='Workbench.QueryLibrary')return entries;
  if(method==='Workbench.SaveNamedQuery' || method==='Workbench.RenameSavedQuery'){
   libraryAudit.calls++;

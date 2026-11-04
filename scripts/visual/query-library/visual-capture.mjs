@@ -53,9 +53,34 @@ try {
     initial.role !== "DIALOG"
   )
     throw Error("Panel blocks work " + JSON.stringify(initial));
+  const checkShortcuts = async () => {
+    for (const modifiers of [2, 4]) {
+      for (const [key, code, n] of [
+        ["Enter", "Enter", 13],
+        ["o", "KeyO", 79],
+      ])
+        for (const type of ["keyDown", "keyUp"])
+          await send("Input.dispatchKeyEvent", {
+            type,
+            key,
+            code,
+            modifiers,
+            windowsVirtualKeyCode: n,
+          });
+    }
+    const calls = await evaluate(
+      "({queries:libraryAudit.queries,opens:libraryAudit.opens})",
+    );
+    if (calls.queries !== 1 || calls.opens !== 1)
+      throw Error(
+        "Dialog allowed application shortcut: " + JSON.stringify(calls),
+      );
+  };
+  await checkShortcuts();
   await evaluate(
     "document.querySelector('#library-save').click(); document.querySelector('#library-name').value='Daily <img> total'",
   );
+  await checkShortcuts();
   await enter();
   await waitFor("!!libraryAudit.finish");
   const pending = await evaluate(
@@ -177,6 +202,7 @@ try {
     draftProtected: true,
     openDidNotExecute: true,
     namingAndRename: true,
+    applicationShortcutsBlocked: true,
   };
   const scheme = await send("Runtime.evaluate", {
     expression: `matchMedia('(prefers-color-scheme: dark)').matches`,

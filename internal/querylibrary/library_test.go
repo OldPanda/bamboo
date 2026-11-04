@@ -345,3 +345,36 @@ func TestNamedQueriesAndLegacyCompatibility(t *testing.T) {
 		t.Fatal("overwrote unreadable settings")
 	}
 }
+
+func TestNamedSavePreservesHistoryRecency(t *testing.T) {
+	s := New(t.TempDir())
+	scope := QueryScope{Kind: "file", Path: "/f"}
+	for i := range 100 {
+		if err := s.Save(scope, fmt.Sprintf("SELECT %d", i), false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldest := s.data.Entries[99]
+	if err := s.SaveNamed(scope, oldest.SQL, "Oldest saved query"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Save(scope, "SELECT 100", false); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := New(filepath.Dir(s.path)).Entries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldestRetained, secondOldestRetained := false, false
+	for _, e := range entries {
+		if e.ID == oldest.ID {
+			oldestRetained = e.Favorite && !e.History && e.Updated == oldest.Updated
+		}
+		if e.SQL == "SELECT 1" {
+			secondOldestRetained = e.History
+		}
+	}
+	if !oldestRetained || !secondOldestRetained {
+		t.Fatal("saving a title changed execution recency or evicted a newer run")
+	}
+}

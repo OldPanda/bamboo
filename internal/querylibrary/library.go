@@ -205,6 +205,13 @@ func (s *Store) save(scope QueryScope, sql string, favorite bool, name *string) 
 		e.Name = *name
 	}
 	entries = append([]QueryEntry{e}, entries...)
+	// Naming or saving an old query must not change execution recency. Sort the
+	// bounded snapshot before eviction, including states written by older builds.
+	slices.SortStableFunc(entries, func(a, b QueryEntry) int {
+		at, _ := time.Parse(time.RFC3339Nano, a.Updated)
+		bt, _ := time.Parse(time.RFC3339Nano, b.Updated)
+		return bt.Compare(at)
+	})
 	count := 0
 	for i := range entries {
 		if entries[i].History {

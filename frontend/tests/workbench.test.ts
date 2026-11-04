@@ -3832,3 +3832,28 @@ it("records only explicit successful runs and restores saved SQL as an unexecute
     bridge.call.mock.calls.filter(([n]) => n === "Workbench.RememberQuery"),
   ).toHaveLength(remembered);
 });
+
+it("blocks application run and open shortcuts while searching or naming queries", async () => {
+  await open();
+  for (const field of ["library-search", "library-name"]) {
+    if (field === "library-search") await click("query-history");
+    else {
+      await click("favorite-query");
+      await vi.waitFor(() => expect($("library-name-form").hidden).toBe(false));
+    }
+    $(field).focus();
+    const before = bridge.call.mock.calls.filter(([name]) =>
+      ["Workbench.Query", "Workbench.Open"].includes(name),
+    ).length;
+    for (const modifiers of [{ ctrlKey: true }, { metaKey: true }])
+      for (const name of ["Enter", "o", "O"])
+        expect(key(name, modifiers).defaultPrevented).toBe(true);
+    await settled();
+    expect(
+      bridge.call.mock.calls.filter(([name]) =>
+        ["Workbench.Query", "Workbench.Open"].includes(name),
+      ),
+    ).toHaveLength(before);
+    $("library-close").click();
+  }
+});

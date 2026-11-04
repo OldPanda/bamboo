@@ -2455,7 +2455,8 @@ document.addEventListener("keydown", (e) => {
       analysisDialog.open ||
       settingsDialog.open ||
       connectionPicker.open ||
-      exportDialog.open) &&
+      exportDialog.open ||
+      $<HTMLDialogElement>("query-library").open) &&
     (e.metaKey || e.ctrlKey) &&
     ["o", "enter"].includes(e.key.toLowerCase())
   ) {
