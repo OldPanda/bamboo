@@ -224,6 +224,12 @@ The header's translation icon opens a native language dropdown for Chinese and E
 
 The SQL feature card shows a text-based SQL example with theme-aware keyword and literal highlighting. It is an illustrative code sample, not an App screenshot or an interactive editor. The main product image remains an actual native App capture.
 
+The source card uses CSS motion paths to illustrate Query → Bamboo followed by
+local, S3 and R2 in turn. It makes no storage requests. Reduced-motion preferences
+keep the original static diagram without pulses. Browser checks sample the real
+card at desktop and 320px widths in both languages and themes, including pulse
+order, circular proportions, SVG containment and the reduced-motion fallback.
+
 The English native captures are recorded under `localizedCaptures.en` in the screenshot provenance. They use the same generated fixture and real SQL result as the Chinese captures, in a separate temporary English configuration. Website verification compares all displayed native screenshot bytes against the correct language/theme hashes after each language switch.
 
 ## Search and sharing
