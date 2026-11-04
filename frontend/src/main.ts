@@ -28,6 +28,7 @@ import {
 } from "./i18n";
 import { onFileDrop } from "mygo-runtime";
 import "./style.css";
+import { QueryLibrary } from "./query-library";
 import { attachSQLGhost } from "./sql-ghost";
 import { attachResourceSlider } from "./resource-slider";
 import { updateWideTable } from "./result-table";
@@ -67,10 +68,12 @@ app.innerHTML = `
     </div>
   </section>
   <section id="workspace" hidden>
+    <button id="query-history" class="query-history-edge" aria-haspopup="dialog" aria-controls="query-library" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg><span>Query history</span></button>
     <div class="file-heading"><div class="file-identity"><h1 id="file-name"></h1><p id="file-path"></p></div><div class="metrics" aria-label="File metadata"><div><strong id="row-count">—</strong><span>rows</span></div><div><strong id="metric-columns">—</strong><span>columns</span></div><div><strong id="file-size">—</strong><span>file size</span></div><div><strong id="row-groups">—</strong><span>row groups</span></div></div></div>
     <div id="text-info" class="text-info" hidden><span id="text-summary"></span><button id="text-options" class="quiet" aria-haspopup="dialog" aria-controls="text-dialog">Reading options</button></div>
     <nav class="tabs" aria-label="Views"><button id="tab-explore" class="active" aria-selected="true">Explore Data</button><button id="tab-schema" aria-selected="false">Schema</button><span id="query-badge">data</span></nav>
-    <div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span id="query-scope">Read-only / table: data</span></label><button id="reset-sql" class="quiet">Reset</button></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p id="workspace-table-help">Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><div class="sql-input-wrap"><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea></div><div class="editor-footer"><span>Ctrl / ⌘ + Enter to run <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
+    <div id="query-work-area" class="query-work-area"><div id="sql-panel" class="sql-panel"><div class="editor-header"><label for="sql">Query editor <span id="query-scope">Read-only / table: data</span></label><div class="editor-actions"><button id="favorite-query" class="quiet">Save query</button><button id="reset-sql" class="quiet">Reset</button></div></div><details id="workspace-tables" class="workspace-tables" hidden><summary>Workspace tables</summary><p id="workspace-table-help">Use <code>data</code> for the current file, or insert a workspace table below to JOIN or UNION files. Expand folders in the sidebar to see more tables. Only this workspace is available.</p><div id="workspace-table-list"></div></details><div class="sql-input-wrap"><textarea id="sql" spellcheck="false" aria-label="SQL query">SELECT * FROM data</textarea></div><div class="editor-footer"><span>Ctrl / ⌘ + Enter to run <small id="query-save" hidden></small></span><button id="run" class="primary">Run query</button></div></div>
+    <div id="query-library-host" hidden></div></div>
     <div id="data-panel" class="data-panel">
       <form id="filter-form" class="toolbar"><label class="filter-field">Column<select id="filter-column" aria-label="Filter column"><option value="">Choose a column</option></select></label><label class="filter-field">Contains<input id="filter-value" aria-label="Filter value" placeholder="Text to match"></label><button id="apply-filter" type="submit">Apply filter</button><button id="clear-filter" type="button" class="quiet">Clear</button><span class="toolbar-spacer"></span><label>Rows <select id="page-size" aria-label="Rows per page"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></form>
       <div id="grid-scroll" class="grid-scroll" tabindex="0" aria-label="Query results"><table id="grid"><thead></thead><tbody></tbody></table><div id="empty-result" class="empty-result" hidden>No matching rows.<small>Try another filter or query.</small></div></div>
@@ -1831,6 +1834,7 @@ function notify(
   n.hidden = false;
 }
 function controls() {
+  queryLibrary?.update(busy);
   pruneTranslations();
   $("settings-cancel").hidden = !busy;
   $("analysis-cancel").hidden = !busy;
@@ -1842,6 +1846,7 @@ function controls() {
       | HTMLTextAreaElement
     >("button,input,select,textarea")
     .forEach((n) => {
+      if (n.closest("#query-library")) return;
       if (n.matches("#grid th button")) {
         // Native disabled buttons lose keyboard focus before an async sort
         // finishes. task() already guards activation while work is in flight.
@@ -1855,6 +1860,10 @@ function controls() {
           n.id !== "settings-cancel" &&
           n.id !== "analysis-cancel";
     });
+  $("favorite-query").toggleAttribute(
+    "disabled",
+    busy || !queryScope() || !$<HTMLTextAreaElement>("sql").value.trim(),
+  );
   updateControls();
   $("previous").toggleAttribute(
     "disabled",
@@ -1937,6 +1946,7 @@ function setView(next: string) {
     b.setAttribute("aria-selected", String(name === view));
   }
   $("sql-panel").hidden = view === "schema";
+  $("query-work-area").hidden = view === "schema";
   $("data-panel").hidden = view === "schema";
   $("schema-panel").hidden = view !== "schema";
 }
@@ -2155,6 +2165,27 @@ $("open").onclick = () => {
 $("cancel").onclick = () => void Workbench.cancel();
 for (const name of ["explore", "schema"])
   $(`tab-${name}`).onclick = () => setView(name);
+function queryScope() {
+  return file
+    ? { kind: "file", path: file.path }
+    : folder
+      ? { kind: "workspace", path: folder.root }
+      : undefined;
+}
+const queryLibrary = new QueryLibrary(
+  queryScope,
+  () => $<HTMLTextAreaElement>("sql").value,
+  (sql) => {
+    setView("explore");
+    $<HTMLTextAreaElement>("sql").value = sql;
+    queryEdited();
+    $<HTMLTextAreaElement>("sql").focus();
+  },
+  (message, error) => notify(message, error),
+  () => $<HTMLTextAreaElement>("sql").value !== appliedSQL,
+);
+$("query-history").onclick = () => queryLibrary!.toggle();
+$("favorite-query").onclick = () => void queryLibrary!.saveCurrent();
 $("run").onclick = () =>
   void task("Running query…", async () => {
     const sql = $<HTMLTextAreaElement>("sql").value;
@@ -2168,6 +2199,18 @@ $("run").onclick = () =>
       filterValue: "",
     });
     appliedSQL = sql;
+    const scope = queryScope();
+    if (scope) {
+      try {
+        await Workbench.rememberQuery(scope, sql);
+      } catch (error) {
+        notify(
+          "Query succeeded, but history could not be saved: {error}",
+          true,
+          { error: String(error) },
+        );
+      }
+    }
     await saveQuery();
     $<HTMLInputElement>("filter-value").value = "";
   });

@@ -436,3 +436,13 @@ func (e *Engine) run(ctx context.Context, r Request, stream ...RowSink) (output 
 	out.ElapsedMS = time.Since(started).Milliseconds()
 	return out, nil
 }
+
+// CurrentPath returns the active file identity without opening or reading a source.
+func (e *Engine) CurrentPath() string {
+	e.gate <- struct{}{}
+	defer func() { <-e.gate }()
+	if e.file == nil {
+		return ""
+	}
+	return e.file.Path
+}

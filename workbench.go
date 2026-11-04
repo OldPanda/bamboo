@@ -4,6 +4,7 @@ import (
 	"bamboo/internal/cloudstorage"
 	"bamboo/internal/engine"
 	"bamboo/internal/privatefs"
+	"bamboo/internal/querylibrary"
 	"bamboo/internal/workspace"
 	"context"
 	"encoding/csv"
@@ -28,6 +29,8 @@ type fileDialogs interface {
 
 // Workbench exposes local files, cloud workspaces, bounded queries and appearance.
 type Workbench struct {
+	libraryMu     sync.Mutex
+	queries       *querylibrary.Store
 	updates       updateService
 	engine        *engine.Engine
 	remote        *cloudstorage.Store

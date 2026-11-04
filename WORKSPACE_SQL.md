@@ -98,3 +98,5 @@ hard link on the destination filesystem. Filesystems without hard-link support
 are rejected; choose another destination. Failures and cancellation remove the
 partial file, and cleanup errors are reported. A process crash may leave a hidden
 `.bamboo-export-partial-*` file, never a falsely complete destination file.
+
+See [Query history and saved queries](docs/query-history.md) for private local SQL recall.

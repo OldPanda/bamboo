@@ -124,6 +124,21 @@ export interface Query {
   applied: string;
 }
 
+export interface QueryEntry {
+  name?: string;
+  id: string;
+  scope: QueryScope;
+  sql: string;
+  updated: string;
+  history: boolean;
+  favorite: boolean;
+}
+
+export interface QueryScope {
+  kind: string;
+  path: string;
+}
+
 export interface Request {
   sql: string;
   offset: number;
@@ -200,6 +215,10 @@ export const Workbench = {
   /** Cancel interrupts the active query or cloud operation. */
   cancel(): Promise<void> {
     return call("Workbench.Cancel");
+  },
+  /** ChangeSavedQuery changes membership or deletes local entries without touching data files. */
+  changeSavedQuery(id: string, action: string): Promise<void> {
+    return call("Workbench.ChangeSavedQuery", id, action);
   },
   /** CheckForUpdates opens the native signed-update flow, preserving work until consent. */
   checkForUpdates(): Promise<void> {
@@ -338,9 +357,24 @@ export const Workbench = {
   query(r: Request): Promise<Result | null> {
     return call("Workbench.Query", r);
   },
+  /** QueryLibrary lists local history and favorites without opening sources or executing SQL. */
+  queryLibrary(): Promise<QueryEntry[]> {
+    return call("Workbench.QueryLibrary");
+  },
   /** QueryWorkspace runs a read-only query limited to the selected workspace. */
   queryWorkspace(root: string, r: Request): Promise<Result | null> {
     return call("Workbench.QueryWorkspace", root, r);
+  },
+  /**
+   * RememberQuery records only the exact successful, unfiltered first-page snapshot.
+   * The frontend invokes this after explicit Run, never after preview, sorting or pagination.
+   */
+  rememberQuery(scope: QueryScope, sql: string): Promise<void> {
+    return call("Workbench.RememberQuery", scope, sql);
+  },
+  /** RenameSavedQuery updates a saved title without changing its SQL or original source. */
+  renameSavedQuery(id: string, name: string): Promise<void> {
+    return call("Workbench.RenameSavedQuery", id, name);
   },
   /** RenameWorkspace changes a local or cloud workspace display name. */
   renameWorkspace(root: string, name: string): Promise<Info | null> {
@@ -357,6 +391,14 @@ export const Workbench = {
   /** RestoreWorkspaces reopens saved local and cloud workspaces with per-workspace warnings. */
   restoreWorkspaces(): Promise<Restored | null> {
     return call("Workbench.RestoreWorkspaces");
+  },
+  /** SaveFavorite saves a draft for its displayed source; it never executes or authorizes SQL. */
+  saveFavorite(scope: QueryScope, sql: string): Promise<void> {
+    return call("Workbench.SaveFavorite", scope, sql);
+  },
+  /** SaveNamedQuery saves a named editor snapshot without executing SQL. */
+  saveNamedQuery(scope: QueryScope, sql: string, name: string): Promise<void> {
+    return call("Workbench.SaveNamedQuery", scope, sql, name);
   },
   /** SaveR2Connection saves an R2 or S3 connection; the legacy IPC name is preserved. */
   saveR2Connection(root: string, input: ConnectInput): Promise<Info | null> {
