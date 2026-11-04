@@ -77,6 +77,12 @@ beforeEach(() => {
   delete document.body.dataset.ready;
   responses = {
     "Workbench.InitialFile": () => "",
+    "Workbench.RememberQuery": () => undefined,
+    "Workbench.SaveFavorite": () => undefined,
+    "Workbench.SaveNamedQuery": () => undefined,
+    "Workbench.RenameSavedQuery": () => undefined,
+    "Workbench.QueryLibrary": () => [],
+    "Workbench.ChangeSavedQuery": () => undefined,
     "Workbench.UpdateStatus": () => ({
       version: "0.1.0",
       available: true,
@@ -3745,4 +3751,109 @@ it("cancels analysis and recovers locally without losing the workspace", async (
   expect(close.defaultPrevented).toBe(false);
   await click("analysis-dismiss");
   expect($("grid").querySelectorAll("tbody tr")).toHaveLength(2);
+});
+
+it("records only explicit successful runs and restores saved SQL as an unexecuted draft", async () => {
+  await open();
+  expect(
+    bridge.call.mock.calls.filter(([n]) => n === "Workbench.RememberQuery"),
+  ).toHaveLength(0);
+  value("sql", "SELECT 9223372036854775807 FROM data");
+  await click("run");
+  expect(bridge.call).toHaveBeenCalledWith(
+    "Workbench.RememberQuery",
+    { kind: "file", path: dataFile().path },
+    "SELECT 9223372036854775807 FROM data",
+  );
+  await click("next");
+  expect(
+    bridge.call.mock.calls.filter(([n]) => n === "Workbench.RememberQuery"),
+  ).toHaveLength(1);
+  responses["Workbench.QueryLibrary"] = () => [
+    {
+      id: "one",
+      scope: { kind: "file", path: dataFile().path },
+      sql: "SELECT 'restored' FROM data",
+      updated: "2026-11-02T12:00:00Z",
+      history: true,
+      favorite: false,
+    },
+  ];
+  await click("tab-schema");
+  expect($("sql-panel").hidden).toBe(true);
+  await click("query-history");
+  await vi.waitFor(() =>
+    expect(document.querySelector("#library-open")).not.toBeNull(),
+  );
+  const queryCalls = bridge.call.mock.calls.filter(
+    ([n]) => n === "Workbench.Query",
+  ).length;
+  (document.querySelector("#library-open") as HTMLButtonElement).click();
+  if ($<HTMLTextAreaElement>("sql").value !== "SELECT 'restored' FROM data")
+    $("library-open").click();
+  expect($<HTMLTextAreaElement>("sql").value).toBe(
+    "SELECT 'restored' FROM data",
+  );
+  expect(
+    bridge.call.mock.calls.filter(([n]) => n === "Workbench.Query"),
+  ).toHaveLength(queryCalls);
+  expect($("sql-panel").hidden).toBe(false);
+  expect($("schema-panel").hidden).toBe(true);
+  await click("favorite-query");
+  await vi.waitFor(() => expect($("library-name-form").hidden).toBe(false));
+  value("library-name", "Restored report");
+  $("library-name-form").dispatchEvent(
+    new Event("submit", { bubbles: true, cancelable: true }),
+  );
+  await vi.waitFor(() =>
+    expect(bridge.call).toHaveBeenCalledWith(
+      "Workbench.SaveNamedQuery",
+      { kind: "file", path: dataFile().path },
+      "SELECT 'restored' FROM data",
+      "Restored report",
+    ),
+  );
+  responses["Workbench.RememberQuery"] = () => {
+    throw Error("history storage denied");
+  };
+  await click("run");
+  expect($("notification").textContent).toContain(
+    "Query succeeded, but history could not be saved",
+  );
+  expect($("grid").textContent).toContain("9223372036854775807");
+  const remembered = bridge.call.mock.calls.filter(
+    ([n]) => n === "Workbench.RememberQuery",
+  ).length;
+  responses["Workbench.Query"] = () => {
+    throw Error("bad SQL");
+  };
+  await click("run");
+  expect(
+    bridge.call.mock.calls.filter(([n]) => n === "Workbench.RememberQuery"),
+  ).toHaveLength(remembered);
+});
+
+it("blocks application run and open shortcuts while searching or naming queries", async () => {
+  await open();
+  for (const field of ["library-search", "library-name"]) {
+    if (field === "library-search") await click("query-history");
+    else {
+      await click("favorite-query");
+      await vi.waitFor(() => expect($("library-name-form").hidden).toBe(false));
+    }
+    $(field).focus();
+    const before = bridge.call.mock.calls.filter(([name]) =>
+      ["Workbench.Query", "Workbench.Open"].includes(name),
+    ).length;
+    for (const modifiers of [{ ctrlKey: true }, { metaKey: true }])
+      for (const name of ["Enter", "o", "O"])
+        expect(key(name, modifiers).defaultPrevented).toBe(true);
+    await settled();
+    expect(
+      bridge.call.mock.calls.filter(([name]) =>
+        ["Workbench.Query", "Workbench.Open"].includes(name),
+      ),
+    ).toHaveLength(before);
+    $("library-close").click();
+  }
 });

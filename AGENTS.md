@@ -52,6 +52,8 @@ resource use and a quiet, clear desktop experience.
 - On Windows, private files and spill directories require protected native ACLs;
   POSIX mode bits do not provide that protection. Permission-failure tests must
   use real ACL denials rather than skipping the checks or relying on `Chmod`.
+  Deny reads on the actual file: denying directory listing does not deny reads
+  to a known child path with its own protected ACL.
 - Render file names, data, errors and connection labels as text. Keep dynamic
   values out of HTML templates and preserve CSP and bridge/navigation controls.
 

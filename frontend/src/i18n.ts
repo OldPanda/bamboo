@@ -3,6 +3,75 @@ export type Language = "en" | "zh-CN";
 type Params = Record<string, string | number>;
 /** App-owned Chinese translations keyed by their English UI text. */
 export const chinese: Record<string, string> = {
+  "Query history": "查询记录",
+  "query name must contain 1–200 bytes on one line":
+    "查询名称须为单行文本，长度为 1–200 字节",
+  "Query saved locally.": "查询已保存在本机。",
+  "No queries match.": "没有匹配的查询。",
+  "Opened in editor. Run when ready.": "已填入编辑器，可在准备好后手动运行。",
+  "Your editor has changes. Replace them with this query?":
+    "编辑器中有未执行的修改，是否用此查询替换？",
+  "Replace draft": "替换草稿",
+  "Keep draft": "保留草稿",
+  "Delete query": "删除查询",
+  "Query name": "查询名称",
+  "Rename query": "重命名查询",
+  "Open the original source to use this query.":
+    "请先打开原数据源以使用此查询。",
+  "Open in editor": "打开到编辑器",
+  "SQL preview": "SQL 预览",
+  "Refresh queries": "刷新查询",
+  "Clear history for all sources? Saved queries are kept.":
+    "清空所有数据源的历史？已保存查询会保留。",
+  "Clear history": "清空历史",
+  "Search queries": "搜索查询",
+  "Collapse queries": "收起查询",
+  "Save query": "保存查询",
+  "Query collections": "查询分类",
+  Queries: "查询",
+  "Favorite saved locally.": "已在本机收藏查询。",
+  "History and favorites": "历史与收藏",
+  "Save favorite": "收藏查询",
+  "Query history and favorites": "查询历史与收藏",
+  "Close query library": "关闭查询历史与收藏",
+  "Restore puts SQL in the editor without running it. Queries stay bound to their original file or workspace.":
+    "恢复仅将 SQL 填入编辑器，不会执行。查询始终关联原文件或工作区。",
+  "Search saved SQL or source": "搜索 SQL 或数据源",
+  "Show queries": "显示查询",
+  History: "历史",
+  Favorites: "收藏",
+  "Current source only": "仅当前数据源",
+  "Reload saved queries": "重新加载查询",
+  "Clear all history": "清空全部历史",
+  "Confirm clear history": "确认清空历史",
+  "This clears history for all sources. Favorites are kept.":
+    "这将清空所有数据源的历史，收藏会保留。",
+  "Loading saved queries…": "正在加载查询…",
+  "No query library returned": "未返回查询历史",
+  "Could not load saved queries: {error}": "无法加载查询：{error}",
+  "Could not update saved queries: {error}": "无法更新查询：{error}",
+  "Could not save favorite: {error}": "无法收藏查询：{error}",
+  "Query succeeded, but history could not be saved: {error}":
+    "查询成功，但无法保存历史：{error}",
+  "No saved queries match.": "没有匹配的查询。",
+  "Restore to editor": "恢复到编辑器",
+  "Open the original source to restore this query.":
+    "请打开原数据源以恢复此查询。",
+  "Remove favorite": "取消收藏",
+  "Add favorite": "收藏",
+  "Delete saved query": "删除查询",
+  "query library could not be read; existing settings preserved":
+    "无法读取查询历史与收藏，原设置已保留",
+  "query library could not be saved": "无法保存查询历史与收藏",
+  "query library is full; remove saved queries": "查询存储已满，请删除部分查询",
+  "choose a source and SQL of at most 32768 bytes":
+    "请选择数据源，SQL 最多 32768 字节",
+  "maximum of 100 favorites reached": "最多可保存 100 个收藏",
+  "saved query no longer exists": "该查询已不存在",
+  "unknown query library action": "未知查询操作",
+  "query history requires the current successful query":
+    "历史仅可记录当前成功执行的查询",
+
   Analyze: "分析",
   "Analyze query result": "分析查询结果",
   "Uses the complete last successful query, including its filter. Sources are read again. No sampling.":

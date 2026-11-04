@@ -20,14 +20,18 @@ func Private(t *testing.T, path string, mode os.FileMode) {
 	}
 }
 
-// DenyRead makes a generated directory inaccessible until test cleanup.
+// DenyRead makes a generated file or directory unreadable until test cleanup.
 func DenyRead(t *testing.T, path string) {
 	t.Helper()
+	original, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Chmod(path, 0000); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if err := os.Chmod(path, 0700); err != nil {
+		if err := os.Chmod(path, original.Mode().Perm()); err != nil {
 			t.Error(err)
 		}
 	})

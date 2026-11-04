@@ -45,3 +45,7 @@ uses Unix owner-only modes and stores credentials via libsecret/Secret Service.
 A missing or locked Secret Service fails cloud credential operations without
 a plaintext fallback. Windows/Linux update checks are explicit release-page
 links; there is no background installation or relaunch.
+
+Query history and saved queries also store exact SQL and source identities in a private,
+unencrypted local settings file. Restoration never executes SQL or opens sources.
+See [Query history](docs/query-history.md) for retention, deletion and failure behavior.
