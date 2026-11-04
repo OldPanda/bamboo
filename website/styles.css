@@ -487,6 +487,64 @@ h1 {
 .source-links .route {
   stroke-dasharray: 3 3;
 }
+/* A single visible pulse follows one source route at a time: local, S3, R2. */
+.source-links .flow-dot {
+  fill: var(--accent);
+  stroke: none;
+  opacity: 0;
+  offset-rotate: 0deg;
+}
+.flow-query {
+  offset-path: path("M3 55H35");
+  animation: query-pulse 3s linear infinite;
+}
+.flow-local {
+  offset-path: path("M3 55C21 55 17 18 35 18");
+  animation: source-pulse 9s linear infinite;
+}
+.flow-s3 {
+  offset-path: path("M3 55H35");
+  animation: source-pulse 9s linear 3s infinite;
+}
+.flow-r2 {
+  offset-path: path("M3 55C21 55 17 92 35 92");
+  animation: source-pulse 9s linear 6s infinite;
+}
+@keyframes query-pulse {
+  0% {
+    opacity: 1;
+    offset-distance: 0%;
+  }
+  39.9% {
+    opacity: 1;
+    offset-distance: 100%;
+  }
+  40%,
+  100% {
+    opacity: 0;
+    offset-distance: 100%;
+  }
+}
+@keyframes source-pulse {
+  0%,
+  13.32% {
+    opacity: 0;
+    offset-distance: 0%;
+  }
+  13.34% {
+    opacity: 1;
+    offset-distance: 0%;
+  }
+  31.6% {
+    opacity: 1;
+    offset-distance: 100%;
+  }
+  31.61%,
+  100% {
+    opacity: 0;
+    offset-distance: 100%;
+  }
+}
 .source-destinations {
   display: grid;
   gap: 7px;
