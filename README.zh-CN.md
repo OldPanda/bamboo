@@ -16,6 +16,7 @@
 ![Windows x64](https://img.shields.io/badge/Windows-x64-111111)
 ![Linux x64](https://img.shields.io/badge/Linux-x64-111111?logo=linux&logoColor=white)
 [![MIT 许可证](https://img.shields.io/badge/license-MIT-111111)](LICENSE)
+
 [![已收录于 Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/bamboo)
 
 **[下载](https://github.com/OldPanda/bamboo/releases/latest)** · **[安装指南](https://getbamboo.app/zh/docs/#installation)** · **[官网源码与部署](website/README.md)** · **[文档](#文档)** · **[参与开发](CONTRIBUTING.md)** · **[安全](SECURITY.md)**
