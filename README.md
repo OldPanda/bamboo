@@ -16,6 +16,7 @@ Query with DuckDB, without importing your data into a database.
 ![Windows x64](https://img.shields.io/badge/Windows-x64-111111)
 ![Linux x64](https://img.shields.io/badge/Linux-x64-111111?logo=linux&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE)
+[![Listed on Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/bamboo)
 
 **[Download](https://github.com/OldPanda/bamboo/releases/latest)** · **[Installation guide](docs/first-install.md)** · **[Website source & deployment](website/README.md)** · **[Documentation](#documentation)** · **[Contributing](CONTRIBUTING.md)** · **[Security](SECURITY.md)**
 
