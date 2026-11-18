@@ -55,7 +55,7 @@ npm run build
 open build/Bamboo.app
 ```
 
-macOS 构建会按需下载 Go 1.27.3。本地 macOS 构建采用 ad-hoc 签名，未经公证。
+macOS 构建会按需下载 Go 1.27.4。本地 macOS 构建采用 ad-hoc 签名，未经公证。
 
 ## 文档
 

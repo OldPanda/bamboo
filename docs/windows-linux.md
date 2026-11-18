@@ -32,7 +32,7 @@ installs, or restarts on these platforms; automatic checking remains disabled.
 
 ## Build and verify
 
-Build on the target OS with Go 1.27.3, Node 22, Python 3.12, curl, and a native
+Build on the target OS with Go 1.27.4, Node 22, Python 3.12, curl, and a native
 C/C++ compiler. Windows uses MinGW-w64 GCC and NSIS. Linux also needs
 `libsecret-1-dev`, `pkg-config`, GTK 3, WebKitGTK 4.1, and `dpkg-deb`.
 

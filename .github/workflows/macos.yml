@@ -28,7 +28,7 @@ jobs:
       candidate-id: ${{ steps.candidate.outputs.artifact-id }}
       candidate-sha256: ${{ steps.provenance.outputs.sha256 }}
     env:
-      GOTOOLCHAIN: go1.27.3
+      GOTOOLCHAIN: go1.27.4
       GOMAXPROCS: "3"
       BAMBOO_LARGE_TEST: "1"
       BAMBOO_KEYCHAIN_TEST: "1"
