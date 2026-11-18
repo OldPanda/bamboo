@@ -289,6 +289,8 @@ export const chinese: Record<string, string> = {
   "Logical type": "逻辑类型",
   "Reading your file…": "正在读取文件…",
   Cancel: "取消",
+  "Canceling query…": "正在取消查询…",
+  "Query canceled.": "查询已取消。",
   "Export data": "导出数据",
   "Choose the result scope and format.": "选择导出范围和格式。",
   "Close export chooser": "关闭导出选项",

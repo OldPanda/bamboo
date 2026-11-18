@@ -88,6 +88,9 @@ func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result
 		return nil, errors.New("another operation is running")
 	}
 	defer w.opMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	result, err := w.engine.Query(ctx, r)
 	if err == nil {
 		w.mu.Lock()
@@ -98,6 +101,12 @@ func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result
 		w.mu.Unlock()
 	}
 	return result, err
+}
+
+// WaitForQuery waits for a canceled query to finish releasing its resources.
+func (w *Workbench) WaitForQuery() {
+	w.opMu.Lock()
+	w.opMu.Unlock()
 }
 
 // Cancel interrupts the active query or cloud operation.

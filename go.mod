@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.4
 	github.com/duckdb/duckdb-go/v2 v2.20000.0
-	github.com/egoist/mygo v0.6.4
+	github.com/egoist/mygo v0.9.2
 	golang.org/x/sync v0.24.0
 )
 
@@ -18,7 +18,7 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/klauspost/compress v1.18.3 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect

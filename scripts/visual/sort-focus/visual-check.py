@@ -10,7 +10,7 @@ root = Path(__file__).resolve().parents[3]
 out = root / "artifacts/visual/sort-focus"
 out.mkdir(parents=True, exist_ok=True)
 mock = r"""globalThis.sortAudit={calls:0,finish:null};
-globalThis.mygo={on:()=>()=>{},call:async(method,...args)=>{
+globalThis.mygo={on:()=>()=>{},callWith:async(method,args)=>{
  const columns=[{name:'id',type:'BIGINT'},{name:'竹子 \" <img>',type:'VARCHAR'}];
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
  if(method==='Workbench.Display')return {zoomPercent:100,dataFontSize:13};

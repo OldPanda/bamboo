@@ -213,6 +213,7 @@ const providerName = (provider: string) =>
 let file: DataFile | null = null;
 let result: Result | null = null;
 let busy = false;
+let activeQuery: AbortController | undefined;
 let view = "explore";
 let appliedSQL = "SELECT * FROM data";
 let request: Request = {
@@ -2138,13 +2139,24 @@ async function queryResult(next: Request) {
   return r;
 }
 async function run(next: Request) {
-  const r =
-    !file && folder
-      ? await Workbench.queryWorkspace(folder.root, next)
-      : await queryResult(next);
-  if (!r) throw new Error("No query result returned");
-  request = next;
-  render(r);
+  const controller = new AbortController();
+  activeQuery = controller;
+  const { signal } = controller;
+  try {
+    const r =
+      !file && folder
+        ? await Workbench.queryWorkspace.with({ signal })(folder.root, next)
+        : await Workbench.query.with({ signal })(next);
+    if (!r) throw new Error("No query result returned");
+    request = next;
+    render(r);
+  } catch (error) {
+    if (!signal.aborted) throw error;
+    await Workbench.waitForQuery();
+    throw new Error(t("Query canceled."));
+  } finally {
+    activeQuery = undefined;
+  }
 }
 async function open(path?: string) {
   await task("Opening data…", async () => {
@@ -2162,7 +2174,14 @@ $("open").onclick = () => {
   closeSources();
   void open();
 };
-$("cancel").onclick = () => void Workbench.cancel();
+$("cancel").onclick = () => {
+  if (activeQuery) {
+    activeQuery.abort();
+    setText($("busy-text"), "Canceling query…");
+  } else {
+    void Workbench.cancel();
+  }
+};
 for (const name of ["explore", "schema"])
   $(`tab-${name}`).onclick = () => setView(name);
 function queryScope() {

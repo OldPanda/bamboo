@@ -196,6 +196,9 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 		return nil, errors.New("another operation is running")
 	}
 	defer w.opMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if isRemoteWorkspace(root) {
 		result, err := w.engine.QueryRemoteWorkspace(ctx, r, w.remote.Resolver(root))
 		if err == nil {

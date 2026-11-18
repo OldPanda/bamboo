@@ -9,7 +9,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[3]
 out = root / "artifacts/visual/workspace-actions"
 out.mkdir(parents=True, exist_ok=True)
-mock = """globalThis.mygo={on:()=>()=>{},call:async(method,...args)=>{
+mock = """globalThis.mygo={on:()=>()=>{},callWith:async(method)=>{
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
  if(method==='Workbench.Resources')return {memoryMiB:28672,memoryAuto:!new URLSearchParams(location.search).has('custom'),tempGiB:4,timeoutSeconds:300};
  if(method==='Workbench.DiskLimits')return {detected:true,availableGiB:257,reserveGiB:1,maxTempGiB:256,autoTempGiB:64};

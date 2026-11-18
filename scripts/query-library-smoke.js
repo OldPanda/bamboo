@@ -33,7 +33,7 @@ if (workspacePhase === "restart") {
   const scope = { kind: "file", path: file.path };
   const sql =
     "SELECT 9223372036854775807::BIGINT AS exact, '<img onerror=x>' AS text, NULL AS missing, '' AS empty FROM data";
-  const page = await call("Query", {
+  const request = {
     sql,
     offset: 0,
     limit: 100,
@@ -41,7 +41,26 @@ if (workspacePhase === "restart") {
     desc: false,
     filterColumn: "",
     filterValue: "",
-  });
+  };
+  const signal = AbortSignal.timeout(50);
+  let canceled = false;
+  try {
+    await mygo.callWith(
+      "Workbench.Query",
+      [
+        {
+          ...request,
+          sql: "SELECT sum(a.i*b.i) FROM range(1000000) a(i), range(1000000) b(i)",
+        },
+      ],
+      { signal },
+    );
+  } catch (error) {
+    canceled = error === signal.reason;
+  }
+  assert(canceled, "native query call rejects with its abort signal reason");
+  await call("WaitForQuery");
+  const page = await call("Query", request);
   assert(
     page.rows[0][0] === "9223372036854775807" &&
       page.rows[0][2] === null &&

@@ -9,7 +9,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[3]
 out = root / "artifacts/visual/text-input"
 out.mkdir(parents=True, exist_ok=True)
-mock = """globalThis.mygo={on:()=>()=>{},call:async(method)=>{
+mock = """globalThis.mygo={on:()=>()=>{},callWith:async(method)=>{
  const columns=[{name:'id',type:'BIGINT'}];
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
  if(method==='Workbench.Resources')return {memoryMiB:256,memoryAuto:false,tempGiB:0,timeoutSeconds:300};
