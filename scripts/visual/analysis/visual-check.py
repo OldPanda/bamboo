@@ -10,6 +10,7 @@ root = Path(__file__).resolve().parents[3]
 out = root / "artifacts/visual/analysis"
 out.mkdir(parents=True, exist_ok=True)
 mock = """globalThis.mygo={on:()=>()=>{},callWith:async(method)=>{
+ if(method==='Workbench.FinishQuery')return;
  const columns=[{name:'id',type:'BIGINT'}];
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
  if(method==='Workbench.Resources')return {memoryMiB:256,memoryAuto:false,tempGiB:0,timeoutSeconds:300};

@@ -52,6 +52,7 @@ if (workspacePhase === "restart") {
           ...request,
           sql: "SELECT sum(a.i*b.i) FROM range(1000000) a(i), range(1000000) b(i)",
         },
+        true,
       ],
       { signal },
     );
@@ -59,7 +60,7 @@ if (workspacePhase === "restart") {
     canceled = error === signal.reason;
   }
   assert(canceled, "native query call rejects with its abort signal reason");
-  await call("WaitForQuery");
+  await call("FinishQuery", false);
   const page = await call("Query", request);
   assert(
     page.rows[0][0] === "9223372036854775807" &&

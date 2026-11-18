@@ -261,6 +261,8 @@ export const Workbench = {
    * source queries or replacing the normal preview's export target.
    */
   exportPivotAs: bind<[string], string>("Workbench.ExportPivotAs", (format: string) => [format]),
+  /** FinishQuery waits for query cleanup and publishes a staged snapshot only if the page received it. */
+  finishQuery: bind<[boolean], void>("Workbench.FinishQuery", (accepted: boolean) => [accepted]),
   /** GetExportProgress can be polled while a full export owns the operation gate. */
   getExportProgress: bind<[], ExportProgress>("Workbench.GetExportProgress", () => []),
   /** InitialFile returns the optional local data path supplied at startup. */
@@ -296,11 +298,11 @@ export const Workbench = {
    */
   profileColumn: bind<[string], ColumnProfile | null>("Workbench.ProfileColumn", (column: string) => [column]),
   /** Query runs a preview and retains the successful page for export. */
-  query: bind<[Request], Result | null>("Workbench.Query", (r: Request) => [r]),
+  query: bind<[Request, ...boolean[]], Result | null>("Workbench.Query", (r: Request, ...staged: boolean[]) => [r, ...staged]),
   /** QueryLibrary lists local history and favorites without opening sources or executing SQL. */
   queryLibrary: bind<[], QueryEntry[]>("Workbench.QueryLibrary", () => []),
   /** QueryWorkspace runs a read-only query limited to the selected workspace. */
-  queryWorkspace: bind<[string, Request], Result | null>("Workbench.QueryWorkspace", (root: string, r: Request) => [root, r]),
+  queryWorkspace: bind<[string, Request, ...boolean[]], Result | null>("Workbench.QueryWorkspace", (root: string, r: Request, ...staged: boolean[]) => [root, r, ...staged]),
   /**
    * RememberQuery records only the exact successful, unfiltered first-page snapshot.
    * The frontend invokes this after explicit Run, never after preview, sorting or pagination.
@@ -347,6 +349,4 @@ export const Workbench = {
   testR2Connection: bind<[string], void>("Workbench.TestR2Connection", (root: string) => [root]),
   /** UpdateStatus returns update preferences and the currently installed version. */
   updateStatus: bind<[], Status>("Workbench.UpdateStatus", () => []),
-  /** WaitForQuery waits for a canceled query to finish releasing its resources. */
-  waitForQuery: bind<[], void>("Workbench.WaitForQuery", () => []),
 } as const;

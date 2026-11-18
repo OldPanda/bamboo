@@ -2142,21 +2142,27 @@ async function run(next: Request) {
   const controller = new AbortController();
   activeQuery = controller;
   const { signal } = controller;
+  let r: Result | null;
   try {
-    const r =
+    r =
       !file && folder
-        ? await Workbench.queryWorkspace.with({ signal })(folder.root, next)
-        : await Workbench.query.with({ signal })(next);
-    if (!r) throw new Error("No query result returned");
-    request = next;
-    render(r);
+        ? await Workbench.queryWorkspace.with({ signal })(
+            folder.root,
+            next,
+            true,
+          )
+        : await Workbench.query.with({ signal })(next, true);
   } catch (error) {
+    await Workbench.finishQuery(false);
     if (!signal.aborted) throw error;
-    await Workbench.waitForQuery();
     throw new Error(t("Query canceled."));
   } finally {
     activeQuery = undefined;
   }
+  await Workbench.finishQuery(r !== null);
+  if (!r) throw new Error("No query result returned");
+  request = next;
+  render(r);
 }
 async function open(path?: string) {
   await task("Opening data…", async () => {

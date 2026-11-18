@@ -12,6 +12,7 @@ out.mkdir(parents=True, exist_ok=True)
 mock = r"""globalThis.libraryAudit={calls:0,finish:null};
 globalThis.entries=[{id:'one',scope:{kind:'file',path:'/example/sample.parquet'},sql:"SELECT '<img onerror=x>', 9223372036854775807, NULL, '' FROM data",updated:'2026-11-02T12:00:00Z',history:true,favorite:false},{id:'legacy',scope:{kind:'file',path:'/example/sample.parquet'},sql:'SELECT count(*) FROM data',updated:'2026-11-01T12:00:00Z',history:false,favorite:true},{id:'other',name:'Other workspace',scope:{kind:'workspace',path:'/example/other'},sql:'SELECT * FROM workspace.data',updated:'2026-10-31T12:00:00Z',history:false,favorite:true}];
 globalThis.mygo={on:()=>()=>{},callWith:async(method,args)=>{
+ if(method==='Workbench.FinishQuery')return;
  const columns=[{name:'id',type:'BIGINT'},{name:'竹子 \" <img>',type:'VARCHAR'}];
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
  if(method==='Workbench.Display')return {zoomPercent:100,dataFontSize:13};

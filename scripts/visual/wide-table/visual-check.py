@@ -11,6 +11,7 @@ out = root / "artifacts/visual/wide-table"
 out.mkdir(parents=True, exist_ok=True)
 mock = r"""globalThis.sortAudit={calls:0,finish:null};
 globalThis.mygo={on:()=>()=>{},callWith:async(method,args)=>{
+ if(method==='Workbench.FinishQuery')return;
  const columns=Array.from({length:2048},(_,i)=>({name:'c'+i,type:i===1?'BIGINT':'VARCHAR'}));
  if(method==='Workbench.Language')return new URLSearchParams(location.search).get('lang')||'en';
  if(method==='Workbench.Display')return {zoomPercent:Number(new URLSearchParams(location.search).get('zoom')||100),dataFontSize:Number(new URLSearchParams(location.search).get('font')||13)};

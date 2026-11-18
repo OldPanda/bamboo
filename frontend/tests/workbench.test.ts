@@ -152,6 +152,7 @@ beforeEach(() => {
       rows: "9007199254740993",
     }),
     "Workbench.Cancel": () => undefined,
+    "Workbench.FinishQuery": () => undefined,
   };
   bridge.call.mockImplementation(async (name: string, ...args: any[]) => {
     if (!responses[name]) throw new Error(`Unexpected IPC ${name}`);
@@ -546,10 +547,12 @@ describe("the shipped page through its generated IPC binding", () => {
         reject = fail;
       });
     let release!: () => void;
-    responses["Workbench.WaitForQuery"] = () =>
-      new Promise<void>((resolve) => {
-        release = resolve;
-      });
+    responses["Workbench.FinishQuery"] = (accepted: boolean) =>
+      accepted
+        ? undefined
+        : new Promise<void>((resolve) => {
+            release = resolve;
+          });
     $("run").click();
     expect($("busy").hidden).toBe(false);
     expect($<HTMLButtonElement>("cancel").disabled).toBe(false);
@@ -560,7 +563,10 @@ describe("the shipped page through its generated IPC binding", () => {
     expect(bridge.call.mock.calls.length).toBe(count);
     $("cancel").click();
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    expect(bridge.call).toHaveBeenLastCalledWith("Workbench.WaitForQuery");
+    expect(bridge.call).toHaveBeenLastCalledWith(
+      "Workbench.FinishQuery",
+      false,
+    );
     expect(bridge.call).not.toHaveBeenCalledWith("Workbench.Cancel");
     expect($("busy").hidden).toBe(false);
     expect($("busy-text").textContent).toBe("Canceling query…");
@@ -1559,6 +1565,7 @@ it("queries without opening a file, keeps independent drafts, and returns to the
     expect.objectContaining({
       sql: 'SELECT * FROM workspace."orders.parquet"',
     }),
+    true,
   );
   expect(bridge.call).toHaveBeenCalledWith(
     "Workbench.SaveWorkspaceQuery",
@@ -1569,11 +1576,13 @@ it("queries without opening a file, keeps independent drafts, and returns to the
   );
   expect($<HTMLButtonElement>("export").disabled).toBe(false);
   await click("next");
-  expect(bridge.call).toHaveBeenLastCalledWith(
+  expect(bridge.call).toHaveBeenCalledWith(
     "Workbench.QueryWorkspace",
     "/analysis",
     expect.objectContaining({ offset: 100 }),
+    true,
   );
+  expect(bridge.call).toHaveBeenLastCalledWith("Workbench.FinishQuery", true);
   value("sql", "SELECT draft");
   $("sql").dispatchEvent(new Event("input"));
   await treeFile();
