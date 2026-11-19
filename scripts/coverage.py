@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts/coverage"
 ENV = {
     **os.environ,
-    "GOTOOLCHAIN": "go1.27.3",
+    "GOTOOLCHAIN": "go1.27.4",
     "BAMBOO_LARGE_TEST": "1",
     "BAMBOO_KEYCHAIN_TEST": "1",
 }

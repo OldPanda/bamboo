@@ -29,6 +29,7 @@ type fileDialogs interface {
 
 // Workbench exposes local files, cloud workspaces, bounded queries and appearance.
 type Workbench struct {
+	pendingQuery  *querySnapshot
 	libraryMu     sync.Mutex
 	queries       *querylibrary.Store
 	updates       updateService
@@ -47,6 +48,12 @@ type Workbench struct {
 	initial       string
 	configDir     string
 	dialogs       fileDialogs
+}
+
+type querySnapshot struct {
+	result  *engine.Result
+	request engine.Request
+	root    string
 }
 
 // InitialFile returns the optional local data path supplied at startup.
@@ -83,21 +90,42 @@ func (w *Workbench) OpenPath(ctx context.Context, path string) (*engine.File, er
 }
 
 // Query runs a preview and retains the successful page for export.
-func (w *Workbench) Query(ctx context.Context, r engine.Request) (*engine.Result, error) {
+func (w *Workbench) Query(ctx context.Context, r engine.Request, staged ...bool) (*engine.Result, error) {
 	if !w.opMu.TryLock() {
 		return nil, errors.New("another operation is running")
 	}
 	defer w.opMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	result, err := w.engine.Query(ctx, r)
 	if err == nil {
-		w.mu.Lock()
-		w.last = result
-		w.pivot = nil
-		w.lastRequest = r
-		w.lastRoot = ""
-		w.mu.Unlock()
+		w.saveQuerySnapshot(querySnapshot{result, r, ""}, staged)
 	}
 	return result, err
+}
+
+func (w *Workbench) saveQuerySnapshot(snapshot querySnapshot, staged []bool) {
+	if len(staged) > 0 && staged[0] {
+		w.pendingQuery = &snapshot
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.last = snapshot.result
+	w.pivot = nil
+	w.lastRequest = snapshot.request
+	w.lastRoot = snapshot.root
+}
+
+// FinishQuery waits for query cleanup and publishes a staged snapshot only if the page received it.
+func (w *Workbench) FinishQuery(accepted bool) {
+	w.opMu.Lock()
+	defer w.opMu.Unlock()
+	if accepted && w.pendingQuery != nil {
+		w.saveQuerySnapshot(*w.pendingQuery, nil)
+	}
+	w.pendingQuery = nil
 }
 
 // Cancel interrupts the active query or cloud operation.

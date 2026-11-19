@@ -4,7 +4,7 @@ Bamboo builds on **macOS arm64**, with native **Windows x64 and Linux x64** pack
 for native toolchains, installation requirements and acceptance commands.
 For macOS, install Xcode Command Line Tools,
 Node.js 22.23.4 (the CI version), Python 3.12 or newer, and Go with toolchain download support.
-The release helper pins Go 1.27.3. Run commands from the repository root.
+The release helper pins Go 1.27.4. Run commands from the repository root.
 Native builds also require a C++17 compiler, Make (MinGW Make on Windows),
 and CMake 3.31.6 from `requirements-build.txt`. Development setup below includes
 CMake; packaging-only environments can install that smaller requirements file.
@@ -17,7 +17,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m pip install -r requirements-build.txt
 mkdir -p build/tools
-GOTOOLCHAIN=go1.27.3 GOBIN="$PWD/build/tools" go install github.com/mgechev/revive@v1.17.1
+GOTOOLCHAIN=go1.27.4 GOBIN="$PWD/build/tools" go install github.com/mgechev/revive@v1.17.1
 ```
 
 The lint toolchain uses ESLint 10 with the existing recommended rule set and a

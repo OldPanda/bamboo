@@ -191,20 +191,18 @@ func (w *Workbench) openWorkspaceQuery(root string) (workspace.Query, error) {
 }
 
 // QueryWorkspace runs a read-only query limited to the selected workspace.
-func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Request) (*engine.Result, error) {
+func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Request, staged ...bool) (*engine.Result, error) {
 	if !w.opMu.TryLock() {
 		return nil, errors.New("another operation is running")
 	}
 	defer w.opMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if isRemoteWorkspace(root) {
 		result, err := w.engine.QueryRemoteWorkspace(ctx, r, w.remote.Resolver(root))
 		if err == nil {
-			w.mu.Lock()
-			w.last = result
-			w.pivot = nil
-			w.lastRequest = r
-			w.lastRoot = root
-			w.mu.Unlock()
+			w.saveQuerySnapshot(querySnapshot{result, r, root}, staged)
 		}
 		return result, err
 	}
@@ -213,12 +211,7 @@ func (w *Workbench) QueryWorkspace(ctx context.Context, root string, r engine.Re
 	}
 	result, err := w.engine.QueryWorkspace(ctx, r, func(relative string) (string, error) { return w.folders.Resolve(root, relative) }, root)
 	if err == nil {
-		w.mu.Lock()
-		w.last = result
-		w.pivot = nil
-		w.lastRequest = r
-		w.lastRoot = root
-		w.mu.Unlock()
+		w.saveQuerySnapshot(querySnapshot{result, r, root}, staged)
 	}
 	return result, err
 }

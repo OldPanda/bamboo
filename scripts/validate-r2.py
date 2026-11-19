@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts/r2"
 OUT.mkdir(parents=True, exist_ok=True)
-ENV = {**os.environ, "GOTOOLCHAIN": "go1.27.3"}
+ENV = {**os.environ, "GOTOOLCHAIN": "go1.27.4"}
 binary = ROOT / "build/bamboo-r2-validation"
 subprocess.run(
     [

@@ -1,9 +1,9 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { QueryEntry, QueryScope } from "../src/mygo";
 import { QueryLibrary } from "../src/query-library";
 import { setLanguage } from "../src/i18n";
 const call = vi.hoisted(() => vi.fn());
-vi.mock("mygo-runtime", () => ({ call }));
+afterEach(() => vi.unstubAllGlobals());
 const scope: QueryScope = { kind: "file", path: "/fixtures/<img>.parquet" };
 const entry = (id = "one", other = false): QueryEntry => ({
   id,
@@ -26,6 +26,9 @@ let restore: ReturnType<typeof vi.fn>,
   report: ReturnType<typeof vi.fn>,
   library: QueryLibrary;
 beforeEach(() => {
+  vi.stubGlobal("mygo", {
+    callWith: (method: string, args: unknown[]) => call(method, ...args),
+  });
   HTMLDialogElement.prototype.showModal = function () {
     this.open = true;
   };

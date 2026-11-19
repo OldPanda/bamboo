@@ -40,7 +40,11 @@ func main() {
  mygo.App.SetName("Bamboo Query IPC Test")
  mygo.App.SetActivationPolicy(mygo.ActivationPolicyProhibited)
  mygo.Bind(w)
- mygo.SetFrontend(fstest.MapFS{"index.html":&fstest.MapFile{Data:[]byte("<!doctype html><title>Isolated IPC fixture</title>")}})
+ client,err:=os.ReadFile("node_modules/mygo-runtime/dist/index.js");if err!=nil{panic(err)}
+ mygo.SetFrontend(fstest.MapFS{
+  "index.html":&fstest.MapFile{Data:[]byte("<!doctype html><title>Isolated IPC fixture</title>")},
+  "runtime.js":&fstest.MapFile{Data:client},
+ })
  mygo.App.WhenReady(func(){
   win:=mygo.NewWindow(mygo.WindowOptions{Title:"Invisible IPC fixture",Width:700,Height:520,Hidden:true,URL:"/"})
   go func(){
@@ -52,6 +56,8 @@ func main() {
     if err==nil&&value==true {ready=true;break};time.Sleep(50*time.Millisecond)
    }
    if !ready {panic("native bridge not ready")}
+   value,err:=win.Page().EvalContext(ctx,`const {bind}=await import("/runtime.js");return await bind("Workbench.Language",()=>[])();`)
+   if err!=nil||value!="en" {panic(fmt.Sprintf("native runtime binding: %v, %v",value,err))}
    script,err:=os.ReadFile(filepath.Join("scripts","query-library-smoke.js"));if err!=nil{panic(err)}
    directory,_:=json.Marshal(root);mode,_:=json.Marshal(phase)
    code:=fmt.Sprintf("const smokeDirectory=%s;const workspacePhase=%s;\n%s",directory,mode,script)
@@ -113,7 +119,7 @@ def main():
                     stderr=subprocess.STDOUT,
                 )
             result = json.loads(report.read_text())
-            if len(result["checks"]) != (10 if phase == "initial" else 5):
+            if len(result["checks"]) != (11 if phase == "initial" else 5):
                 raise RuntimeError("incomplete native IPC checks")
             source_file = fixture / "data/orders.parquet"
             digest = hashlib.sha256(source_file.read_bytes()).hexdigest()
@@ -126,7 +132,7 @@ def main():
         )
 
     (OUT / "latest.json").write_text(
-        json.dumps({"attempt": attempt.name, "checks": 15})
+        json.dumps({"attempt": attempt.name, "checks": 16})
     )
 
 

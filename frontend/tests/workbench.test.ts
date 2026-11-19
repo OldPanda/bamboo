@@ -6,14 +6,6 @@ const bridge = vi.hoisted(() => ({
   drop: undefined as
     undefined | ((event: { paths: string[]; x?: number; y?: number }) => void),
 }));
-vi.mock("mygo-runtime", () => ({
-  call: bridge.call,
-  onFileDrop: (
-    fn: (event: { paths: string[]; x?: number; y?: number }) => void,
-  ) => {
-    bridge.drop = fn;
-  },
-}));
 
 const columns = [
   { name: "id", type: "BIGINT" },
@@ -56,6 +48,31 @@ let responses: Record<string, (...args: any[]) => unknown>;
 let listeners: [string, EventListenerOrEventListenerObject][];
 
 beforeEach(() => {
+  vi.stubGlobal("mygo", {
+    callWith: (
+      method: string,
+      args: unknown[],
+      options?: { signal?: AbortSignal },
+    ) => {
+      const pending = bridge.call(method, ...args);
+      const signal = options?.signal;
+      if (!signal) return pending;
+      return new Promise((resolve, reject) => {
+        const abort = () => reject(signal.reason);
+        signal.addEventListener("abort", abort, { once: true });
+        void pending.then(resolve, reject).finally(() => {
+          signal.removeEventListener("abort", abort);
+        });
+      });
+    },
+    on: (
+      name: string,
+      listener: (event: { paths: string[]; x?: number; y?: number }) => void,
+    ) => {
+      if (name === "mygo:file-drop") bridge.drop = listener;
+      return () => {};
+    },
+  });
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value: function (this: HTMLDialogElement) {
@@ -135,6 +152,7 @@ beforeEach(() => {
       rows: "9007199254740993",
     }),
     "Workbench.Cancel": () => undefined,
+    "Workbench.FinishQuery": () => undefined,
   };
   bridge.call.mockImplementation(async (name: string, ...args: any[]) => {
     if (!responses[name]) throw new Error(`Unexpected IPC ${name}`);
@@ -153,6 +171,7 @@ afterEach(() => {
   for (const [type, listener] of listeners)
     document.removeEventListener(type, listener);
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 async function settled() {
   await vi.waitFor(() => expect($("busy").hidden).toBe(true));
@@ -527,6 +546,13 @@ describe("the shipped page through its generated IPC binding", () => {
       new Promise((_, fail) => {
         reject = fail;
       });
+    let release!: () => void;
+    responses["Workbench.FinishQuery"] = (accepted: boolean) =>
+      accepted
+        ? undefined
+        : new Promise<void>((resolve) => {
+            release = resolve;
+          });
     $("run").click();
     expect($("busy").hidden).toBe(false);
     expect($<HTMLButtonElement>("cancel").disabled).toBe(false);
@@ -536,12 +562,20 @@ describe("the shipped page through its generated IPC binding", () => {
     bridge.drop!({ paths: ["/another.parquet"] });
     expect(bridge.call.mock.calls.length).toBe(count);
     $("cancel").click();
-    expect(bridge.call).toHaveBeenLastCalledWith("Workbench.Cancel");
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    expect(bridge.call).toHaveBeenLastCalledWith(
+      "Workbench.FinishQuery",
+      false,
+    );
+    expect(bridge.call).not.toHaveBeenCalledWith("Workbench.Cancel");
+    expect($("busy").hidden).toBe(false);
+    expect($("busy-text").textContent).toBe("Canceling query…");
     reject(new Error("context canceled"));
+    release();
     await settled();
     expect($("grid").textContent).toBe(previous);
     expect($<HTMLButtonElement>("open").disabled).toBe(false);
-    expect($("notification").textContent).toBe("context canceled");
+    expect($("notification").textContent).toBe("Query canceled.");
     responses["Workbench.Query"] = () => page();
     await click("run");
     expect($("notification").hidden).toBe(true);
@@ -1531,6 +1565,7 @@ it("queries without opening a file, keeps independent drafts, and returns to the
     expect.objectContaining({
       sql: 'SELECT * FROM workspace."orders.parquet"',
     }),
+    true,
   );
   expect(bridge.call).toHaveBeenCalledWith(
     "Workbench.SaveWorkspaceQuery",
@@ -1541,11 +1576,13 @@ it("queries without opening a file, keeps independent drafts, and returns to the
   );
   expect($<HTMLButtonElement>("export").disabled).toBe(false);
   await click("next");
-  expect(bridge.call).toHaveBeenLastCalledWith(
+  expect(bridge.call).toHaveBeenCalledWith(
     "Workbench.QueryWorkspace",
     "/analysis",
     expect.objectContaining({ offset: 100 }),
+    true,
   );
+  expect(bridge.call).toHaveBeenLastCalledWith("Workbench.FinishQuery", true);
   value("sql", "SELECT draft");
   $("sql").dispatchEvent(new Event("input"));
   await treeFile();

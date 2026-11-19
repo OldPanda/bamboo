@@ -57,7 +57,7 @@ npm run build
 open build/Bamboo.app
 ```
 
-The macOS build downloads Go 1.27.3 as needed. Local macOS builds are ad-hoc signed, not notarized.
+The macOS build downloads Go 1.27.4 as needed. Local macOS builds are ad-hoc signed, not notarized.
 
 ## Documentation
 

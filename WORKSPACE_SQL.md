@@ -23,6 +23,9 @@ Click a workspace name in the sidebar to return to its independent editor. Each 
 
 Queries remain read-only. JOIN, UNION, CTEs, aggregation, result paging/filtering/sorting, cancellation, exact string/null values and page/full-result export use the existing path. File queries remain attached to their document; workspace queries are saved separately under the workspace. Opening a folder shows its workspace editor and retains any existing open documents.
 
+Cancel stops the current result query. Bamboo keeps the last successful page and
+waits for the backend to finish cleanup before enabling the next operation.
+
 ## Scope and resource behavior
 
 - Only the selected workspace (or the workspace owning the active file) is resolved. Independent sibling roots and outside files are unavailable. A nested directory is within its parent workspace; when the active document belongs to a separately opened nested root, references are relative to that more specific root.

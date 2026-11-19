@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export GOTOOLCHAIN=go1.27.3
+export GOTOOLCHAIN=go1.27.4
 if [ "$(uname -s)" != Darwin ]; then
   exec python3 scripts/build-desktop.py
 fi

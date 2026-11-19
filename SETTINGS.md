@@ -52,10 +52,17 @@ keeps a fixed outer size for a given viewport, scrolling inside; the editor and
 table retain their independent scrolling at large sizes. Invalid display settings
 fall back to normal size. Preferences are private in `display.json`.
 
+With MyGo 0.9.2, page pinch zoom and swipe navigation stay disabled by default.
+The saved 75–200% app zoom uses the separate native page-zoom API and remains
+available through Settings.
+
 “设置 → 通用 → 字号与缩放”提供 75–200% 应用缩放和 12–20 像素数据字号。默认
 为 100% 与 13 像素，SQL 编辑器比表格大 1 像素。保存后应用原生 WebView 缩放，
 失败时保留原显示；“重置显示设置”恢复并保存默认值。重启后自动恢复，设置内部、
 查询编辑器和表格保持可滚动。
+
+MyGo 0.9.2 默认关闭页面捏合缩放和滑动导航。设置中保存的 75–200% 应用缩放
+使用独立的原生页面缩放 API，仍可照常使用。
 
 Native CI runs `scripts/display-smoke.js` in two processes with isolated settings,
 verifying the actual native zoom factor, the effective viewport, maximum zoom,

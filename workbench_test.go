@@ -133,6 +133,36 @@ func TestWorkbenchCancelAndRecovery(t *testing.T) {
 	}
 }
 
+func TestFinishedQuerySnapshot(t *testing.T) {
+	w, _, _ := workbench(t)
+	ctx := context.Background()
+	if _, err := w.OpenPath(ctx, w.initial); err != nil {
+		t.Fatal(err)
+	}
+	previous := readPage(t, w, "SELECT 7")
+	previousRequest := w.lastRequest
+	nextRequest := engine.Request{SQL: "SELECT 8", Limit: 1}
+	next, err := w.Query(ctx, nextRequest, true)
+	if err != nil || next == nil {
+		t.Fatal("stage result", err)
+	}
+	if w.last != previous || w.lastRequest != previousRequest {
+		t.Fatal("staged query replaced the accepted snapshot")
+	}
+	w.FinishQuery(false)
+	if w.last != previous || w.lastRequest != previousRequest || w.pendingQuery != nil {
+		t.Fatal("late cancel changed the accepted snapshot")
+	}
+	next, err = w.Query(ctx, nextRequest, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.FinishQuery(true)
+	if w.last != next || w.lastRequest != nextRequest || w.pendingQuery != nil {
+		t.Fatal("accepted query did not update the snapshot")
+	}
+}
+
 func TestExportDialogAndSnapshot(t *testing.T) {
 	w, d, dir := workbench(t)
 	ctx := context.Background()
