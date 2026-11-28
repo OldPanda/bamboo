@@ -408,8 +408,6 @@ export const chinese: Record<string, string> = {
   Open: "已打开",
   Saved: "已保存",
   "Workspace open": "工作区已打开",
-  "Open connection": "打开连接",
-  "Edit connection": "编辑连接",
   "Delete connection": "删除连接",
   "Confirm deletion of {name}": "确认删除 {name}",
   "Delete “{name}”?": "删除“{name}”？",
